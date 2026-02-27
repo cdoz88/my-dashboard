@@ -112,34 +112,6 @@ export default function App() {
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
 
-  // --- FETCH DATA ON LOAD ---
-  useEffect(() => {
-    fetch(`${API_URL}?action=get_all`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.users) {
-           // Parse strings to strict booleans for UI
-           const mappedUsers = data.users.map(u => ({
-               ...u,
-               isAdmin: u.isAdmin == 1 || u.isAdmin === true,
-               canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
-               canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
-               canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
-           }));
-           setUsers(mappedUsers);
-        }
-        if(data.companies) setCompanies(data.companies);
-        if(data.projects) setProjects(data.projects);
-        if(data.tasks) setTasks(data.tasks);
-        if(data.expenses) setExpenses(data.expenses);
-        setIsLoading(false);
-      })
-      .catch(err => {
-        console.error("Failed to connect to API:", err);
-        setIsLoading(false);
-      });
-  }, []);
-
   // --- COMPUTE CURRENT USER & PERMISSIONS ---
   const currentUser = users.find(u => u.id === loggedInUserId);
 
