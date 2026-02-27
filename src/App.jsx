@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw
 } from 'lucide-react';
 
 // API Configuration
@@ -19,7 +19,7 @@ const iconMap = {
   Rocket, Code, Monitor, Heart, Star, Briefcase, FolderKanban,
   Users, Settings, Mail, Camera, Box, PenTool, Database, Cloud, 
   FileText, Zap, Compass, MapPin, Coffee, Music, ImageIcon, 
-  FileVideo, Shield, Target, Award, Crown, Upload
+  FileVideo, Shield, Target, Award, Crown, Upload, RefreshCw
 };
 const availableIcons = Object.keys(iconMap);
 
@@ -141,6 +141,32 @@ export default function App() {
     } catch (err) {
       console.error(`Error with ${action}:`, err);
     }
+  };
+
+  // --- GODADDY SYNC FUNCTION ---
+  const handleSyncGoDaddy = async (companyId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}?action=sync_godaddy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId })
+      });
+      const data = await response.json();
+      
+      if (data.error) {
+        alert("Sync Failed: " + data.error);
+      } else {
+        alert(`Successfully synced ${data.count} domains from GoDaddy!`);
+        // Refresh app data to show new domains immediately
+        const refresh = await fetch(`${API_URL}?action=get_all`);
+        const freshData = await refresh.json();
+        if(freshData.expenses) setExpenses(freshData.expenses);
+      }
+    } catch (err) {
+      alert("An error occurred during sync. Check your server connection.");
+    }
+    setIsLoading(false);
   };
 
   // --- CSV PARSING ENGINE ---
@@ -587,7 +613,6 @@ export default function App() {
                   <button onClick={() => setBudgetDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${budgetDisplayMode === 'timeline' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-100 hover:text-white hover:bg-emerald-500/50'}`}><CalendarClock size={16} /></button>
                </div>
                
-               {/* ALWAYS VISIBLE IMPORT BUTTON */}
                <label className={`${activeBudgetTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Expenses from CSV">
                  <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Import</span>
                  <input type="file" accept=".csv" className="hidden" disabled={activeBudgetTab === 'overview'} onClick={(e) => { if(activeBudgetTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeBudgetTab, false)} />
@@ -608,9 +633,19 @@ export default function App() {
                   <button onClick={() => setDomainDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'timeline' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><CalendarClock size={16} /></button>
                </div>
                
-               {/* ALWAYS VISIBLE IMPORT BUTTON */}
+               {/* NEW GODADDY SYNC BUTTON */}
+               {activeDomainTab !== 'overview' && (
+                 <button 
+                   onClick={() => handleSyncGoDaddy(activeDomainTab)}
+                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                   title="Sync with GoDaddy API"
+                 >
+                   <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
+                 </button>
+               )}
+
                <label className={`${activeDomainTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-700 hover:bg-teal-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Domains from CSV">
-                 <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Import</span>
+                 <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">CSV</span>
                  <input type="file" accept=".csv" className="hidden" disabled={activeDomainTab === 'overview'} onClick={(e) => { if(activeDomainTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeDomainTab, true)} />
                </label>
                
@@ -618,7 +653,7 @@ export default function App() {
                  onClick={() => openDomainModal(null, activeDomainTab === 'overview' ? '' : activeDomainTab)} 
                  className="bg-white text-teal-600 hover:bg-teal-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
                >
-                 <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Domain</span>
+                 <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Add</span>
                </button>
              </>
           )}
