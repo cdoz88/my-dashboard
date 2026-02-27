@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserSwitch
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserSwitch, LogOut
 } from 'lucide-react';
 
 // API Configuration
@@ -112,23 +112,6 @@ export default function App() {
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
 
-  // --- COMPUTE CURRENT USER & PERMISSIONS ---
-  let currentUser = users.find(u => u.id === loggedInUserId);
-  if (!currentUser && users.length > 0) currentUser = users[0]; // Fallback to first user
-  if (!currentUser) currentUser = { id: 'u_admin', name: 'Master Admin', isAdmin: true, canViewProjects: true, canViewBudget: true, canViewDomains: true, avatarUrl: '' }; // Emergency fallback
-
-  useEffect(() => {
-    if (currentUser && currentUser.id !== 'u_admin') {
-      localStorage.setItem('loggedInUserId', currentUser.id);
-    }
-  }, [currentUser]);
-
-  // Ensure user isn't stuck in an app they lost access to
-  useEffect(() => {
-    if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('projects');
-    if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
-  }, [currentUser, currentApp]);
-
   // --- FETCH DATA ON LOAD ---
   useEffect(() => {
     fetch(`${API_URL}?action=get_all`)
@@ -157,6 +140,25 @@ export default function App() {
       });
   }, []);
 
+  // --- COMPUTE CURRENT USER & PERMISSIONS ---
+  const currentUser = users.find(u => u.id === loggedInUserId);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('loggedInUserId', currentUser.id);
+    } else {
+      localStorage.removeItem('loggedInUserId');
+    }
+  }, [currentUser]);
+
+  // Ensure user isn't stuck in an app they lost access to
+  useEffect(() => {
+    if (currentUser) {
+      if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('projects');
+      if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
+    }
+  }, [currentUser, currentApp]);
+
   // --- API HELPER FUNCTION ---
   const sendToAPI = async (action, data) => {
     try {
@@ -168,6 +170,94 @@ export default function App() {
     } catch (err) {
       console.error(`Error with ${action}:`, err);
     }
+  };
+
+  // --- AUTHENTICATION SCREEN ---
+  const AuthScreen = () => {
+    const [email, setEmail] = useState('');
+    const [name, setName] = useState('');
+    const [isRegistering, setIsRegistering] = useState(false);
+
+    const handleAuth = (e) => {
+      e.preventDefault();
+      
+      if (isRegistering) {
+        if (!name.trim() || !email.trim()) return;
+        // Make them an admin automatically if they are the very first user in the system
+        const isFirstUser = users.length === 0;
+        const newUser = {
+           id: 'u' + Date.now(),
+           name: name,
+           email: email.toLowerCase(),
+           isAdmin: isFirstUser, 
+           canViewProjects: true,
+           canViewBudget: isFirstUser,
+           canViewDomains: isFirstUser,
+           avatarUrl: ''
+        };
+        setUsers([...users, newUser]);
+        setLoggedInUserId(newUser.id);
+        sendToAPI('save_user', newUser);
+      } else {
+        const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (existingUser) {
+          setLoggedInUserId(existingUser.id);
+        } else {
+          setIsRegistering(true); // Email not found, flip to registration mode
+        }
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 w-full max-w-md">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-lg shadow-blue-600/20">
+            <LayoutDashboard size={32} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-800 text-center mb-2">Control Room</h1>
+          <p className="text-slate-500 text-center mb-8">
+            {isRegistering ? "It looks like you're new! Let's get you set up." : "Enter your email to sign in."}
+          </p>
+
+          <form onSubmit={handleAuth} className="space-y-4">
+            {isRegistering && (
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
+                  placeholder="John Doe" 
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+              <input 
+                type="email" 
+                required 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
+                placeholder="you@company.com" 
+                disabled={isRegistering && email !== ''}
+              />
+            </div>
+            <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">
+              {isRegistering ? 'Create Account' : 'Continue'}
+            </button>
+          </form>
+
+          {isRegistering && (
+            <button onClick={() => setIsRegistering(false)} className="w-full mt-4 text-sm text-slate-500 hover:text-slate-700 font-medium">
+              Back to Sign In
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // --- GODADDY SYNC FUNCTION ---
@@ -561,10 +651,17 @@ export default function App() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
-  // --- ENFORCE PERMISSIONS ON COMPANIES ---
-  const visibleCompanies = companies.filter(c => currentUser.isAdmin || (c.userIds && c.userIds.includes(currentUser.id)));
 
   // --- UI COMPONENTS ---
+
+  // Stop rendering the app if we are not logged in! Show Auth Screen instead.
+  if (!isLoading && !currentUser) {
+    return <AuthScreen />;
+  }
+
+  // --- ENFORCE PERMISSIONS ON COMPANIES ---
+  const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
+
 
   const TopBar = () => {
     const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity';
@@ -672,6 +769,7 @@ export default function App() {
                   <button onClick={() => setDomainDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'timeline' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><CalendarClock size={16} /></button>
                </div>
                
+               {/* NEW GODADDY SYNC BUTTON */}
                {activeDomainTab !== 'overview' && (
                  <button 
                    onClick={() => handleSyncGoDaddy(activeDomainTab)}
@@ -884,10 +982,12 @@ export default function App() {
              <UserCircle size={28} className="text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
           )}
           <div className="flex flex-col items-start truncate text-left pr-2">
-            <span className="font-medium text-sm truncate w-full flex items-center gap-1">
-              {currentUser.name.split(' ')[0]} {currentUser.isAdmin && <Shield size={10} className="text-amber-500" title="Admin" />}
+            <span className="font-bold text-sm truncate w-full flex items-center gap-1.5 text-slate-200 group-hover:text-white transition-colors">
+              {currentUser.name.split(' ')[0]}
             </span>
-            <span className="text-[10px] text-slate-500 truncate w-full">My Profile</span>
+            <span className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 truncate w-full ${currentUser.isAdmin ? 'text-amber-500' : 'text-blue-400'}`}>
+              {currentUser.isAdmin ? 'Workspace Admin' : 'Team Member'}
+            </span>
           </div>
         </button>
 
@@ -1948,55 +2048,47 @@ export default function App() {
     );
   };
 
-  // --- MAIN RENDER ---
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500 flex-col gap-4">
-        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-        <p className="font-medium">Connecting to Database...</p>
-      </div>
-    );
-  }
-
+  // --- MODALS (Rendered over the app) ---
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col lg:flex-row">
-      
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
-      )}
-      
-      <div className={`fixed inset-y-0 left-0 z-40 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-200 ease-in-out pb-16 lg:pb-0`}>
-        <Sidebar />
-      </div>
-
-      <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
-        <TopBar />
+    <>
+      {/* THE MAIN APP RENDER */}
+      <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col lg:flex-row">
         
-        <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
-          {currentApp === 'projects' ? (
-            activeTab === 'mytasks' ? <DashboardView /> : 
-            activeTab === 'capacity' ? <TeamCapacityView /> : 
-            <ProjectView projectId={activeTab} />
-          ) : currentApp === 'budget' ? (
-            <BudgetDashboard />
-          ) : (
-            <DomainsDashboard />
-          )}
-        </main>
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
+        )}
+        
+        <div className={`fixed inset-y-0 left-0 z-40 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-200 ease-in-out pb-16 lg:pb-0`}>
+          <Sidebar />
+        </div>
 
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
-           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 -ml-2 transition-colors flex flex-col items-center gap-1 ${isMobileMenuOpen ? 'text-white' : 'hover:text-white'}`}>
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              <span className="text-[10px] font-medium tracking-wide">{isMobileMenuOpen ? 'Close' : 'Menu'}</span>
-           </button>
-           <button onClick={openProfileModal} className="p-1 -mr-1 hover:text-white transition-colors flex flex-col items-center gap-1">
-              {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} className="w-7 h-7 rounded-full border border-slate-600 object-cover" alt="Profile" /> : <UserCircle size={28} />}
-              <span className="text-[10px] font-medium tracking-wide">Profile</span>
-           </button>
+        <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+          <TopBar />
+          
+          <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
+            {currentApp === 'projects' ? (
+              activeTab === 'mytasks' ? <DashboardView /> : 
+              activeTab === 'capacity' ? <TeamCapacityView /> : 
+              <ProjectView projectId={activeTab} />
+            ) : currentApp === 'budget' ? (
+              <BudgetDashboard />
+            ) : (
+              <DomainsDashboard />
+            )}
+          </main>
+
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
+             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 -ml-2 transition-colors flex flex-col items-center gap-1 ${isMobileMenuOpen ? 'text-white' : 'hover:text-white'}`}>
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                <span className="text-[10px] font-medium tracking-wide">{isMobileMenuOpen ? 'Close' : 'Menu'}</span>
+             </button>
+             <button onClick={openProfileModal} className="p-1 -mr-1 hover:text-white transition-colors flex flex-col items-center gap-1">
+                {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} className="w-7 h-7 rounded-full border border-slate-600 object-cover" alt="Profile" /> : <UserCircle size={28} />}
+                <span className="text-[10px] font-medium tracking-wide">Profile</span>
+             </button>
+          </div>
         </div>
       </div>
-
-      {/* --- MODALS --- */}
 
       {/* TEAM MANAGEMENT MODAL (ADMIN ONLY) */}
       {isTeamModalOpen && currentUser.isAdmin && (
@@ -2038,7 +2130,7 @@ export default function App() {
                   
                   <div className="flex flex-col items-center gap-3 mb-8">
                     <div className="relative">
-                      {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
+                      {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
                       <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
                         <Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} />
                       </label>
@@ -2116,7 +2208,7 @@ export default function App() {
                    onClick={() => { setLoggedInUserId(u.id); setIsSwitchUserModalOpen(false); }}
                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${loggedInUserId === u.id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'}`}
                  >
-                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-10 h-10 rounded-full object-cover" /> : <UserCircle size={40} className="text-slate-300" />}
+                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-10 h-10 rounded-full object-cover bg-white" /> : <UserCircle size={40} className="text-slate-300" />}
                    <div className="text-left flex-1">
                      <div className="font-bold text-slate-800 flex items-center gap-1">
                         {u.name} {u.isAdmin && <Shield size={12} className="text-amber-500"/>}
@@ -2393,7 +2485,7 @@ export default function App() {
             </div>
             <form id="companyForm" onSubmit={handleSaveCompany} className="p-6 overflow-y-auto space-y-6">
               
-              {/* COMPANY LOGO UPLOAD (Base64 Fixed) */}
+              {/* COMPANY LOGO UPLOAD */}
               <div className="flex flex-col items-center gap-3">
                 <div className="relative">
                   {editingCompany.logoUrl ? (
@@ -2500,6 +2592,64 @@ export default function App() {
         </div>
       )}
 
-    </div>
+      {/* PROFILE MODAL */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800">My Profile Settings</h3>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-6">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  {profileForm.avatarUrl ? <img src={profileForm.avatarUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
+                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
+                    <Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} />
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                  <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                  <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled />
+                </div>
+              </div>
+              
+              {/* Emergency Fallback Button just in case dev gets locked out of Admin */}
+              {!currentUser.isAdmin && (
+                <div className="pt-4 flex justify-center">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const updated = {...currentUser, isAdmin: true, canViewProjects: true, canViewBudget: true, canViewDomains: true};
+                      sendToAPI('save_user', updated);
+                      setUsers(users.map(u => u.id === currentUser.id ? updated : u));
+                    }} 
+                    className="text-xs text-amber-600 font-bold hover:underline"
+                  >
+                    Force Developer Admin Access
+                  </button>
+                </div>
+              )}
+            </form>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-shrink-0">
+              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 transition-colors">
+                <LogOut size={16}/> Sign Out
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
+                <button onClick={handleSaveProfile} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Profile</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </>
   );
 }
