@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft
 } from 'lucide-react';
 
 // API Configuration
@@ -95,10 +95,10 @@ export default function App() {
   const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], assigneeId: '', tags: [], weight: 1 });
 
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  const [currentExpense, setCurrentExpense] = useState({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: '', renewalDate: '', notes: '' });
+  const [currentExpense, setCurrentExpense] = useState({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: '', renewalDate: '', notes: '', autoRenew: true });
 
   const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
-  const [currentDomain, setCurrentDomain] = useState({ id: null, name: '', amount: '', cycle: 'annual', category: 'Domains', companyId: '', renewalDate: '', notes: '' });
+  const [currentDomain, setCurrentDomain] = useState({ id: null, name: '', amount: '', cycle: 'annual', category: 'Domains', companyId: '', renewalDate: '', notes: '', autoRenew: true });
 
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState({ id: null, name: '', logoUrl: '', userIds: [] });
@@ -181,27 +181,33 @@ export default function App() {
       
       let importedCount = 0;
 
-      // Skip the header row (index 0)
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        // Split by comma, but ignore commas inside quotes
         const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
         const cols = line.split(regex).map(col => col.replace(/^"|"$/g, '').trim());
         
-        if (cols.length < 3) continue; // Skip malformed rows
+        if (cols.length < 3) continue; 
         
         const name = cols[0];
-        // Skip header lines or section dividers in the CSV
         if (!name || name === 'What' || name === 'Totals' || name.includes('Total') || name === 'Website' || name === 'Tools') continue;
 
         let amount = 0;
         let cycle = 'monthly';
+        let autoRenew = true;
         
-        // Clean out dollar signs and commas for parsing
-        const monthlyStr = (cols[1] || '').replace(/[^0-9.]/g, '');
-        const annualStr = (cols[2] || '').replace(/[^0-9.]/g, '');
+        const col1Str = (cols[1] || '').toLowerCase();
+        const col2Str = (cols[2] || '').toLowerCase();
+        const notesStr = (cols[7] || cols[6] || '').toLowerCase();
+
+        // Smart check for AR Off
+        if (col1Str.includes('ar off') || col2Str.includes('ar off') || notesStr.includes('ar off')) {
+            autoRenew = false;
+        }
+        
+        const monthlyStr = col1Str.replace(/[^0-9.]/g, '');
+        const annualStr = col2Str.replace(/[^0-9.]/g, '');
         
         if (monthlyStr && parseFloat(monthlyStr) > 0) {
            amount = parseFloat(monthlyStr);
@@ -209,14 +215,15 @@ export default function App() {
         } else if (annualStr && parseFloat(annualStr) > 0) {
            amount = parseFloat(annualStr);
            cycle = 'annual';
+        } else if (autoRenew) {
+           continue; 
         } else {
-           continue; // Skip if no cost is assigned
+           amount = 0; // It is off and has no explicit amount listed
         }
 
         const renewalDate = cols[4] || '';
         const notes = cols[7] || cols[6] || '';
         
-        // Auto-categorize based on context clues
         let category = isDomain ? 'Domains' : 'Other';
         if (!isDomain) {
            if (name.toLowerCase().includes('.com') || name.toLowerCase().includes('.network')) category = 'Domains';
@@ -228,17 +235,15 @@ export default function App() {
         const expenseData = {
           id: 'e' + Date.now() + Math.random().toString(36).substr(2, 5),
           companyId: companyId,
-          name, amount, cycle, category, renewalDate, notes
+          name, amount, cycle, category, renewalDate, notes, autoRenew
         };
 
-        // Save to state and DB
         setExpenses(prev => [...prev, expenseData]);
         await sendToAPI('save_expense', expenseData);
         importedCount++;
       }
       
       alert(`Successfully imported ${importedCount} items from the CSV!`);
-      // Clear the input so it can be used again
       e.target.value = null; 
     };
     reader.readAsText(file);
@@ -258,12 +263,10 @@ export default function App() {
     e.preventDefault();
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
-    // Update local UI instantly
     if (currentTask.id) setTasks(tasks.map(t => t.id === taskData.id ? taskData : t));
     else setTasks([...tasks, taskData]);
     setIsTaskModalOpen(false);
 
-    // Send to Database
     sendToAPI('save_task', taskData);
   };
 
@@ -280,8 +283,8 @@ export default function App() {
 
   // --- ACTION FUNCTIONS (Budget & Domains) ---
   const openExpenseModal = (expense = null, companyId = '') => {
-    if (expense) setCurrentExpense(expense);
-    else setCurrentExpense({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: companyId || companies[0]?.id || '', renewalDate: '', notes: '' });
+    if (expense) setCurrentExpense({...expense, autoRenew: expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0'});
+    else setCurrentExpense({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: companyId || companies[0]?.id || '', renewalDate: '', notes: '', autoRenew: true });
     setIsExpenseModalOpen(true);
   };
 
@@ -297,8 +300,8 @@ export default function App() {
   };
 
   const openDomainModal = (domain = null, companyId = '') => {
-    if (domain) setCurrentDomain(domain);
-    else setCurrentDomain({ id: null, name: '', amount: '', cycle: 'annual', category: 'Domains', companyId: companyId || companies[0]?.id || '', renewalDate: '', notes: '' });
+    if (domain) setCurrentDomain({...domain, autoRenew: domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0'});
+    else setCurrentDomain({ id: null, name: '', amount: '', cycle: 'annual', category: 'Domains', companyId: companyId || companies[0]?.id || '', renewalDate: '', notes: '', autoRenew: true });
     setIsDomainModalOpen(true);
   };
 
@@ -412,7 +415,6 @@ export default function App() {
     sendToAPI('save_user', updatedUser);
   };
 
-  // --- IMAGE UPLOAD HANDLERS (Converts to Base64 for permanent saving) ---
   const handleCompanyLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -517,7 +519,6 @@ export default function App() {
     );
   };
 
-  // Drag Handlers
   const handleDragStart = (e, taskId) => e.dataTransfer.setData('taskId', taskId);
   const handleDrop = (e, newStatus) => {
      const taskId = e.dataTransfer.getData('taskId');
@@ -532,7 +533,6 @@ export default function App() {
 
   // --- UI COMPONENTS ---
 
-  // 1. Top Bar Component
   const TopBar = () => {
     const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity';
     const isBudgetView = currentApp === 'budget';
@@ -662,7 +662,6 @@ export default function App() {
     );
   };
 
-  // 2. Sidebar Component
   const Sidebar = () => (
     <div className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full shadow-xl flex-shrink-0">
       <div className="p-5 border-b border-slate-700 flex justify-center items-center lg:hidden">
@@ -671,7 +670,6 @@ export default function App() {
       
       <div className="flex-1 overflow-y-auto py-6">
         
-        {/* --- PROJECTS SIDEBAR CONTENT --- */}
         {currentApp === 'projects' && (
           <>
             <div className="px-4 mb-6">
@@ -741,7 +739,6 @@ export default function App() {
           </>
         )}
 
-        {/* --- BUDGET SIDEBAR CONTENT --- */}
         {currentApp === 'budget' && (
           <>
             <div className="px-4 mb-6">
@@ -782,7 +779,6 @@ export default function App() {
           </>
         )}
 
-        {/* --- DOMAINS SIDEBAR CONTENT --- */}
         {currentApp === 'domains' && (
           <>
             <div className="px-4 mb-6">
@@ -845,7 +841,6 @@ export default function App() {
     </div>
   );
 
-  // 3. Projects App: Dashboard View ("My Tasks")
   const DashboardView = () => {
     const myTasks = tasks.filter(t => t.assigneeId === currentUser.id);
     const activeTasks = myTasks.filter(t => t.status !== 'done').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
@@ -1000,7 +995,6 @@ export default function App() {
     );
   };
 
-  // 4a. Projects App: Project View
   const ProjectView = ({ projectId }) => {
     const projectTasks = tasks.filter(t => t.projectId === projectId);
     const activeProjectTasks = projectTasks.filter(t => t.status !== 'done').sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
@@ -1302,7 +1296,6 @@ export default function App() {
     );
   };
 
-  // 4b. Projects App: Team Capacity View
   const TeamCapacityView = () => {
     return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
@@ -1392,15 +1385,17 @@ export default function App() {
     );
   };
 
-  // 5. Budget App: Main Dashboard
   const BudgetDashboard = () => {
-    const budgetExpenses = expenses.filter(e => e.category !== 'Domains');
+    // 1. INCLUDE ALL EXPENSES & DOMAINS
     const viewExpenses = activeBudgetTab === 'overview' 
-      ? budgetExpenses 
-      : budgetExpenses.filter(e => e.companyId === activeBudgetTab);
+      ? expenses 
+      : expenses.filter(e => e.companyId === activeBudgetTab);
 
-    const monthlyTotal = viewExpenses.filter(e => e.cycle === 'monthly').reduce((sum, e) => sum + parseFloat(e.amount), 0);
-    const annualTotal = viewExpenses.filter(e => e.cycle === 'annual').reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    // 2. EXCLUDE items where Auto-Renew is explicitly OFF from the totals
+    const activeExpenses = viewExpenses.filter(e => e.autoRenew !== false && e.autoRenew !== 0 && e.autoRenew !== '0');
+
+    const monthlyTotal = activeExpenses.filter(e => e.cycle === 'monthly').reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    const annualTotal = activeExpenses.filter(e => e.cycle === 'annual').reduce((sum, e) => sum + parseFloat(e.amount), 0);
     const trueAnnualCommitment = (monthlyTotal * 12) + annualTotal;
 
     const currentCompany = activeBudgetTab === 'overview' ? null : getCompany(activeBudgetTab);
@@ -1442,10 +1437,13 @@ export default function App() {
 
     const renderExpenseDesktopRow = (expense) => {
       const company = getCompany(expense.companyId);
+      const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
+
       return (
-        <tr key={expense.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-          <td className="p-4 font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors" onClick={() => openExpenseModal(expense)}>
-            {expense.name}
+        <tr key={expense.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
+          <td className="p-4 font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors flex items-center gap-2" onClick={() => openExpenseModal(expense)}>
+            {expense.category === 'Domains' ? <Globe size={16} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
+            <span className={!isAutoRenewOn ? 'line-through' : ''}>{expense.name}</span>
           </td>
           {activeBudgetTab === 'overview' && (
             <td className="p-4">
@@ -1469,7 +1467,7 @@ export default function App() {
              </span>
           </td>
           <td className="p-4 text-sm text-slate-500">
-            {expense.renewalDate || '--'}
+             {isAutoRenewOn ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}
           </td>
           <td className="p-4 text-right">
              <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1482,10 +1480,13 @@ export default function App() {
 
     const renderExpenseMobileCard = (expense) => {
       const company = getCompany(expense.companyId);
+      const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
+
       return (
-        <div key={expense.id} className="p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0">
+        <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
           <div className="flex justify-between items-start mb-2">
-            <div className="font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8" onClick={() => openExpenseModal(expense)}>
+            <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
+              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
               {expense.name}
             </div>
             <div className="font-bold text-slate-800 flex-shrink-0">
@@ -1500,6 +1501,9 @@ export default function App() {
             <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
               {expense.category}
             </span>
+            {!isAutoRenewOn && (
+              <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>
+            )}
             {activeBudgetTab === 'overview' && company && (
               <div className="flex items-center gap-1 ml-auto">
                 <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
@@ -1510,7 +1514,7 @@ export default function App() {
                <Trash2 size={14} />
             </button>
           </div>
-          {expense.renewalDate && (
+          {isAutoRenewOn && expense.renewalDate && (
              <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
                <Clock size={10} /> Renews: {expense.renewalDate}
              </div>
@@ -1525,25 +1529,25 @@ export default function App() {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
              {activeBudgetTab === 'overview' ? 'Global Budget Overview' : `${currentCompany?.name} Budget`}
           </h2>
-          <p className="text-slate-500 text-sm mt-1">Manage and forecast your recurring expenses.</p>
+          <p className="text-slate-500 text-sm mt-1">Manage and forecast your recurring expenses (Domains included).</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Receipt size={16} className="text-blue-500" /> Monthly Run Rate
+               <Receipt size={16} className="text-blue-500" /> Active Monthly Rate
             </div>
             <div className="text-3xl font-bold text-slate-800">{formatCurrency(monthlyTotal)}</div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-purple-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <CalendarClock size={16} className="text-purple-500" /> Annual Renewals
+               <CalendarClock size={16} className="text-purple-500" /> Active Annual Rate
             </div>
             <div className="text-3xl font-bold text-slate-800">{formatCurrency(annualTotal)}</div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Landmark size={16} className="text-emerald-500" /> Total Yearly Commitment
+               <Landmark size={16} className="text-emerald-500" /> True Yearly Commitment
             </div>
             <div className="text-3xl font-bold text-slate-800">{formatCurrency(trueAnnualCommitment)}</div>
           </div>
@@ -1553,7 +1557,7 @@ export default function App() {
           {budgetDisplayMode === 'list' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col">
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-                 <h3 className="font-bold text-slate-700">Recurring Expenses</h3>
+                 <h3 className="font-bold text-slate-700">All Expenses & Domains</h3>
               </div>
               
               <div className="flex-1 overflow-y-auto">
@@ -1600,20 +1604,24 @@ export default function App() {
 
           {budgetDisplayMode === 'timeline' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full overflow-y-auto">
-               <h3 className="font-bold text-slate-700 mb-6">Expense Forecast</h3>
+               <h3 className="font-bold text-slate-700 mb-6">Combined Expense Forecast</h3>
                <div className="relative border-l-2 border-emerald-100 ml-3 space-y-8 pb-8">
                   {timelineExpenses.length > 0 ? timelineExpenses.map(expense => {
                     const company = getCompany(expense.companyId);
                     const isFarFuture = expense.nextDateObj.getFullYear() === 9999;
                     const displayDate = isFarFuture ? "Date Unknown" : expense.nextDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                    
+                    const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
+
                     return (
-                      <div key={expense.id} className="relative pl-8">
-                        <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white"></div>
+                      <div key={expense.id} className={`relative pl-8 ${!isAutoRenewOn ? 'opacity-50' : ''}`}>
+                        <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                         <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                           <div>
-                            <div className="text-sm font-bold text-emerald-600 mb-1">{displayDate}</div>
-                            <div className="font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors mb-2" onClick={() => openExpenseModal(expense)}>
+                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                {isAutoRenewOn ? displayDate : 'CANCELED'}
+                            </div>
+                            <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-emerald-600' : 'line-through'}`} onClick={() => openExpenseModal(expense)}>
+                              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
                               {expense.name}
                             </div>
                             <div className="flex items-center gap-2">
@@ -1649,15 +1657,17 @@ export default function App() {
     );
   };
 
-  // 6. Domains App: Main Dashboard
   const DomainsDashboard = () => {
     const domainExpenses = expenses.filter(e => e.category === 'Domains');
     const viewDomains = activeDomainTab === 'overview' 
       ? domainExpenses 
       : domainExpenses.filter(e => e.companyId === activeDomainTab);
 
-    const activeDomainCount = viewDomains.length;
-    const totalDomainCost = viewDomains.reduce((sum, e) => {
+    // Exclude domains that are NOT auto-renewing from the active counts
+    const activeDomains = viewDomains.filter(e => e.autoRenew !== false && e.autoRenew !== 0 && e.autoRenew !== '0');
+
+    const activeDomainCount = activeDomains.length;
+    const totalDomainCost = activeDomains.reduce((sum, e) => {
       const annualAmount = e.cycle === 'monthly' ? parseFloat(e.amount) * 12 : parseFloat(e.amount);
       return sum + annualAmount;
     }, 0);
@@ -1701,11 +1711,13 @@ export default function App() {
 
     const renderDomainRow = (domain) => {
       const company = getCompany(domain.companyId);
+      const isAutoRenewOn = domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0';
+
       return (
-        <tr key={domain.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
+        <tr key={domain.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
           <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-teal-600 transition-colors flex items-center gap-2" onClick={() => openDomainModal(domain)}>
-            <Globe size={16} className="text-teal-500" />
-            {domain.name}
+            <Globe size={16} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} />
+            <span className={!isAutoRenewOn ? 'line-through' : ''}>{domain.name}</span>
           </td>
           {activeDomainTab === 'overview' && (
             <td className="p-4">
@@ -1718,8 +1730,13 @@ export default function App() {
           <td className="p-4 font-medium text-slate-700">
             {formatCurrency(domain.amount)} <span className="text-xs text-slate-400 font-normal">/{domain.cycle === 'monthly' ? 'mo' : 'yr'}</span>
           </td>
+          <td className="p-4">
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${isAutoRenewOn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+              {isAutoRenewOn ? 'ON' : 'OFF'}
+            </span>
+          </td>
           <td className="p-4 text-sm font-medium text-slate-600">
-            {domain.renewalDate || '--'}
+            {isAutoRenewOn ? (domain.renewalDate || '--') : <span className="text-slate-400 font-normal">Manual/Off</span>}
           </td>
           <td className="p-4 text-right">
              <button onClick={() => handleDeleteExpense(domain.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1743,7 +1760,7 @@ export default function App() {
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-teal-500 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
-                 <Globe size={16} className="text-teal-500" /> Active Domains
+                 <Globe size={16} className="text-teal-500" /> Active Domains (Auto-Renew)
               </div>
               <div className="text-3xl font-bold text-slate-800">{activeDomainCount}</div>
             </div>
@@ -1787,6 +1804,9 @@ export default function App() {
                         <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('amount')}>
                           Cost <SortIcon columnKey="amount" />
                         </th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('autoRenew')}>
+                          Auto-Renew <SortIcon columnKey="autoRenew" />
+                        </th>
                         <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('renewalDate')}>
                           Renewal Date <SortIcon columnKey="renewalDate" />
                         </th>
@@ -1795,7 +1815,7 @@ export default function App() {
                     </thead>
                     <tbody>
                       {sortedDomains.length > 0 ? sortedDomains.map(renderDomainRow) : (
-                        <tr><td colSpan={activeDomainTab === 'overview' ? 5 : 4} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>
+                        <tr><td colSpan={activeDomainTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1812,15 +1832,18 @@ export default function App() {
                     const company = getCompany(domain.companyId);
                     const isFarFuture = domain.nextDateObj.getFullYear() === 9999;
                     const displayDate = isFarFuture ? "Date Unknown" : domain.nextDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                    
+                    const isAutoRenewOn = domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0';
+
                     return (
-                      <div key={domain.id} className="relative pl-8">
-                        <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-teal-500 border-4 border-white"></div>
+                      <div key={domain.id} className={`relative pl-8 ${!isAutoRenewOn ? 'opacity-50' : ''}`}>
+                        <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-teal-500' : 'bg-slate-300'}`}></div>
                         <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                           <div>
-                            <div className="text-sm font-bold text-teal-600 mb-1">{displayDate}</div>
-                            <div className="font-medium text-slate-800 cursor-pointer hover:text-teal-600 transition-colors mb-2 flex items-center gap-1.5" onClick={() => openDomainModal(domain)}>
-                              <Globe size={14} className="text-teal-500" /> {domain.name}
+                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-teal-600' : 'text-slate-500'}`}>
+                              {isAutoRenewOn ? displayDate : 'CANCELED'}
+                            </div>
+                            <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-teal-600' : 'line-through'}`} onClick={() => openDomainModal(domain)}>
+                              <Globe size={14} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} /> {domain.name}
                             </div>
                             <div className="flex items-center gap-2">
                               {activeDomainTab === 'overview' && company && (
@@ -1828,6 +1851,9 @@ export default function App() {
                                   <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
                                   <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
                                 </div>
+                              )}
+                              {!isAutoRenewOn && (
+                                <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>
                               )}
                               {domain.notes && (
                                 <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={domain.notes}>
@@ -2016,7 +2042,23 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label>
                   <input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Google Workspace, Canva Pro" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* NEW AUTO-RENEW TOGGLE */}
+                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div>
+                    <div className="text-sm font-bold text-slate-800">Active / Auto-Renew</div>
+                    <div className="text-xs text-slate-500">Include this cost in yearly budget totals</div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})}
+                    className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}
+                  >
+                    {currentExpense.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                  </button>
+                </div>
+
+                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentExpense.autoRenew ? 'opacity-50' : ''}`}>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
                     <div className="relative">
@@ -2028,7 +2070,7 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentExpense.cycle} onChange={(e) => setCurrentExpense({...currentExpense, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                    <select required value={currentExpense.cycle} onChange={(e) => setCurrentExpense({...currentExpense, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
                       <option value="monthly">Monthly</option>
                       <option value="annual">Annually</option>
                     </select>
@@ -2084,7 +2126,23 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label>
                   <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., mywebsite.com" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                
+                {/* NEW AUTO-RENEW TOGGLE */}
+                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div>
+                    <div className="text-sm font-bold text-slate-800">Auto-Renew</div>
+                    <div className="text-xs text-slate-500">Include this domain in yearly budget totals</div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})}
+                    className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}
+                  >
+                    {currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                  </button>
+                </div>
+
+                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentDomain.autoRenew ? 'opacity-50' : ''}`}>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label>
                     <div className="relative">
@@ -2096,7 +2154,7 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
+                    <select required value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
                       <option value="annual">Annually</option>
                       <option value="monthly">Monthly</option>
                     </select>
