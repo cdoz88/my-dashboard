@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserSwitch
 } from 'lucide-react';
 
 // API Configuration
@@ -42,8 +42,6 @@ const tagStyles = {
   'Ready': 'bg-emerald-100 text-emerald-700 border-emerald-200'
 };
 const availableTags = Object.keys(tagStyles);
-
-// Budget Expense Categories
 const expenseCategories = ['Company Expense', 'Website', 'Tools', 'Domains', 'Social Media', 'Merchandise', 'Personnel', 'Other'];
 
 const DynamicIcon = ({ name, className, size }) => {
@@ -51,7 +49,6 @@ const DynamicIcon = ({ name, className, size }) => {
   return <Icon className={className} size={size} />;
 };
 
-// Helper function to convert images to Base64 so they save properly to MySQL
 const convertToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -65,7 +62,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Core App State
-  const [currentApp, setCurrentApp] = useState('projects'); // 'projects', 'budget', or 'domains'
+  const [currentApp, setCurrentApp] = useState('projects'); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -77,17 +74,17 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   
   // Projects View State
-  const [activeTab, setActiveTab] = useState('mytasks'); // 'mytasks', 'capacity', or projectId
+  const [activeTab, setActiveTab] = useState('mytasks'); 
   const [projectDisplayMode, setProjectDisplayMode] = useState('list');
   
   // Budget View State
-  const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); // 'overview' or companyId
-  const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); // 'list' or 'timeline'
+  const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
+  const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   // Domains View State
   const [activeDomainTab, setActiveDomainTab] = useState('overview');
-  const [domainDisplayMode, setDomainDisplayMode] = useState('list'); // 'list' or 'timeline'
+  const [domainDisplayMode, setDomainDisplayMode] = useState('list'); 
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   // Modal states
@@ -109,15 +106,45 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', email: '', password: '', avatarUrl: '' });
 
-  // Fallback for current user if DB is empty
-  const currentUser = users.length > 0 ? users[0] : { id: 'u1', name: 'Admin', email: '', avatarUrl: '' };
+  // Team Management & Auth States
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [editingTeamMember, setEditingTeamMember] = useState(null);
+  const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
+  const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
+
+  // --- COMPUTE CURRENT USER & PERMISSIONS ---
+  let currentUser = users.find(u => u.id === loggedInUserId);
+  if (!currentUser && users.length > 0) currentUser = users[0]; // Fallback to first user
+  if (!currentUser) currentUser = { id: 'u_admin', name: 'Master Admin', isAdmin: true, canViewProjects: true, canViewBudget: true, canViewDomains: true, avatarUrl: '' }; // Emergency fallback
+
+  useEffect(() => {
+    if (currentUser && currentUser.id !== 'u_admin') {
+      localStorage.setItem('loggedInUserId', currentUser.id);
+    }
+  }, [currentUser]);
+
+  // Ensure user isn't stuck in an app they lost access to
+  useEffect(() => {
+    if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('projects');
+    if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
+  }, [currentUser, currentApp]);
 
   // --- FETCH DATA ON LOAD ---
   useEffect(() => {
     fetch(`${API_URL}?action=get_all`)
       .then(res => res.json())
       .then(data => {
-        if(data.users) setUsers(data.users);
+        if(data.users) {
+           // Parse strings to strict booleans for UI
+           const mappedUsers = data.users.map(u => ({
+               ...u,
+               isAdmin: u.isAdmin == 1 || u.isAdmin === true,
+               canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
+               canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
+               canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
+           }));
+           setUsers(mappedUsers);
+        }
         if(data.companies) setCompanies(data.companies);
         if(data.projects) setProjects(data.projects);
         if(data.tasks) setTasks(data.tasks);
@@ -158,7 +185,6 @@ export default function App() {
         alert("Sync Failed: " + data.error);
       } else {
         alert(`Successfully synced ${data.count} domains from GoDaddy!`);
-        // Refresh app data to show new domains immediately
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.expenses) setExpenses(freshData.expenses);
@@ -249,24 +275,19 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // --- ACTION FUNCTIONS (Projects) ---
+  // --- ACTION FUNCTIONS ---
   const openTaskModal = (task = null, projectId = '', status = 'todo') => {
-    if (task) {
-      setCurrentTask({ ...task, files: task.files || [], description: task.description || '', tags: task.tags || [], weight: task.weight || 1 });
-    } else {
-      setCurrentTask({ title: '', description: '', dueDate: '', status, projectId, files: [], assigneeId: currentUser.id, tags: [], weight: 1 });
-    }
+    if (task) setCurrentTask({ ...task, files: task.files || [], description: task.description || '', tags: task.tags || [], weight: task.weight || 1 });
+    else setCurrentTask({ title: '', description: '', dueDate: '', status, projectId, files: [], assigneeId: currentUser.id, tags: [], weight: 1 });
     setIsTaskModalOpen(true);
   };
 
   const handleSaveTask = (e) => {
     e.preventDefault();
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
-    
     if (currentTask.id) setTasks(tasks.map(t => t.id === taskData.id ? taskData : t));
     else setTasks([...tasks, taskData]);
     setIsTaskModalOpen(false);
-
     sendToAPI('save_task', taskData);
   };
 
@@ -281,7 +302,6 @@ export default function App() {
     sendToAPI('save_task', updatedTask);
   };
 
-  // --- ACTION FUNCTIONS (Budget & Domains) ---
   const openExpenseModal = (expense = null, companyId = '') => {
     if (expense) setCurrentExpense({...expense, autoRenew: expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0'});
     else setCurrentExpense({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: companyId || companies[0]?.id || '', renewalDate: '', notes: '', autoRenew: true });
@@ -291,11 +311,9 @@ export default function App() {
   const handleSaveExpense = (e) => {
     e.preventDefault();
     const expenseData = currentExpense.id ? currentExpense : { ...currentExpense, id: 'e' + Date.now() };
-    
     if (currentExpense.id) setExpenses(expenses.map(exp => exp.id === expenseData.id ? expenseData : exp));
     else setExpenses([...expenses, expenseData]);
     setIsExpenseModalOpen(false);
-
     sendToAPI('save_expense', expenseData);
   };
 
@@ -308,11 +326,9 @@ export default function App() {
   const handleSaveDomain = (e) => {
     e.preventDefault();
     const domainData = currentDomain.id ? currentDomain : { ...currentDomain, id: 'e' + Date.now() };
-    
     if (currentDomain.id) setExpenses(expenses.map(exp => exp.id === domainData.id ? domainData : exp));
     else setExpenses([...expenses, domainData]);
     setIsDomainModalOpen(false);
-
     sendToAPI('save_expense', domainData);
   };
 
@@ -321,7 +337,6 @@ export default function App() {
     sendToAPI('delete_expense', { id: expenseId });
   };
 
-  // --- ACTION FUNCTIONS (Companies & Settings) ---
   const openCompanyModal = (companyToEdit = null) => {
     if (companyToEdit) setEditingCompany({ ...companyToEdit, userIds: companyToEdit.userIds || [currentUser.id] });
     else setEditingCompany({ id: null, name: '', logoUrl: '', userIds: [currentUser.id] });
@@ -340,11 +355,9 @@ export default function App() {
     e.preventDefault();
     if (!editingCompany.name.trim()) return;
     const companyData = editingCompany.id ? editingCompany : { ...editingCompany, id: 'c' + Date.now() };
-    
     if (editingCompany.id) setCompanies(companies.map(c => c.id === companyData.id ? companyData : c));
     else setCompanies([...companies, companyData]);
     setIsCompanyModalOpen(false);
-
     sendToAPI('save_company', companyData);
   };
 
@@ -355,7 +368,6 @@ export default function App() {
     if (activeBudgetTab === companyId) setActiveBudgetTab('overview');
     if (activeDomainTab === companyId) setActiveDomainTab('overview');
     setIsCompanyModalOpen(false);
-
     sendToAPI('delete_company', { id: companyId });
   };
 
@@ -369,15 +381,12 @@ export default function App() {
     e.preventDefault();
     if (!editingProject.name.trim() || !editingProject.companyId) return;
     const projectData = editingProject.id ? editingProject : { ...editingProject, id: 'p' + Date.now() };
-    
-    if (editingProject.id) {
-      setProjects(projects.map(p => p.id === projectData.id ? projectData : p));
-    } else {
+    if (editingProject.id) setProjects(projects.map(p => p.id === projectData.id ? projectData : p));
+    else {
       setProjects([...projects, projectData]);
       setActiveTab(projectData.id);
     }
     setIsProjectModalOpen(false);
-
     sendToAPI('save_project', projectData);
   };
 
@@ -396,25 +405,38 @@ export default function App() {
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const userId = users.length > 0 ? users[0].id : 'u' + Date.now();
     const updatedUser = { 
-        id: userId, 
+        ...currentUser,
         name: profileForm.name, 
         email: profileForm.email, 
         avatarUrl: profileForm.avatarUrl 
     };
     
-    if (users.length > 0) {
-      const updatedUsers = [...users];
-      updatedUsers[0] = updatedUser;
-      setUsers(updatedUsers);
+    if (users.find(u => u.id === currentUser.id)) {
+      setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
     } else {
-      setUsers([updatedUser]);
+      setUsers([...users, updatedUser]);
     }
     setIsProfileModalOpen(false);
     sendToAPI('save_user', updatedUser);
   };
 
+  const handleSaveTeamMember = (e) => {
+    e.preventDefault();
+    const userToSave = { ...editingTeamMember };
+    if (!userToSave.id) userToSave.id = 'u' + Date.now();
+    
+    if (users.find(u => u.id === userToSave.id)) {
+      setUsers(users.map(u => u.id === userToSave.id ? userToSave : u));
+    } else {
+      setUsers([...users, userToSave]);
+    }
+    
+    sendToAPI('save_user', userToSave);
+    setEditingTeamMember(null);
+  };
+
+  // --- IMAGE UPLOAD HANDLERS ---
   const handleCompanyLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -428,6 +450,14 @@ export default function App() {
     if (file) {
       const base64 = await convertToBase64(file);
       setProfileForm({ ...profileForm, avatarUrl: base64 });
+    }
+  };
+  
+  const handleTeamMemberImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const base64 = await convertToBase64(file);
+      setEditingTeamMember({ ...editingTeamMember, avatarUrl: base64 });
     }
   };
 
@@ -531,6 +561,9 @@ export default function App() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
+  // --- ENFORCE PERMISSIONS ON COMPANIES ---
+  const visibleCompanies = companies.filter(c => currentUser.isAdmin || (c.userIds && c.userIds.includes(currentUser.id)));
+
   // --- UI COMPONENTS ---
 
   const TopBar = () => {
@@ -561,33 +594,39 @@ export default function App() {
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsAppSwitcherOpen(false)} />
               <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 py-1">
-                <button 
-                  onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
-                >
-                  <div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-                    <LayoutDashboard size={18} />
-                  </div>
-                  Projects
-                </button>
-                <button 
-                  onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}
-                >
-                  <div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                    <Wallet size={18} />
-                  </div>
-                  Budget
-                </button>
-                <button 
-                  onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}
-                >
-                  <div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                    <Globe size={18} />
-                  </div>
-                  Domains
-                </button>
+                {(currentUser.isAdmin || currentUser.canViewProjects) && (
+                  <button 
+                    onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                      <LayoutDashboard size={18} />
+                    </div>
+                    Projects
+                  </button>
+                )}
+                {(currentUser.isAdmin || currentUser.canViewBudget) && (
+                  <button 
+                    onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                      <Wallet size={18} />
+                    </div>
+                    Budget
+                  </button>
+                )}
+                {(currentUser.isAdmin || currentUser.canViewDomains) && (
+                  <button 
+                    onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
+                      <Globe size={18} />
+                    </div>
+                    Domains
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -633,7 +672,6 @@ export default function App() {
                   <button onClick={() => setDomainDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'timeline' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><CalendarClock size={16} /></button>
                </div>
                
-               {/* NEW GODADDY SYNC BUTTON */}
                {activeDomainTab !== 'overview' && (
                  <button 
                    onClick={() => handleSyncGoDaddy(activeDomainTab)}
@@ -695,22 +733,26 @@ export default function App() {
             <div className="px-4 mb-4">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Companies</p>
-                <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                  <Plus size={16} />
-                </button>
+                {currentUser.isAdmin && (
+                  <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
+                    <Plus size={16} />
+                  </button>
+                )}
               </div>
               
-              {companies.map(company => (
+              {visibleCompanies.map(company => (
                 <div key={company.id} className="mb-4">
                   <div className="flex items-center justify-between mb-1 px-1 group/company">
                     <div className="flex items-center gap-2 text-slate-400 truncate pr-2">
                       <CompanyLogo company={company} />
                       <span className="font-medium text-sm text-slate-200 truncate">{company.name}</span>
                     </div>
-                    <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity">
-                      <button onClick={() => openCompanyModal(company)} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                      <button onClick={() => openProjectModal(company.id)} className="text-slate-500 hover:text-white p-1 ml-0.5" title="Add Project"><Plus size={14} /></button>
-                    </div>
+                    {currentUser.isAdmin && (
+                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity">
+                        <button onClick={() => openCompanyModal(company)} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                        <button onClick={() => openProjectModal(company.id)} className="text-slate-500 hover:text-white p-1 ml-0.5" title="Add Project"><Plus size={14} /></button>
+                      </div>
+                    )}
                   </div>
                   <div className="pl-4 flex flex-col gap-0.5">
                     {projects.filter(p => p.companyId === company.id).map(project => (
@@ -727,9 +769,11 @@ export default function App() {
                              </div>
                           </div>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); openProjectModal('', project); }} className="text-slate-500 hover:text-white opacity-0 group-hover/project:opacity-100 transition-all p-1.5 flex-shrink-0" title="Edit Project">
-                          <Pencil size={12} />
-                        </button>
+                        {currentUser.isAdmin && (
+                          <button onClick={(e) => { e.stopPropagation(); openProjectModal('', project); }} className="text-slate-500 hover:text-white opacity-0 group-hover/project:opacity-100 transition-all p-1.5 flex-shrink-0" title="Edit Project">
+                            <Pencil size={12} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -755,12 +799,14 @@ export default function App() {
             <div className="px-4 mb-4">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                  <Plus size={16} />
-                </button>
+                {currentUser.isAdmin && (
+                  <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
+                    <Plus size={16} />
+                  </button>
+                )}
               </div>
               <div className="flex flex-col gap-1">
-                {companies.map(company => (
+                {visibleCompanies.map(company => (
                   <div key={company.id} className="flex items-center justify-between group/company">
                     <button
                       onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }}
@@ -769,9 +815,11 @@ export default function App() {
                       <CompanyLogo company={company} sizeClass="w-5 h-5" />
                       <span className="truncate">{company.name}</span>
                     </button>
-                    <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
-                      <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                    </div>
+                    {currentUser.isAdmin && (
+                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
+                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -795,12 +843,14 @@ export default function App() {
             <div className="px-4 mb-4">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                  <Plus size={16} />
-                </button>
+                {currentUser.isAdmin && (
+                  <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
+                    <Plus size={16} />
+                  </button>
+                )}
               </div>
               <div className="flex flex-col gap-1">
-                {companies.map(company => (
+                {visibleCompanies.map(company => (
                   <div key={company.id} className="flex items-center justify-between group/company">
                     <button
                       onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }}
@@ -809,9 +859,11 @@ export default function App() {
                       <CompanyLogo company={company} sizeClass="w-5 h-5" />
                       <span className="truncate">{company.name}</span>
                     </button>
-                    <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
-                      <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                    </div>
+                    {currentUser.isAdmin && (
+                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
+                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -821,22 +873,34 @@ export default function App() {
 
       </div>
 
-      <div className="hidden lg:block p-4 border-t border-slate-800 bg-slate-900/50">
+      <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
         <button 
           onClick={openProfileModal}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300 hover:text-white group"
+          className="flex-1 flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300 hover:text-white group overflow-hidden"
         >
           {currentUser.avatarUrl ? (
-             <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-600" />
+             <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-600 flex-shrink-0 bg-white" />
           ) : (
-             <UserCircle size={24} className="text-slate-500 group-hover:text-slate-400" />
+             <UserCircle size={28} className="text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
           )}
-          <div className="flex flex-col items-start truncate text-left">
-            <span className="font-medium text-sm truncate w-full">{currentUser.name.replace(' (Admin)', '')}</span>
-            <span className="text-xs text-slate-500 truncate w-full">View Profile</span>
+          <div className="flex flex-col items-start truncate text-left pr-2">
+            <span className="font-medium text-sm truncate w-full flex items-center gap-1">
+              {currentUser.name.split(' ')[0]} {currentUser.isAdmin && <Shield size={10} className="text-amber-500" title="Admin" />}
+            </span>
+            <span className="text-[10px] text-slate-500 truncate w-full">My Profile</span>
           </div>
-          <Settings size={14} className="ml-auto text-slate-600 group-hover:text-slate-400" />
         </button>
+
+        <div className="flex items-center gap-1">
+          {currentUser.isAdmin && (
+             <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions">
+                <Users size={16} />
+             </button>
+          )}
+          <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)">
+             <UserSwitch size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1322,14 +1386,17 @@ export default function App() {
               <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                  <div className="p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
                     {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" />
+                      <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm bg-white" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center border-2 border-white shadow-sm">
                          <UserCircle size={28} className="text-slate-500" />
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-slate-800">{user.name}</h3>
+                      <h3 className="font-bold text-slate-800 flex items-center gap-1.5">
+                        {user.name} 
+                        {user.isAdmin && <Shield size={14} className="text-amber-500" title="Admin" />}
+                      </h3>
                       <p className="text-xs text-slate-500">{user.email}</p>
                     </div>
                  </div>
@@ -1386,12 +1453,11 @@ export default function App() {
   };
 
   const BudgetDashboard = () => {
-    // 1. INCLUDE ALL EXPENSES & DOMAINS
     const viewExpenses = activeBudgetTab === 'overview' 
       ? expenses 
       : expenses.filter(e => e.companyId === activeBudgetTab);
 
-    // 2. EXCLUDE items where Auto-Renew is explicitly OFF from the totals
+    // EXCLUDE items where Auto-Renew is explicitly OFF from the financial totals
     const activeExpenses = viewExpenses.filter(e => e.autoRenew !== false && e.autoRenew !== 0 && e.autoRenew !== '0');
 
     const monthlyTotal = activeExpenses.filter(e => e.cycle === 'monthly').reduce((sum, e) => sum + parseFloat(e.amount), 0);
@@ -1882,7 +1948,7 @@ export default function App() {
     );
   };
 
-  // --- LOADING SCREEN ---
+  // --- MAIN RENDER ---
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500 flex-col gap-4">
@@ -1892,7 +1958,6 @@ export default function App() {
     );
   }
 
-  // --- MAIN RENDER ---
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col lg:flex-row">
       
@@ -1931,7 +1996,140 @@ export default function App() {
         </div>
       </div>
 
-      {/* MODALS */}
+      {/* --- MODALS --- */}
+
+      {/* TEAM MANAGEMENT MODAL (ADMIN ONLY) */}
+      {isTeamModalOpen && currentUser.isAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden">
+            
+            {/* Left Sidebar: User List */}
+            <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
+              <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
+                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                {users.map(u => (
+                  <button 
+                    key={u.id} 
+                    onClick={() => setEditingTeamMember(u)}
+                    className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}
+                  >
+                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-8 h-8 rounded-full object-cover bg-white" /> : <UserCircle size={32} className="text-slate-400" />}
+                    <div className="overflow-hidden">
+                      <div className="font-semibold text-sm text-slate-800 truncate flex items-center gap-1">
+                        {u.name} {u.isAdmin && <Shield size={12} className="text-amber-500" title="Admin"/>}
+                      </div>
+                      <div className="text-xs text-slate-500 truncate">{u.email}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Pane: Edit Form */}
+            <div className="flex-1 flex flex-col bg-white relative">
+              <button onClick={() => setIsTeamModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10"><X size={20}/></button>
+              
+              {editingTeamMember ? (
+                <div className="p-8 overflow-y-auto flex-1">
+                  <h2 className="text-2xl font-bold mb-6">{editingTeamMember.id ? 'Edit Team Member' : 'Invite New Member'}</h2>
+                  
+                  <div className="flex flex-col items-center gap-3 mb-8">
+                    <div className="relative">
+                      {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
+                      <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
+                        <Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                      <input type="text" value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                      <input type="email" value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+
+                  <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
+                  
+                  <div className="space-y-3">
+                    <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${editingTeamMember.isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div>
+                        <div className="font-bold text-slate-800 flex items-center gap-2"><Shield size={16} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-400'}/> Master Admin</div>
+                        <div className="text-xs text-slate-500 mt-1">Can see all companies, all apps, and manage team members.</div>
+                      </div>
+                      <button type="button" onClick={() => setEditingTeamMember({...editingTeamMember, isAdmin: !editingTeamMember.isAdmin})} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-300'}>
+                        {editingTeamMember.isAdmin ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                      </button>
+                    </label>
+
+                    <div className={`space-y-3 transition-opacity ${editingTeamMember.isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><LayoutDashboard size={16} className="text-blue-500"/> Projects App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded" checked={editingTeamMember.canViewProjects} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewProjects: e.target.checked})} />
+                      </label>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Budget App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewBudget} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewBudget: e.target.checked})} />
+                      </label>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Domains App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
+                    <button onClick={handleSaveTeamMember} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Member</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+                  <Users size={64} className="mb-4 opacity-20" />
+                  <p>Select a user to edit or create a new one.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SWITCH USER MODAL (FOR TESTING) */}
+      {isSwitchUserModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+               <h3 className="font-bold text-slate-800 flex items-center gap-2"><UserSwitch size={18}/> Switch Identity</h3>
+               <button onClick={() => setIsSwitchUserModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh] space-y-2">
+               <p className="text-xs text-slate-500 text-center mb-4">Select a user below to see the app exactly how they see it based on their permissions.</p>
+               {users.map(u => (
+                 <button 
+                   key={u.id}
+                   onClick={() => { setLoggedInUserId(u.id); setIsSwitchUserModalOpen(false); }}
+                   className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${loggedInUserId === u.id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'}`}
+                 >
+                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-10 h-10 rounded-full object-cover" /> : <UserCircle size={40} className="text-slate-300" />}
+                   <div className="text-left flex-1">
+                     <div className="font-bold text-slate-800 flex items-center gap-1">
+                        {u.name} {u.isAdmin && <Shield size={12} className="text-amber-500"/>}
+                     </div>
+                     <div className="text-xs text-slate-500">{u.email}</div>
+                   </div>
+                   {loggedInUserId === u.id && <CheckCircle2 size={20} className="text-blue-500" />}
+                 </button>
+               ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TASK MODAL */}
       {isTaskModalOpen && (
@@ -2081,7 +2279,7 @@ export default function App() {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
                     <select required value={currentExpense.companyId} onChange={(e) => setCurrentExpense({...currentExpense, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
                       <option value="" disabled>Select a company</option>
-                      {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
@@ -2164,7 +2362,7 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
                   <select required value={currentDomain.companyId} onChange={(e) => setCurrentDomain({...currentDomain, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
                     <option value="" disabled>Select a company</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -2268,7 +2466,7 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
                   <select required value={editingProject.companyId} onChange={(e) => setEditingProject({...editingProject, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
                     <option value="" disabled>Select a company</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -2297,42 +2495,6 @@ export default function App() {
               )}
               <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="projectForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingProject.id ? 'Save Changes' : 'Create Project'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PROFILE MODAL (Base64 Fixed) */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">My Profile Settings</h3>
-              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative">
-                  {profileForm.avatarUrl ? <img src={profileForm.avatarUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
-                    <Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} />
-                  </label>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                  <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                  <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-            </form>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
-              <button onClick={handleSaveProfile} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Profile</button>
             </div>
           </div>
         </div>
