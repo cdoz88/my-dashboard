@@ -131,6 +131,34 @@ export default function App() {
     }
   }, [currentUser, currentApp]);
 
+  // --- FETCH DATA ON LOAD ---
+  useEffect(() => {
+    fetch(`${API_URL}?action=get_all`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.users) {
+           // Parse strings to strict booleans for UI
+           const mappedUsers = data.users.map(u => ({
+               ...u,
+               isAdmin: u.isAdmin == 1 || u.isAdmin === true,
+               canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
+               canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
+               canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
+           }));
+           setUsers(mappedUsers);
+        }
+        if(data.companies) setCompanies(data.companies);
+        if(data.projects) setProjects(data.projects);
+        if(data.tasks) setTasks(data.tasks);
+        if(data.expenses) setExpenses(data.expenses);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to connect to API:", err);
+        setIsLoading(false);
+      });
+  }, []);
+
   // --- API HELPER FUNCTION ---
   const sendToAPI = async (action, data) => {
     try {
@@ -142,94 +170,6 @@ export default function App() {
     } catch (err) {
       console.error(`Error with ${action}:`, err);
     }
-  };
-
-  // --- AUTHENTICATION SCREEN ---
-  const AuthScreen = () => {
-    const [email, setEmail] = useState('');
-    const [name, setName] = useState('');
-    const [isRegistering, setIsRegistering] = useState(false);
-
-    const handleAuth = (e) => {
-      e.preventDefault();
-      
-      if (isRegistering) {
-        if (!name.trim() || !email.trim()) return;
-        // Make them an admin automatically if they are the very first user in the system
-        const isFirstUser = users.length === 0;
-        const newUser = {
-           id: 'u' + Date.now(),
-           name: name,
-           email: email.toLowerCase(),
-           isAdmin: isFirstUser, 
-           canViewProjects: true,
-           canViewBudget: isFirstUser,
-           canViewDomains: isFirstUser,
-           avatarUrl: ''
-        };
-        setUsers([...users, newUser]);
-        setLoggedInUserId(newUser.id);
-        sendToAPI('save_user', newUser);
-      } else {
-        const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-        if (existingUser) {
-          setLoggedInUserId(existingUser.id);
-        } else {
-          setIsRegistering(true); // Email not found, flip to registration mode
-        }
-      }
-    };
-
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 w-full max-w-md">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-lg shadow-blue-600/20">
-            <LayoutDashboard size={32} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-black text-slate-800 text-center mb-2">Control Room</h1>
-          <p className="text-slate-500 text-center mb-8">
-            {isRegistering ? "It looks like you're new! Let's get you set up." : "Enter your email to sign in."}
-          </p>
-
-          <form onSubmit={handleAuth} className="space-y-4">
-            {isRegistering && (
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
-                  placeholder="John Doe" 
-                />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-              <input 
-                type="email" 
-                required 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
-                placeholder="you@company.com" 
-                disabled={isRegistering && email !== ''}
-              />
-            </div>
-            <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">
-              {isRegistering ? 'Create Account' : 'Continue'}
-            </button>
-          </form>
-
-          {isRegistering && (
-            <button onClick={() => setIsRegistering(false)} className="w-full mt-4 text-sm text-slate-500 hover:text-slate-700 font-medium">
-              Back to Sign In
-            </button>
-          )}
-        </div>
-      </div>
-    );
   };
 
   // --- GODADDY SYNC FUNCTION ---
@@ -498,7 +438,6 @@ export default function App() {
     setEditingTeamMember(null);
   };
 
-  // --- IMAGE UPLOAD HANDLERS ---
   const handleCompanyLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -535,7 +474,6 @@ export default function App() {
 
   const removeFile = (indexToRemove) => setCurrentTask({ ...currentTask, files: currentTask.files.filter((_, index) => index !== indexToRemove) });
 
-  // --- HELPER FUNCTIONS ---
   const getCompany = (id) => companies.find(c => c.id === id);
   const getProject = (id) => projects.find(p => p.id === id);
   const getUser = (id) => users.find(u => u.id === id);
@@ -623,17 +561,92 @@ export default function App() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
+  // --- INTERNAL COMPONENTS ---
+  const AuthScreen = () => {
+    const [email, setEmail] = useState('');
+    const [name, setName] = useState('');
+    const [isRegistering, setIsRegistering] = useState(false);
 
-  // --- UI COMPONENTS ---
+    const handleAuth = (e) => {
+      e.preventDefault();
+      
+      if (isRegistering) {
+        if (!name.trim() || !email.trim()) return;
+        const isFirstUser = users.length === 0;
+        const newUser = {
+           id: 'u' + Date.now(),
+           name: name,
+           email: email.toLowerCase(),
+           isAdmin: isFirstUser, 
+           canViewProjects: true,
+           canViewBudget: isFirstUser,
+           canViewDomains: isFirstUser,
+           avatarUrl: ''
+        };
+        setUsers([...users, newUser]);
+        setLoggedInUserId(newUser.id);
+        sendToAPI('save_user', newUser);
+      } else {
+        const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (existingUser) {
+          setLoggedInUserId(existingUser.id);
+        } else {
+          setIsRegistering(true);
+        }
+      }
+    };
 
-  // Stop rendering the app if we are not logged in! Show Auth Screen instead.
-  if (!isLoading && !currentUser) {
-    return <AuthScreen />;
-  }
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 w-full max-w-md">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-lg shadow-blue-600/20">
+            <LayoutDashboard size={32} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-800 text-center mb-2">Control Room</h1>
+          <p className="text-slate-500 text-center mb-8">
+            {isRegistering ? "It looks like you're new! Let's get you set up." : "Enter your email to sign in."}
+          </p>
 
-  // --- ENFORCE PERMISSIONS ON COMPANIES ---
-  const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
+          <form onSubmit={handleAuth} className="space-y-4">
+            {isRegistering && (
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
+                  placeholder="John Doe" 
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+              <input 
+                type="email" 
+                required 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
+                placeholder="you@company.com" 
+                disabled={isRegistering && email !== ''}
+              />
+            </div>
+            <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">
+              {isRegistering ? 'Create Account' : 'Continue'}
+            </button>
+          </form>
 
+          {isRegistering && (
+            <button onClick={() => setIsRegistering(false)} className="w-full mt-4 text-sm text-slate-500 hover:text-slate-700 font-medium">
+              Back to Sign In
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const TopBar = () => {
     const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity';
@@ -642,7 +655,6 @@ export default function App() {
     
     return (
       <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
-        
         <div className="relative">
           <button 
             onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
@@ -720,12 +732,10 @@ export default function App() {
                   <button onClick={() => setBudgetDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${budgetDisplayMode === 'list' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-100 hover:text-white hover:bg-emerald-500/50'}`}><ListTodo size={16} /></button>
                   <button onClick={() => setBudgetDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${budgetDisplayMode === 'timeline' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-100 hover:text-white hover:bg-emerald-500/50'}`}><CalendarClock size={16} /></button>
                </div>
-               
                <label className={`${activeBudgetTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Expenses from CSV">
                  <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Import</span>
                  <input type="file" accept=".csv" className="hidden" disabled={activeBudgetTab === 'overview'} onClick={(e) => { if(activeBudgetTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeBudgetTab, false)} />
                </label>
-               
                <button 
                  onClick={() => openExpenseModal(null, activeBudgetTab === 'overview' ? '' : activeBudgetTab)} 
                  className="bg-white text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
@@ -740,8 +750,6 @@ export default function App() {
                   <button onClick={() => setDomainDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'list' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><ListTodo size={16} /></button>
                   <button onClick={() => setDomainDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'timeline' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><CalendarClock size={16} /></button>
                </div>
-               
-               {/* NEW GODADDY SYNC BUTTON */}
                {activeDomainTab !== 'overview' && (
                  <button 
                    onClick={() => handleSyncGoDaddy(activeDomainTab)}
@@ -751,12 +759,10 @@ export default function App() {
                    <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
                  </button>
                )}
-
                <label className={`${activeDomainTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-700 hover:bg-teal-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Domains from CSV">
                  <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">CSV</span>
                  <input type="file" accept=".csv" className="hidden" disabled={activeDomainTab === 'overview'} onClick={(e) => { if(activeDomainTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeDomainTab, true)} />
                </label>
-               
                <button 
                  onClick={() => openDomainModal(null, activeDomainTab === 'overview' ? '' : activeDomainTab)} 
                  className="bg-white text-teal-600 hover:bg-teal-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
@@ -770,212 +776,215 @@ export default function App() {
     );
   };
 
-  const Sidebar = () => (
-    <div className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full shadow-xl flex-shrink-0">
-      <div className="p-5 border-b border-slate-700 flex justify-center items-center lg:hidden">
-        <h1 className="text-xl font-bold text-white flex items-center gap-2 capitalize">{currentApp} Menu</h1>
-      </div>
-      
-      <div className="flex-1 overflow-y-auto py-6">
-        
-        {currentApp === 'projects' && (
-          <>
-            <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Global</p>
-              <div className="space-y-1">
-                <button 
-                  onClick={() => { setActiveTab('mytasks'); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'mytasks' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}
-                >
-                  <CheckCircle2 size={18} />
-                  My Tasks
-                </button>
-                <button 
-                  onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}
-                >
-                  <Users size={18} />
-                  Team Capacity
-                </button>
-              </div>
-            </div>
+  const Sidebar = () => {
+    const visibleCompanies = companies.filter(c => currentUser.isAdmin || (c.userIds && c.userIds.includes(currentUser.id)));
 
-            <div className="px-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Companies</p>
-                {currentUser.isAdmin && (
-                  <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                    <Plus size={16} />
+    return (
+      <div className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full shadow-xl flex-shrink-0">
+        <div className="p-5 border-b border-slate-700 flex justify-center items-center lg:hidden">
+          <h1 className="text-xl font-bold text-white flex items-center gap-2 capitalize">{currentApp} Menu</h1>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto py-6">
+          {currentApp === 'projects' && (
+            <>
+              <div className="px-4 mb-6">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Global</p>
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => { setActiveTab('mytasks'); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'mytasks' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}
+                  >
+                    <CheckCircle2 size={18} />
+                    My Tasks
                   </button>
-                )}
+                  <button 
+                    onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}
+                  >
+                    <Users size={18} />
+                    Team Capacity
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-4 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Companies</p>
+                  {currentUser.isAdmin && (
+                    <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
+                      <Plus size={16} />
+                    </button>
+                  )}
+                </div>
+                
+                {visibleCompanies.map(company => (
+                  <div key={company.id} className="mb-4">
+                    <div className="flex items-center justify-between mb-1 px-1 group/company">
+                      <div className="flex items-center gap-2 text-slate-400 truncate pr-2">
+                        <CompanyLogo company={company} />
+                        <span className="font-medium text-sm text-slate-200 truncate">{company.name}</span>
+                      </div>
+                      {currentUser.isAdmin && (
+                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity">
+                          <button onClick={() => openCompanyModal(company)} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                          <button onClick={() => openProjectModal(company.id)} className="text-slate-500 hover:text-white p-1 ml-0.5" title="Add Project"><Plus size={14} /></button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="pl-4 flex flex-col gap-0.5">
+                      {projects.filter(p => p.companyId === company.id).map(project => (
+                        <div key={project.id} className="flex items-center justify-between group/project">
+                          <button
+                            onClick={() => { setActiveTab(project.id); setIsMobileMenuOpen(false); }}
+                            className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${activeTab === project.id ? 'bg-slate-800 text-white font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
+                          >
+                            <DynamicIcon name={project.icon} size={14} className={`flex-shrink-0 ${activeTab === project.id ? colorStyles[project.color]?.text : ''}`} />
+                            <div className="flex-1 flex flex-col items-start overflow-hidden w-full">
+                               <span className="truncate w-full text-left">{project.name}</span>
+                               <div className="w-full bg-slate-700/50 h-1 mt-1 rounded-full overflow-hidden">
+                                 <div className={`h-full ${colorStyles[project.color]?.bar} transition-all duration-500`} style={{ width: `${calculateProjectProgress(project.id)}%` }} />
+                               </div>
+                            </div>
+                          </button>
+                          {currentUser.isAdmin && (
+                            <button onClick={(e) => { e.stopPropagation(); openProjectModal('', project); }} className="text-slate-500 hover:text-white opacity-0 group-hover/project:opacity-100 transition-all p-1.5 flex-shrink-0" title="Edit Project">
+                              <Pencil size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {currentApp === 'budget' && (
+            <>
+              <div className="px-4 mb-6">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Finance</p>
+                <button 
+                  onClick={() => { setActiveBudgetTab('overview'); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
+                >
+                  <PieChart size={18} />
+                  All Budgets
+                </button>
               </div>
               
-              {visibleCompanies.map(company => (
-                <div key={company.id} className="mb-4">
-                  <div className="flex items-center justify-between mb-1 px-1 group/company">
-                    <div className="flex items-center gap-2 text-slate-400 truncate pr-2">
-                      <CompanyLogo company={company} />
-                      <span className="font-medium text-sm text-slate-200 truncate">{company.name}</span>
-                    </div>
-                    {currentUser.isAdmin && (
-                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity">
-                        <button onClick={() => openCompanyModal(company)} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                        <button onClick={() => openProjectModal(company.id)} className="text-slate-500 hover:text-white p-1 ml-0.5" title="Add Project"><Plus size={14} /></button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="pl-4 flex flex-col gap-0.5">
-                    {projects.filter(p => p.companyId === company.id).map(project => (
-                      <div key={project.id} className="flex items-center justify-between group/project">
-                        <button
-                          onClick={() => { setActiveTab(project.id); setIsMobileMenuOpen(false); }}
-                          className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${activeTab === project.id ? 'bg-slate-800 text-white font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
-                        >
-                          <DynamicIcon name={project.icon} size={14} className={`flex-shrink-0 ${activeTab === project.id ? colorStyles[project.color]?.text : ''}`} />
-                          <div className="flex-1 flex flex-col items-start overflow-hidden w-full">
-                             <span className="truncate w-full text-left">{project.name}</span>
-                             <div className="w-full bg-slate-700/50 h-1 mt-1 rounded-full overflow-hidden">
-                               <div className={`h-full ${colorStyles[project.color]?.bar} transition-all duration-500`} style={{ width: `${calculateProjectProgress(project.id)}%` }} />
-                             </div>
-                          </div>
-                        </button>
-                        {currentUser.isAdmin && (
-                          <button onClick={(e) => { e.stopPropagation(); openProjectModal('', project); }} className="text-slate-500 hover:text-white opacity-0 group-hover/project:opacity-100 transition-all p-1.5 flex-shrink-0" title="Edit Project">
-                            <Pencil size={12} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              <div className="px-4 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
+                  {currentUser.isAdmin && (
+                    <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
+                      <Plus size={16} />
+                    </button>
+                  )}
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {currentApp === 'budget' && (
-          <>
-            <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Finance</p>
-              <button 
-                onClick={() => { setActiveBudgetTab('overview'); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
-              >
-                <PieChart size={18} />
-                All Budgets
-              </button>
-            </div>
-            
-            <div className="px-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                {currentUser.isAdmin && (
-                  <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                    <Plus size={16} />
-                  </button>
-                )}
+                <div className="flex flex-col gap-1">
+                  {visibleCompanies.map(company => (
+                    <div key={company.id} className="flex items-center justify-between group/company">
+                      <button
+                        onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeBudgetTab === company.id ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                        <span className="truncate">{company.name}</span>
+                      </button>
+                      {currentUser.isAdmin && (
+                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
+                          <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                {visibleCompanies.map(company => (
-                  <div key={company.id} className="flex items-center justify-between group/company">
-                    <button
-                      onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }}
-                      className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeBudgetTab === company.id ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
-                    >
-                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                      <span className="truncate">{company.name}</span>
-                    </button>
-                    {currentUser.isAdmin && (
-                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
-                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {currentApp === 'domains' && (
-          <>
-            <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Portfolio</p>
-              <button 
-                onClick={() => { setActiveDomainTab('overview'); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeDomainTab === 'overview' ? 'bg-teal-500 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
-              >
-                <Globe size={18} />
-                All Domains
-              </button>
-            </div>
-            
-            <div className="px-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                {currentUser.isAdmin && (
-                  <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                    <Plus size={16} />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-col gap-1">
-                {visibleCompanies.map(company => (
-                  <div key={company.id} className="flex items-center justify-between group/company">
-                    <button
-                      onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }}
-                      className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === company.id ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
-                    >
-                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                      <span className="truncate">{company.name}</span>
-                    </button>
-                    {currentUser.isAdmin && (
-                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
-                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-      </div>
-
-      <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
-        <button 
-          onClick={openProfileModal}
-          className="flex-1 flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300 hover:text-white group overflow-hidden"
-        >
-          {currentUser.avatarUrl ? (
-             <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-600 flex-shrink-0 bg-white" />
-          ) : (
-             <UserCircle size={28} className="text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
+            </>
           )}
-          <div className="flex flex-col items-start truncate text-left pr-2">
-            <span className="font-bold text-sm truncate w-full flex items-center gap-1.5 text-slate-200 group-hover:text-white transition-colors">
-              {currentUser.name.split(' ')[0]}
-            </span>
-            <span className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 truncate w-full ${currentUser.isAdmin ? 'text-amber-500' : 'text-blue-400'}`}>
-              {currentUser.isAdmin ? 'Workspace Admin' : 'Team Member'}
-            </span>
-          </div>
-        </button>
 
-        <div className="flex items-center gap-1">
-          {currentUser.isAdmin && (
-             <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions">
-                <Users size={16} />
-             </button>
+          {currentApp === 'domains' && (
+            <>
+              <div className="px-4 mb-6">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Portfolio</p>
+                <button 
+                  onClick={() => { setActiveDomainTab('overview'); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeDomainTab === 'overview' ? 'bg-teal-500 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
+                >
+                  <Globe size={18} />
+                  All Domains
+                </button>
+              </div>
+              
+              <div className="px-4 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
+                  {currentUser.isAdmin && (
+                    <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
+                      <Plus size={16} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {visibleCompanies.map(company => (
+                    <div key={company.id} className="flex items-center justify-between group/company">
+                      <button
+                        onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === company.id ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                        <span className="truncate">{company.name}</span>
+                      </button>
+                      {currentUser.isAdmin && (
+                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
+                          <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
-          <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)">
-             <UserCog size={16} />
+
+        </div>
+
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
+          <button 
+            onClick={openProfileModal}
+            className="flex-1 flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300 hover:text-white group overflow-hidden"
+          >
+            {currentUser.avatarUrl ? (
+               <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-600 flex-shrink-0 bg-white" />
+            ) : (
+               <UserCircle size={28} className="text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
+            )}
+            <div className="flex flex-col items-start truncate text-left pr-2">
+              <span className="font-bold text-sm truncate w-full flex items-center gap-1.5 text-slate-200 group-hover:text-white transition-colors">
+                {currentUser.name.split(' ')[0]}
+              </span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 truncate w-full ${currentUser.isAdmin ? 'text-amber-500' : 'text-blue-400'}`}>
+                {currentUser.isAdmin ? 'Workspace Admin' : 'Team Member'}
+              </span>
+            </div>
           </button>
+
+          <div className="flex items-center gap-1">
+            {currentUser.isAdmin && (
+               <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions">
+                  <Users size={16} />
+               </button>
+            )}
+            <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)">
+               <UserCog size={16} />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const DashboardView = () => {
     const myTasks = tasks.filter(t => t.assigneeId === currentUser.id);
@@ -2020,10 +2029,8 @@ export default function App() {
     );
   };
 
-  // --- MODALS (Rendered over the app) ---
   return (
     <>
-      {/* THE MAIN APP RENDER */}
       <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col lg:flex-row">
         
         {isMobileMenuOpen && (
