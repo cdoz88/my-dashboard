@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserSwitch, LogOut
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut
 } from 'lucide-react';
 
 // API Configuration
@@ -970,7 +970,7 @@ export default function App() {
              </button>
           )}
           <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)">
-             <UserSwitch size={16} />
+             <UserCog size={16} />
           </button>
         </div>
       </div>
@@ -2169,7 +2169,7 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-               <h3 className="font-bold text-slate-800 flex items-center gap-2"><UserSwitch size={18}/> Switch Identity</h3>
+               <h3 className="font-bold text-slate-800 flex items-center gap-2"><UserCog size={18}/> Switch Identity</h3>
                <button onClick={() => setIsSwitchUserModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <div className="p-4 overflow-y-auto max-h-[60vh] space-y-2">
