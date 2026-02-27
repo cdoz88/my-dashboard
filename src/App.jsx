@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key
 } from 'lucide-react';
 
 // API Configuration
@@ -413,13 +413,18 @@ export default function App() {
         ...currentUser,
         name: profileForm.name, 
         email: profileForm.email, 
+        password: profileForm.password, // Only processed by backend if not empty
         avatarUrl: profileForm.avatarUrl 
     };
     
+    // Update local state without saving the literal password
+    const localUser = { ...updatedUser };
+    delete localUser.password;
+    
     if (users.find(u => u.id === currentUser.id)) {
-      setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+      setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
     } else {
-      setUsers([...users, updatedUser]);
+      setUsers([...users, localUser]);
     }
     setIsProfileModalOpen(false);
     sendToAPI('save_user', updatedUser);
@@ -430,10 +435,13 @@ export default function App() {
     const userToSave = { ...editingTeamMember };
     if (!userToSave.id) userToSave.id = 'u' + Date.now();
     
+    const localUser = { ...userToSave };
+    delete localUser.password; // Do not keep password in browser memory
+    
     if (users.find(u => u.id === userToSave.id)) {
-      setUsers(users.map(u => u.id === userToSave.id ? userToSave : u));
+      setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
     } else {
-      setUsers([...users, userToSave]);
+      setUsers([...users, localUser]);
     }
     
     sendToAPI('save_user', userToSave);
@@ -569,34 +577,61 @@ export default function App() {
   // --- INTERNAL COMPONENTS ---
   const AuthScreen = () => {
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
 
-    const handleAuth = (e) => {
+    const handleAuth = async (e) => {
       e.preventDefault();
       
       if (isRegistering) {
-        if (!name.trim() || !email.trim()) return;
+        if (!name.trim() || !email.trim() || !password.trim()) return;
+        
         const isFirstUser = users.length === 0;
         const newUser = {
            id: 'u' + Date.now(),
            name: name,
            email: email.toLowerCase(),
+           password: password, 
            isAdmin: isFirstUser, 
            canViewProjects: true,
            canViewBudget: isFirstUser,
            canViewDomains: isFirstUser,
            avatarUrl: ''
         };
-        setUsers([...users, newUser]);
-        setLoggedInUserId(newUser.id);
-        sendToAPI('save_user', newUser);
+        
+        const localUser = { ...newUser };
+        delete localUser.password;
+        
+        setUsers([...users, localUser]);
+        setLoggedInUserId(localUser.id);
+        await sendToAPI('save_user', newUser);
+        
       } else {
         const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-        if (existingUser) {
-          setLoggedInUserId(existingUser.id);
-        } else {
+        if (!existingUser) {
           setIsRegistering(true);
+          return;
+        }
+        
+        // Authenticate with server
+        try {
+          const response = await fetch(`${API_URL}?action=login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.toLowerCase(), password: password })
+          });
+          const data = await response.json();
+          
+          if (data.error) {
+            alert(data.error);
+          } else {
+            setLoggedInUserId(data.user.id);
+            // Refresh user data with latest from DB
+            setUsers(users.map(u => u.id === data.user.id ? data.user : u));
+          }
+        } catch (err) {
+          alert("Could not connect to the authentication server.");
         }
       }
     };
@@ -609,7 +644,7 @@ export default function App() {
           </div>
           <h1 className="text-2xl font-black text-slate-800 text-center mb-2">Control Room</h1>
           <p className="text-slate-500 text-center mb-8">
-            {isRegistering ? "It looks like you're new! Let's get you set up." : "Enter your email to sign in."}
+            {isRegistering ? "It looks like you're new! Let's get you set up." : "Enter your credentials to sign in."}
           </p>
 
           <form onSubmit={handleAuth} className="space-y-4">
@@ -638,8 +673,19 @@ export default function App() {
                 disabled={isRegistering && email !== ''}
               />
             </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+              <input 
+                type="password" 
+                required 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
+                placeholder="••••••••" 
+              />
+            </div>
             <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">
-              {isRegistering ? 'Create Account' : 'Continue'}
+              {isRegistering ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
@@ -2096,13 +2142,13 @@ export default function App() {
             <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
               <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
               </div>
               <div className="overflow-y-auto flex-1 p-2 space-y-1">
                 {users.map(u => (
                   <button 
                     key={u.id} 
-                    onClick={() => setEditingTeamMember(u)}
+                    onClick={() => setEditingTeamMember({...u, password: ''})}
                     className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}
                   >
                     {u.avatarUrl ? <img src={u.avatarUrl} className="w-8 h-8 rounded-full object-cover bg-white" /> : <UserCircle size={32} className="text-slate-400" />}
@@ -2134,15 +2180,23 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                      <input type="text" value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                      <input type="email" value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="email" required value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
+                  </div>
+
+                  {/* Password Field for Admin to Set */}
+                  <div className="mb-8">
+                      <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                        <Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}
+                      </label>
+                      <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
 
                   <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
@@ -2297,6 +2351,12 @@ export default function App() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                   <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                    <Key size={14} className="text-slate-400"/> Change Password
+                  </label>
+                  <input type="text" placeholder="Leave blank to keep current password" value={profileForm.password || ''} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
               
