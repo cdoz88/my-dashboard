@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   LayoutDashboard, Briefcase, FolderKanban, ListTodo, KanbanSquare, 
   CalendarClock, Plus, CheckCircle2, Circle, Clock, Trash2, X, Paperclip,
@@ -7,7 +8,8 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, 
+  ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, TrendingUp, PlaySquare
 } from 'lucide-react';
 
 // API Configuration
@@ -704,20 +706,22 @@ export default function App() {
     const isDomainView = currentApp === 'domains';
     
     return (
-      <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
+      <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-[#212121]' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
         <div className="relative">
           <button 
             onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
-            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : 'hover:bg-teal-600'}`}
+            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-[#3d3d3d]' : 'hover:bg-teal-600'}`}
           >
             {currentApp === 'projects' ? (
               <LayoutDashboard size={24} className="text-white/70" />
             ) : currentApp === 'budget' ? (
               <Wallet size={24} className="text-white/70" />
+            ) : currentApp === 'youtube' ? (
+              <Youtube size={24} className="text-red-500" />
             ) : (
               <Globe size={24} className="text-white/70" />
             )}
-            <span className="capitalize">{currentApp}</span>
+            <span className="capitalize">{currentApp === 'youtube' ? 'YouTube Studio' : currentApp}</span>
             <ChevronsUpDown size={18} className="text-white/60 ml-1" />
           </button>
 
@@ -756,6 +760,18 @@ export default function App() {
                       <Globe size={18} />
                     </div>
                     Domains
+                  </button>
+                )}
+                {/* FOR NOW: Relying on generic permission to view YouTube, we can add custom permission later */}
+                {(currentUser.isAdmin || currentUser.canViewProjects) && ( 
+                  <button 
+                    onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                      <Youtube size={18} />
+                    </div>
+                    YouTube
                   </button>
                 )}
               </div>
@@ -997,6 +1013,9 @@ export default function App() {
             </>
           )}
 
+          {/* YouTube Sidebar Menu is not currently needed as it's a single dashboard page, 
+              but we could add channel specific lists here later if needed! */}
+
         </div>
 
         <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
@@ -1028,6 +1047,118 @@ export default function App() {
             <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)">
                <UserCog size={16} />
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const YoutubeDashboard = () => {
+    // Mock data based on your screenshot to build the UI first
+    const mockChannels = [
+      { id: '1', name: 'Dynasty Football', views: '15.0K', watchTime: '907.3', subs: '+73', revenue: '$24.35', realtimeViews: '1,015', realtimeSubs: '18,404' },
+      { id: '2', name: 'Second Channel', views: '8.2K', watchTime: '420.1', subs: '+12', revenue: '$12.10', realtimeViews: '450', realtimeSubs: '2,100' },
+      { id: '3', name: 'Third Channel', views: '45.1K', watchTime: '1,200.5', subs: '+300', revenue: '$105.00', realtimeViews: '5,000', realtimeSubs: '45,000' },
+      { id: '4', name: 'Fourth Channel', views: '1.2K', watchTime: '45.0', subs: '+2', revenue: '$1.05', realtimeViews: '100', realtimeSubs: '500' }
+    ];
+
+    const [activeChannel, setActiveChannel] = useState(mockChannels[0]);
+
+    // Mock chart data for the last 28 days
+    const chartData = Array.from({ length: 28 }, (_, i) => ({
+      day: i + 1,
+      views: Math.floor(Math.random() * 800) + 200
+    }));
+
+    return (
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-[#0f0f0f] text-white overflow-y-auto">
+        
+        {/* Channel Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <Youtube size={32} className="text-red-500" />
+            <h2 className="text-2xl font-bold">YouTube Studio</h2>
+          </div>
+          <div className="sm:ml-auto flex flex-wrap gap-2">
+            {mockChannels.map(channel => (
+              <button 
+                key={channel.id}
+                onClick={() => setActiveChannel(channel)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${activeChannel.id === channel.id ? 'bg-white text-black border-white' : 'bg-[#272727] text-gray-300 border-[#3f3f3f] hover:bg-[#3f3f3f]'}`}
+              >
+                {channel.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col xl:flex-row gap-6">
+          {/* LEFT COLUMN: Main Analytics */}
+          <div className="flex-1 space-y-6">
+            <div className="bg-[#212121] rounded-xl p-6 border border-[#3f3f3f]">
+              <h3 className="text-xl font-bold mb-1">Your channel got {activeChannel.views} views in the last 28 days</h3>
+              <p className="text-gray-400 text-sm mb-6">About the same as usual</p>
+
+              {/* The Big 4 Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="p-4 bg-[#333333] rounded-lg border-b-2 border-white">
+                  <div className="text-sm text-gray-400 mb-1">Views</div>
+                  <div className="text-2xl font-bold">{activeChannel.views}</div>
+                </div>
+                <div className="p-4 hover:bg-[#333333] rounded-lg cursor-pointer transition-colors">
+                  <div className="text-sm text-gray-400 mb-1">Watch time (hours)</div>
+                  <div className="text-2xl font-bold">{activeChannel.watchTime}</div>
+                </div>
+                <div className="p-4 hover:bg-[#333333] rounded-lg cursor-pointer transition-colors">
+                  <div className="text-sm text-gray-400 mb-1">Subscribers</div>
+                  <div className="text-2xl font-bold text-green-400">{activeChannel.subs}</div>
+                </div>
+                <div className="p-4 hover:bg-[#333333] rounded-lg cursor-pointer transition-colors">
+                  <div className="text-sm text-gray-400 mb-1">Estimated revenue</div>
+                  <div className="text-2xl font-bold">{activeChannel.revenue}</div>
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <XAxis dataKey="day" hide />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1f1f1f', borderColor: '#3f3f3f', color: '#fff' }}
+                      itemStyle={{ color: '#3ea6ff' }}
+                    />
+                    <Line type="monotone" dataKey="views" stroke="#3ea6ff" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            <div className="bg-[#212121] rounded-xl p-6 border border-[#3f3f3f]">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <PlaySquare size={20} className="text-gray-400"/> Top content in this period
+                </h3>
+                <p className="text-sm text-gray-400 italic">Video list will populate here when real data is connected.</p>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Realtime */}
+          <div className="w-full xl:w-80 flex flex-col gap-6">
+            <div className="bg-[#212121] rounded-xl p-6 border border-[#3f3f3f]">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                Realtime
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse ml-2" />
+                <span className="text-xs font-normal text-blue-500">Updating live</span>
+              </h3>
+              <div className="mb-6">
+                <div className="text-3xl font-bold">{activeChannel.realtimeSubs}</div>
+                <div className="text-sm text-gray-400">Subscribers</div>
+              </div>
+              <div className="pt-6 border-t border-[#3f3f3f]">
+                <div className="text-3xl font-bold">{activeChannel.realtimeViews}</div>
+                <div className="text-sm text-gray-400">Views · Last 48 hours</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2097,8 +2228,10 @@ export default function App() {
               <ProjectView projectId={activeTab} />
             ) : currentApp === 'budget' ? (
               <BudgetDashboard />
-            ) : (
+            ) : currentApp === 'domains' ? (
               <DomainsDashboard />
+            ) : (
+              <YoutubeDashboard />
             )}
           </main>
           <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
