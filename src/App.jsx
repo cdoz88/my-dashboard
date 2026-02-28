@@ -137,7 +137,6 @@ export default function App() {
       .then(res => res.json())
       .then(data => {
         if(data.users) {
-           // Parse strings to strict booleans for UI
            const mappedUsers = data.users.map(u => ({
                ...u,
                isAdmin: u.isAdmin == 1 || u.isAdmin === true,
@@ -206,7 +205,6 @@ export default function App() {
     reader.onload = async (event) => {
       const text = event.target.result;
       const lines = text.split('\n');
-      
       let importedCount = 0;
 
       for (let i = 1; i < lines.length; i++) {
@@ -215,7 +213,6 @@ export default function App() {
         
         const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
         const cols = line.split(regex).map(col => col.replace(/^"|"$/g, '').trim());
-        
         if (cols.length < 3) continue; 
         
         const name = cols[0];
@@ -229,25 +226,16 @@ export default function App() {
         const col2Str = (cols[2] || '').toLowerCase();
         const notesStr = (cols[7] || cols[6] || '').toLowerCase();
 
-        // Smart check for AR Off
-        if (col1Str.includes('ar off') || col2Str.includes('ar off') || notesStr.includes('ar off')) {
-            autoRenew = false;
-        }
+        if (col1Str.includes('ar off') || col2Str.includes('ar off') || notesStr.includes('ar off')) autoRenew = false;
         
         const monthlyStr = col1Str.replace(/[^0-9.]/g, '');
         const annualStr = col2Str.replace(/[^0-9.]/g, '');
         
         if (monthlyStr && parseFloat(monthlyStr) > 0) {
-           amount = parseFloat(monthlyStr);
-           cycle = 'monthly';
+           amount = parseFloat(monthlyStr); cycle = 'monthly';
         } else if (annualStr && parseFloat(annualStr) > 0) {
-           amount = parseFloat(annualStr);
-           cycle = 'annual';
-        } else if (autoRenew) {
-           continue; 
-        } else {
-           amount = 0; // It is off and has no explicit amount listed
-        }
+           amount = parseFloat(annualStr); cycle = 'annual';
+        } else if (autoRenew) { continue; } else { amount = 0; }
 
         const renewalDate = cols[4] || '';
         const notes = cols[7] || cols[6] || '';
@@ -262,15 +250,13 @@ export default function App() {
 
         const expenseData = {
           id: 'e' + Date.now() + Math.random().toString(36).substr(2, 5),
-          companyId: companyId,
-          name, amount, cycle, category, renewalDate, notes, autoRenew
+          companyId: companyId, name, amount, cycle, category, renewalDate, notes, autoRenew
         };
 
         setExpenses(prev => [...prev, expenseData]);
         await sendToAPI('save_expense', expenseData);
         importedCount++;
       }
-      
       alert(`Successfully imported ${importedCount} items from the CSV!`);
       e.target.value = null; 
     };
@@ -402,7 +388,7 @@ export default function App() {
 
   const openProfileModal = () => {
     if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, password: '', avatarUrl: currentUser.avatarUrl });
+      setProfileForm({ name: currentUser.name || '', email: currentUser.email || '', password: '', avatarUrl: currentUser.avatarUrl || '' });
       setIsProfileModalOpen(true);
     }
   };
@@ -413,11 +399,10 @@ export default function App() {
         ...currentUser,
         name: profileForm.name, 
         email: profileForm.email, 
-        password: profileForm.password, // Only processed by backend if not empty
+        password: profileForm.password,
         avatarUrl: profileForm.avatarUrl 
     };
     
-    // Update local state without saving the literal password
     const localUser = { ...updatedUser };
     delete localUser.password;
     
@@ -436,7 +421,7 @@ export default function App() {
     if (!userToSave.id) userToSave.id = 'u' + Date.now();
     
     const localUser = { ...userToSave };
-    delete localUser.password; // Do not keep password in browser memory
+    delete localUser.password;
     
     if (users.find(u => u.id === userToSave.id)) {
       setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
@@ -554,7 +539,7 @@ export default function App() {
     }
     return (
       <div className={`${sizeClass} rounded bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center font-bold ${textClass} flex-shrink-0 shadow-sm`}>
-        {company.name.charAt(0).toUpperCase()}
+        {company.name ? company.name.charAt(0).toUpperCase() : 'C'}
       </div>
     );
   };
@@ -571,7 +556,6 @@ export default function App() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
-  // --- ENFORCE PERMISSIONS ON COMPANIES ---
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
 
   // --- INTERNAL COMPONENTS ---
@@ -614,7 +598,6 @@ export default function App() {
           return;
         }
         
-        // Authenticate with server
         try {
           const response = await fetch(`${API_URL}?action=login`, {
             method: 'POST',
@@ -650,38 +633,16 @@ export default function App() {
             {isRegistering && (
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
-                  placeholder="John Doe" 
-                />
+                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="John Doe" />
               </div>
             )}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-              <input 
-                type="email" 
-                required 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
-                placeholder="you@company.com" 
-                disabled={isRegistering && email !== ''}
-              />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="you@company.com" disabled={isRegistering && email !== ''} />
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
-              <input 
-                type="password" 
-                required 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" 
-                placeholder="••••••••" 
-              />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="••••••••" />
             </div>
             <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">
               {isRegistering ? 'Create Account' : 'Sign In'}
@@ -710,13 +671,7 @@ export default function App() {
             onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
             className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : 'hover:bg-teal-600'}`}
           >
-            {currentApp === 'projects' ? (
-              <LayoutDashboard size={24} className="text-white/70" />
-            ) : currentApp === 'budget' ? (
-              <Wallet size={24} className="text-white/70" />
-            ) : (
-              <Globe size={24} className="text-white/70" />
-            )}
+            {currentApp === 'projects' ? <LayoutDashboard size={24} className="text-white/70" /> : currentApp === 'budget' ? <Wallet size={24} className="text-white/70" /> : <Globe size={24} className="text-white/70" />}
             <span className="capitalize">{currentApp}</span>
             <ChevronsUpDown size={18} className="text-white/60 ml-1" />
           </button>
@@ -725,37 +680,19 @@ export default function App() {
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsAppSwitcherOpen(false)} />
               <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 py-1">
-                {(currentUser.isAdmin || currentUser.canViewProjects) && (
-                  <button 
-                    onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
-                  >
-                    <div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-                      <LayoutDashboard size={18} />
-                    </div>
-                    Projects
+                {(currentUser?.isAdmin || currentUser?.canViewProjects) && (
+                  <button onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                    <div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><LayoutDashboard size={18} /></div>Projects
                   </button>
                 )}
-                {(currentUser.isAdmin || currentUser.canViewBudget) && (
-                  <button 
-                    onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}
-                  >
-                    <div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                      <Wallet size={18} />
-                    </div>
-                    Budget
+                {(currentUser?.isAdmin || currentUser?.canViewBudget) && (
+                  <button onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                    <div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Wallet size={18} /></div>Budget
                   </button>
                 )}
-                {(currentUser.isAdmin || currentUser.canViewDomains) && (
-                  <button 
-                    onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}
-                  >
-                    <div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}>
-                      <Globe size={18} />
-                    </div>
-                    Domains
+                {(currentUser?.isAdmin || currentUser?.canViewDomains) && (
+                  <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                    <div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains
                   </button>
                 )}
               </div>
@@ -771,9 +708,7 @@ export default function App() {
                   <button onClick={() => setProjectDisplayMode('kanban')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'kanban' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><KanbanSquare size={16} /></button>
                   <button onClick={() => setProjectDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'timeline' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><CalendarClock size={16} /></button>
                </div>
-               <button onClick={() => openTaskModal(null, activeTab, 'todo')} className="bg-white text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
-                 <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Task</span>
-               </button>
+               <button onClick={() => openTaskModal(null, activeTab, 'todo')} className="bg-white text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"><Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Task</span></button>
              </>
           )}
           {isBudgetView && (
@@ -786,12 +721,7 @@ export default function App() {
                  <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Import</span>
                  <input type="file" accept=".csv" className="hidden" disabled={activeBudgetTab === 'overview'} onClick={(e) => { if(activeBudgetTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeBudgetTab, false)} />
                </label>
-               <button 
-                 onClick={() => openExpenseModal(null, activeBudgetTab === 'overview' ? '' : activeBudgetTab)} 
-                 className="bg-white text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-               >
-                 <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Expense</span>
-               </button>
+               <button onClick={() => openExpenseModal(null, activeBudgetTab === 'overview' ? '' : activeBudgetTab)} className="bg-white text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"><Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Expense</span></button>
              </>
           )}
           {isDomainView && (
@@ -801,24 +731,13 @@ export default function App() {
                   <button onClick={() => setDomainDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'timeline' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><CalendarClock size={16} /></button>
                </div>
                {activeDomainTab !== 'overview' && (
-                 <button 
-                   onClick={() => handleSyncGoDaddy(activeDomainTab)}
-                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-                   title="Sync with GoDaddy API"
-                 >
-                   <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
-                 </button>
+                 <button onClick={() => handleSyncGoDaddy(activeDomainTab)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with GoDaddy API"><RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span></button>
                )}
                <label className={`${activeDomainTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-700 hover:bg-teal-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Domains from CSV">
                  <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">CSV</span>
                  <input type="file" accept=".csv" className="hidden" disabled={activeDomainTab === 'overview'} onClick={(e) => { if(activeDomainTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeDomainTab, true)} />
                </label>
-               <button 
-                 onClick={() => openDomainModal(null, activeDomainTab === 'overview' ? '' : activeDomainTab)} 
-                 className="bg-white text-teal-600 hover:bg-teal-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-               >
-                 <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Add</span>
-               </button>
+               <button onClick={() => openDomainModal(null, activeDomainTab === 'overview' ? '' : activeDomainTab)} className="bg-white text-teal-600 hover:bg-teal-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"><Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Add</span></button>
              </>
           )}
         </div>
@@ -839,31 +758,15 @@ export default function App() {
               <div className="px-4 mb-6">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Global</p>
                 <div className="space-y-1">
-                  <button 
-                    onClick={() => { setActiveTab('mytasks'); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'mytasks' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}
-                  >
-                    <CheckCircle2 size={18} />
-                    My Tasks
-                  </button>
-                  <button 
-                    onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}
-                  >
-                    <Users size={18} />
-                    Team Capacity
-                  </button>
+                  <button onClick={() => { setActiveTab('mytasks'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'mytasks' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}><CheckCircle2 size={18} /> My Tasks</button>
+                  <button onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}><Users size={18} /> Team Capacity</button>
                 </div>
               </div>
 
               <div className="px-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Companies</p>
-                  {currentUser?.isAdmin && (
-                    <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                      <Plus size={16} />
-                    </button>
-                  )}
+                  {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
                 </div>
                 
                 {visibleCompanies.map(company => (
@@ -883,10 +786,7 @@ export default function App() {
                     <div className="pl-4 flex flex-col gap-0.5">
                       {projects.filter(p => p.companyId === company.id).map(project => (
                         <div key={project.id} className="flex items-center justify-between group/project">
-                          <button
-                            onClick={() => { setActiveTab(project.id); setIsMobileMenuOpen(false); }}
-                            className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${activeTab === project.id ? 'bg-slate-800 text-white font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
-                          >
+                          <button onClick={() => { setActiveTab(project.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${activeTab === project.id ? 'bg-slate-800 text-white font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                             <DynamicIcon name={project.icon} size={14} className={`flex-shrink-0 ${activeTab === project.id ? colorStyles[project.color]?.text : ''}`} />
                             <div className="flex-1 flex flex-col items-start overflow-hidden w-full">
                                <span className="truncate w-full text-left">{project.name}</span>
@@ -896,9 +796,7 @@ export default function App() {
                             </div>
                           </button>
                           {currentUser?.isAdmin && (
-                            <button onClick={(e) => { e.stopPropagation(); openProjectModal('', project); }} className="text-slate-500 hover:text-white opacity-0 group-hover/project:opacity-100 transition-all p-1.5 flex-shrink-0" title="Edit Project">
-                              <Pencil size={12} />
-                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); openProjectModal('', project); }} className="text-slate-500 hover:text-white opacity-0 group-hover/project:opacity-100 transition-all p-1.5 flex-shrink-0" title="Edit Project"><Pencil size={12} /></button>
                           )}
                         </div>
                       ))}
@@ -913,31 +811,17 @@ export default function App() {
             <>
               <div className="px-4 mb-6">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Finance</p>
-                <button 
-                  onClick={() => { setActiveBudgetTab('overview'); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
-                >
-                  <PieChart size={18} />
-                  All Budgets
-                </button>
+                <button onClick={() => { setActiveBudgetTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}><PieChart size={18} /> All Budgets</button>
               </div>
-              
               <div className="px-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                  {currentUser?.isAdmin && (
-                    <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                      <Plus size={16} />
-                    </button>
-                  )}
+                  {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
                 </div>
                 <div className="flex flex-col gap-1">
                   {visibleCompanies.map(company => (
                     <div key={company.id} className="flex items-center justify-between group/company">
-                      <button
-                        onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }}
-                        className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeBudgetTab === company.id ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
-                      >
+                      <button onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeBudgetTab === company.id ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                         <CompanyLogo company={company} sizeClass="w-5 h-5" />
                         <span className="truncate">{company.name}</span>
                       </button>
@@ -957,31 +841,17 @@ export default function App() {
             <>
               <div className="px-4 mb-6">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Portfolio</p>
-                <button 
-                  onClick={() => { setActiveDomainTab('overview'); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeDomainTab === 'overview' ? 'bg-teal-500 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
-                >
-                  <Globe size={18} />
-                  All Domains
-                </button>
+                <button onClick={() => { setActiveDomainTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeDomainTab === 'overview' ? 'bg-teal-500 text-white' : 'hover:bg-slate-800 text-slate-300'}`}><Globe size={18} /> All Domains</button>
               </div>
-              
               <div className="px-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                  {currentUser?.isAdmin && (
-                    <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company">
-                      <Plus size={16} />
-                    </button>
-                  )}
+                  {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
                 </div>
                 <div className="flex flex-col gap-1">
                   {visibleCompanies.map(company => (
                     <div key={company.id} className="flex items-center justify-between group/company">
-                      <button
-                        onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }}
-                        className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === company.id ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
-                      >
+                      <button onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === company.id ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                         <CompanyLogo company={company} sizeClass="w-5 h-5" />
                         <span className="truncate">{company.name}</span>
                       </button>
@@ -1000,34 +870,16 @@ export default function App() {
         </div>
 
         <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
-          <button 
-            onClick={openProfileModal}
-            className="flex-1 flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300 hover:text-white group overflow-hidden"
-          >
-            {currentUser?.avatarUrl ? (
-               <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-600 flex-shrink-0 bg-white" />
-            ) : (
-               <UserCircle size={28} className="text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
-            )}
+          <button onClick={openProfileModal} className="flex-1 flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-slate-800 text-slate-300 hover:text-white group overflow-hidden">
+            {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-600 flex-shrink-0 bg-white" /> : <UserCircle size={28} className="text-slate-500 group-hover:text-slate-400 flex-shrink-0" />}
             <div className="flex flex-col items-start truncate text-left pr-2">
-              <span className="font-bold text-sm truncate w-full flex items-center gap-1.5 text-slate-200 group-hover:text-white transition-colors">
-                {currentUser?.name.split(' ')[0]}
-              </span>
-              <span className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 truncate w-full ${currentUser?.isAdmin ? 'text-amber-500' : 'text-blue-400'}`}>
-                {currentUser?.isAdmin ? 'Workspace Admin' : 'Team Member'}
-              </span>
+              <span className="font-bold text-sm truncate w-full flex items-center gap-1.5 text-slate-200 group-hover:text-white transition-colors">{(currentUser?.name || 'User').split(' ')[0]}</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 truncate w-full ${currentUser?.isAdmin ? 'text-amber-500' : 'text-blue-400'}`}>{currentUser?.isAdmin ? 'Workspace Admin' : 'Team Member'}</span>
             </div>
           </button>
-
-          <div className="flex items-center gap-1">
-            {currentUser?.isAdmin && (
-               <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions">
-                  <Users size={16} />
-               </button>
-            )}
-            <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)">
-               <UserCog size={16} />
-            </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {currentUser?.isAdmin && <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions"><Users size={16} /></button>}
+            <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)"><UserCog size={16} /></button>
           </div>
         </div>
       </div>
@@ -1052,37 +904,21 @@ export default function App() {
           <td className="py-4 px-2 w-8">
             <div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} />
           </td>
-          <td 
-            className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`}
-            onClick={() => openTaskModal(task)}
-          >
+          <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
             <div>{task.title}</div>
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
-                 <Star size={10}/> {task.weight || 1} pts
-              </span>
-            </div>
+            <div className="flex flex-wrap gap-2 mt-1.5"><TagDisplay tags={task.tags} /><span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span></div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
             {project && company && (
               <div className={`flex items-center gap-2 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
                 <CompanyLogo company={company} sizeClass="w-6 h-6" textClass="text-[10px]" />
-                <span className={`flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}>
-                  <DynamicIcon name={project.icon} size={14} />
-                  {project.name}
-                </span>
+                <span className={`flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={14} />{project.name}</span>
               </div>
             )}
           </td>
           <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-            <span className="flex items-center gap-1">
-              <Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-              {formatDate(task.dueDate)}
-            </span>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4">
-              <Trash2 size={16} />
-            </button>
+            <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
+            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"><Trash2 size={16} /></button>
           </td>
         </tr>
       );
@@ -1100,35 +936,19 @@ export default function App() {
               {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
             </button>
             <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-            <div 
-              className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`}
-              onClick={() => openTaskModal(task)}
-            >
-              {task.title}
-            </div>
+            <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
           </div>
-          
           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
             <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-               <Star size={10}/> {task.weight || 1} pts
-            </span>
+            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
             {project && company && (
               <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
                 <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
-                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}>
-                  <DynamicIcon name={project.icon} size={10} />
-                  <span className="truncate max-w-[120px]">{project.name}</span>
-                </span>
+                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={10} /><span className="truncate max-w-[120px]">{project.name}</span></span>
               </div>
             )}
-            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-              <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-              {formatDate(task.dueDate)}
-            </div>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              <Trash2 size={14} />
-            </button>
+            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
+            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
           </div>
         </div>
       );
@@ -1137,8 +957,6 @@ export default function App() {
     return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full">
         <h2 className="text-2xl font-bold text-slate-800 mb-6">My Tasks</h2>
-        
-        {/* ACTIVE TASKS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           <div className="md:hidden flex flex-col divide-y divide-slate-100">
              {activeTasks.length > 0 ? activeTasks.map(renderMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks assigned to you.</div>}
@@ -1147,39 +965,22 @@ export default function App() {
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-500">
-                  <th className="p-4 w-12 pr-1"></th>
-                  <th className="py-4 px-2 w-8"></th>
-                  <th className="p-4">Task</th>
-                  <th className="p-4">Project</th>
-                  <th className="p-4">Due Date</th>
+                  <th className="p-4 w-12 pr-1"></th><th className="py-4 px-2 w-8"></th><th className="p-4">Task</th><th className="p-4">Project</th><th className="p-4">Due Date</th>
                 </tr>
               </thead>
               <tbody>
-                {activeTasks.length > 0 ? activeTasks.map(renderDesktopRow) : (
-                  <tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks assigned to you.</td></tr>
-                )}
+                {activeTasks.length > 0 ? activeTasks.map(renderDesktopRow) : <tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks assigned to you.</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
-
-        {/* COMPLETED TASKS */}
         {completedTasks.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Completed</span>
-              <span className="text-slate-400 text-sm">{completedTasks.length} tasks</span>
-            </div>
+            <div className="flex items-center gap-2 mb-4"><span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Completed</span><span className="text-slate-400 text-sm">{completedTasks.length} tasks</span></div>
             <div className="bg-white/60 rounded-xl shadow-sm border border-slate-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-               <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                  {completedTasks.map(renderMobileCard)}
-               </div>
+               <div className="md:hidden flex flex-col divide-y divide-slate-100">{completedTasks.map(renderMobileCard)}</div>
                <div className="hidden md:block overflow-x-auto">
-                 <table className="w-full text-left border-collapse min-w-[600px]">
-                   <tbody>
-                     {completedTasks.map(renderDesktopRow)}
-                   </tbody>
-                 </table>
+                 <table className="w-full text-left border-collapse min-w-[600px]"><tbody>{completedTasks.map(renderDesktopRow)}</tbody></table>
                </div>
             </div>
           </div>
@@ -1210,26 +1011,19 @@ export default function App() {
           </td>
           <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
             <div>{task.title}</div>
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
-                 <Star size={10}/> {task.weight || 1} pts
-              </span>
-            </div>
+            <div className="flex flex-wrap gap-2 mt-1.5"><TagDisplay tags={task.tags} /><span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span></div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
             {assignee && (
               <span className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-60 grayscale' : ''}`}>
                 {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className="w-5 h-5 rounded-full object-cover" /> : <UserCircle size={16} className="text-slate-400" />}
-                {assignee.name.split(' ')[0]}
+                {(assignee.name || 'User').split(' ')[0]}
               </span>
             )}
           </td>
           <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
             <span>{formatDate(task.dueDate)}</span>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4">
-              <Trash2 size={16} />
-            </button>
+            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"><Trash2 size={16} /></button>
           </td>
         </tr>
       );
@@ -1246,36 +1040,19 @@ export default function App() {
               {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
             </button>
             <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-            <div 
-              className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`}
-              onClick={() => openTaskModal(task)}
-            >
-              {task.title}
-            </div>
+            <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
           </div>
-          
           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
             <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-               <Star size={10}/> {task.weight || 1} pts
-            </span>
+            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
             {assignee && (
               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
-                {assignee.avatarUrl ? (
-                   <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} />
-                ) : (
-                   <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />
-                )}
-                {assignee.name.split(' ')[0]}
+                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> : <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />}
+                {(assignee.name || 'User').split(' ')[0]}
               </span>
             )}
-            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-              <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-              {formatDate(task.dueDate)}
-            </div>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              <Trash2 size={14} />
-            </button>
+            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
+            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
           </div>
         </div>
       );
@@ -1316,17 +1093,11 @@ export default function App() {
                    <table className="w-full text-left min-w-[600px]">
                      <thead>
                        <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-500">
-                         <th className="p-4 w-12 pr-1"></th>
-                         <th className="py-4 px-2 w-8"></th>
-                         <th className="p-4">Task Name</th>
-                         <th className="p-4">Assignee</th>
-                         <th className="p-4">Due Date</th>
+                         <th className="p-4 w-12 pr-1"></th><th className="py-4 px-2 w-8"></th><th className="p-4">Task Name</th><th className="p-4">Assignee</th><th className="p-4">Due Date</th>
                        </tr>
                      </thead>
                      <tbody>
-                       {activeProjectTasks.length > 0 ? activeProjectTasks.map(renderProjectDesktopRow) : (
-                         <tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks in this project.</td></tr>
-                       )}
+                       {activeProjectTasks.length > 0 ? activeProjectTasks.map(renderProjectDesktopRow) : <tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks in this project.</td></tr>}
                      </tbody>
                    </table>
                  </div>
@@ -1334,21 +1105,10 @@ export default function App() {
 
                {completedProjectTasks.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Completed</span>
-                      <span className="text-slate-400 text-sm">{completedProjectTasks.length} tasks</span>
-                    </div>
+                    <div className="flex items-center gap-2 mb-4"><span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Completed</span><span className="text-slate-400 text-sm">{completedProjectTasks.length} tasks</span></div>
                     <div className="bg-white/60 rounded-xl shadow-sm border border-slate-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-                      <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                         {completedProjectTasks.map(renderProjectMobileCard)}
-                      </div>
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left min-w-[600px]">
-                          <tbody>
-                            {completedProjectTasks.map(renderProjectDesktopRow)}
-                          </tbody>
-                        </table>
-                      </div>
+                      <div className="md:hidden flex flex-col divide-y divide-slate-100">{completedProjectTasks.map(renderProjectMobileCard)}</div>
+                      <div className="hidden md:block overflow-x-auto"><table className="w-full text-left min-w-[600px]"><tbody>{completedProjectTasks.map(renderProjectDesktopRow)}</tbody></table></div>
                     </div>
                   </div>
                )}
@@ -1358,74 +1118,36 @@ export default function App() {
           {projectDisplayMode === 'kanban' && (
             <div className="flex gap-6 h-full overflow-x-auto pb-4">
               {['todo', 'in-progress', 'done'].map(status => (
-                <div 
-                  key={status} 
-                  className="bg-slate-100 rounded-xl w-80 min-w-[20rem] p-4 flex flex-col h-full border border-slate-200"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, status)}
-                >
+                <div key={status} className="bg-slate-100 rounded-xl w-80 min-w-[20rem] p-4 flex flex-col h-full border border-slate-200" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
                   <div className="flex justify-between items-center mb-4 px-2">
-                    <h3 className="font-semibold text-slate-700 capitalize">
-                      {status === 'in-progress' ? 'In Progress' : status}
-                    </h3>
-                    <span className="bg-slate-200 text-slate-600 text-xs py-0.5 px-2 rounded-full font-medium">
-                      {projectTasks.filter(t => t.status === status).length}
-                    </span>
+                    <h3 className="font-semibold text-slate-700 capitalize">{status === 'in-progress' ? 'In Progress' : status}</h3>
+                    <span className="bg-slate-200 text-slate-600 text-xs py-0.5 px-2 rounded-full font-medium">{projectTasks.filter(t => t.status === status).length}</span>
                   </div>
-                  
                   <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                     {projectTasks.filter(t => t.status === status).map(task => {
                       const assignee = getUser(task.assigneeId);
                       const taskIsOverdue = isOverdue(task.dueDate, task.status);
                       return (
-                        <div 
-                          key={task.id} 
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
-                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-grab active:cursor-grabbing hover:border-blue-300 transition-colors group ${taskIsOverdue ? 'border-red-200' : 'border-slate-200'}`}
-                        >
-                          <p 
-                            className={`font-medium text-sm mb-2 cursor-pointer group-hover:text-blue-600 transition-colors ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
-                            onClick={() => openTaskModal(task)}
-                          >
-                            {task.title}
-                          </p>
-                          <div className="flex flex-wrap gap-2 mb-3">
-                             <TagDisplay tags={task.tags} />
-                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-                               <Star size={10}/> {task.weight || 1}
-                             </span>
-                          </div>
+                        <div key={task.id} draggable onDragStart={(e) => handleDragStart(e, task.id)} className={`bg-white p-4 rounded-lg shadow-sm border cursor-grab active:cursor-grabbing hover:border-blue-300 transition-colors group ${taskIsOverdue ? 'border-red-200' : 'border-slate-200'}`}>
+                          <p className={`font-medium text-sm mb-2 cursor-pointer group-hover:text-blue-600 transition-colors ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`} onClick={() => openTaskModal(task)}>{task.title}</p>
+                          <div className="flex flex-wrap gap-2 mb-3"><TagDisplay tags={task.tags} /><span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1}</span></div>
                           <div className="flex justify-between items-center text-xs text-slate-500">
                              <div className="flex items-center gap-2">
-                               <span className={`flex items-center gap-1 px-2 py-1 rounded font-medium ${taskIsOverdue ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}>
-                                 <Clock size={12} /> {formatDate(task.dueDate)}
-                               </span>
+                               <span className={`flex items-center gap-1 px-2 py-1 rounded font-medium ${taskIsOverdue ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}><Clock size={12} /> {formatDate(task.dueDate)}</span>
                                {assignee && (
                                  <span className="flex items-center gap-1 text-slate-500 bg-slate-50 px-2 py-1 rounded" title={assignee.name}>
-                                   {assignee.avatarUrl ? (
-                                      <img src={assignee.avatarUrl} alt="Avatar" className="w-4 h-4 rounded-full object-cover" />
-                                   ) : (
-                                      <UserCircle size={12} />
-                                   )}
-                                   <span className="max-w-[60px] truncate">{assignee.name.split(' ')[0]}</span>
+                                   {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className="w-4 h-4 rounded-full object-cover" /> : <UserCircle size={12} />}
+                                   <span className="max-w-[60px] truncate">{(assignee.name || 'User').split(' ')[0]}</span>
                                  </span>
                                )}
                              </div>
-                             <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1">
-                               <Trash2 size={14} />
-                             </button>
+                             <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1"><Trash2 size={14} /></button>
                           </div>
                         </div>
                       )
                     })}
                   </div>
-                  <button 
-                    onClick={() => openTaskModal(null, projectId, status)}
-                    className="mt-4 w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-500 hover:bg-slate-200 rounded-lg transition-colors border border-dashed border-slate-300"
-                  >
-                    <Plus size={16} /> Add Task
-                  </button>
+                  <button onClick={() => openTaskModal(null, projectId, status)} className="mt-4 w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-500 hover:bg-slate-200 rounded-lg transition-colors border border-dashed border-slate-300"><Plus size={16} /> Add Task</button>
                 </div>
               ))}
             </div>
@@ -1442,40 +1164,22 @@ export default function App() {
                         <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-blue-500 border-4 border-white"></div>
                         <div className={`p-4 rounded-lg border hover:shadow-md transition-shadow group ${taskIsOverdue ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
                           <div className="flex items-start gap-2.5 mb-2">
-                            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>
-                              {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-                            </button>
+                            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
                             <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-                            <div 
-                              className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`}
-                              onClick={() => openTaskModal(task)}
-                            >
-                              {task.title}
-                            </div>
+                            <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
                           </div>
                           
                           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
                             <TagDisplay tags={task.tags} />
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-                               <Star size={10}/> {task.weight || 1} pts
-                            </span>
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
                             {assignee && (
                               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
-                                {assignee.avatarUrl ? (
-                                   <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} />
-                                ) : (
-                                   <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />
-                                )}
-                                {assignee.name.split(' ')[0]}
+                                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> : <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />}
+                                {(assignee.name || 'User').split(' ')[0]}
                               </span>
                             )}
-                            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-                              <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-                              {formatDate(task.dueDate)}
-                            </div>
-                            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                              <Trash2 size={14} />
-                            </button>
+                            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
+                            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                           </div>
                         </div>
                       </div>
@@ -1493,10 +1197,7 @@ export default function App() {
     return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             <Users className="text-blue-600" size={24} />
-             Team Capacity Dashboard
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" size={24} /> Team Capacity Dashboard</h2>
           <p className="text-slate-500 text-sm mt-1">Review active workload and point distributions across the team.</p>
         </div>
 
@@ -1514,18 +1215,9 @@ export default function App() {
             return (
               <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                  <div className="p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm bg-white" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center border-2 border-white shadow-sm">
-                         <UserCircle size={28} className="text-slate-500" />
-                      </div>
-                    )}
+                    {user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm bg-white" /> : <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center border-2 border-white shadow-sm"><UserCircle size={28} className="text-slate-500" /></div>}
                     <div>
-                      <h3 className="font-bold text-slate-800 flex items-center gap-1.5">
-                        {user.name} 
-                        {user.isAdmin && <Shield size={14} className="text-amber-500" title="Admin" />}
-                      </h3>
+                      <h3 className="font-bold text-slate-800 flex items-center gap-1.5">{user.name} {user.isAdmin && <Shield size={14} className="text-amber-500" title="Admin" />}</h3>
                       <p className="text-xs text-slate-500">{user.email}</p>
                     </div>
                  </div>
@@ -1553,10 +1245,7 @@ export default function App() {
                              return (
                                <div key={projectId}>
                                  <div className="flex justify-between items-center text-sm mb-1">
-                                   <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate pr-2">
-                                     <DynamicIcon name={project.icon} size={14} className={colorStyles[project.color]?.text} />
-                                     <span className="truncate">{project.name}</span>
-                                   </div>
+                                   <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate pr-2"><DynamicIcon name={project.icon} size={14} className={colorStyles[project.color]?.text} /><span className="truncate">{project.name}</span></div>
                                    <div className="font-bold text-slate-600 text-xs">{points} pts</div>
                                  </div>
                                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -1567,9 +1256,7 @@ export default function App() {
                            })}
                          </div>
                        ) : (
-                         <div className="text-sm text-slate-400 italic bg-slate-50 p-3 rounded border border-dashed border-slate-200 text-center">
-                           No active tasks right now.
-                         </div>
+                         <div className="text-sm text-slate-400 italic bg-slate-50 p-3 rounded border border-dashed border-slate-200 text-center">No active tasks right now.</div>
                        )}
                     </div>
                  </div>
@@ -1611,14 +1298,11 @@ export default function App() {
       let bValue = b[expenseSortConfig.key];
 
       if (expenseSortConfig.key === 'amount') {
-        aValue = parseFloat(aValue || 0);
-        bValue = parseFloat(bValue || 0);
+        aValue = parseFloat(aValue || 0); bValue = parseFloat(bValue || 0);
       } else if (expenseSortConfig.key === 'companyId') {
-        aValue = getCompany(a.companyId)?.name || '';
-        bValue = getCompany(b.companyId)?.name || '';
+        aValue = getCompany(a.companyId)?.name || ''; bValue = getCompany(b.companyId)?.name || '';
       } else if (expenseSortConfig.key === 'renewalDate') {
-        aValue = parseNextDate(a.cycle, a.renewalDate).getTime();
-        bValue = parseNextDate(b.cycle, b.renewalDate).getTime();
+        aValue = parseNextDate(a.cycle, a.renewalDate).getTime(); bValue = parseNextDate(b.cycle, b.renewalDate).getTime();
       }
 
       if (aValue < bValue) return expenseSortConfig.direction === 'asc' ? -1 : 1;
@@ -1642,33 +1326,14 @@ export default function App() {
           </td>
           {activeBudgetTab === 'overview' && (
             <td className="p-4">
-              <div className="flex items-center gap-2" title={company?.name}>
-                <CompanyLogo company={company} sizeClass="w-6 h-6" />
-                <span className="text-sm text-slate-600">{company?.name}</span>
-              </div>
+              <div className="flex items-center gap-2" title={company?.name}><CompanyLogo company={company} sizeClass="w-6 h-6" /><span className="text-sm text-slate-600">{company?.name}</span></div>
             </td>
           )}
-          <td className="p-4">
-            <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">
-              {expense.category}
-            </span>
-          </td>
-          <td className="p-4 font-medium text-slate-700">
-            {formatCurrency(expense.amount)}
-          </td>
-          <td className="p-4">
-             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
-                {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-             </span>
-          </td>
-          <td className="p-4 text-sm text-slate-500">
-             {isAutoRenewOn ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}
-          </td>
-          <td className="p-4 text-right">
-             <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-               <Trash2 size={16} />
-             </button>
-          </td>
+          <td className="p-4"><span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">{expense.category}</span></td>
+          <td className="p-4 font-medium text-slate-700">{formatCurrency(expense.amount)}</td>
+          <td className="p-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>{expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}</span></td>
+          <td className="p-4 text-sm text-slate-500">{isAutoRenewOn ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}</td>
+          <td className="p-4 text-right"><button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
         </tr>
       );
     };
@@ -1681,39 +1346,20 @@ export default function App() {
         <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
           <div className="flex justify-between items-start mb-2">
             <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
-              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-              {expense.name}
+              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}{expense.name}
             </div>
-            <div className="font-bold text-slate-800 flex-shrink-0">
-              {formatCurrency(expense.amount)}
-            </div>
+            <div className="font-bold text-slate-800 flex-shrink-0">{formatCurrency(expense.amount)}</div>
           </div>
-          
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-              {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-            </span>
-            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              {expense.category}
-            </span>
-            {!isAutoRenewOn && (
-              <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>
-            )}
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}</span>
+            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{expense.category}</span>
+            {!isAutoRenewOn && <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>}
             {activeBudgetTab === 'overview' && company && (
-              <div className="flex items-center gap-1 ml-auto">
-                <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                <span className="text-[10px] text-slate-500">{company.name}</span>
-              </div>
+              <div className="flex items-center gap-1 ml-auto"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500">{company.name}</span></div>
             )}
-            <button onClick={() => handleDeleteExpense(expense.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-               <Trash2 size={14} />
-            </button>
+            <button onClick={() => handleDeleteExpense(expense.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
           </div>
-          {isAutoRenewOn && expense.renewalDate && (
-             <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-               <Clock size={10} /> Renews: {expense.renewalDate}
-             </div>
-          )}
+          {isAutoRenewOn && expense.renewalDate && <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1"><Clock size={10} /> Renews: {expense.renewalDate}</div>}
         </div>
       );
     };
@@ -1721,29 +1367,21 @@ export default function App() {
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
         <div className="mb-6 sm:mb-8 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             {activeBudgetTab === 'overview' ? 'Global Budget Overview' : `${currentCompany?.name} Budget`}
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">{activeBudgetTab === 'overview' ? 'Global Budget Overview' : `${currentCompany?.name} Budget`}</h2>
           <p className="text-slate-500 text-sm mt-1">Manage and forecast your recurring expenses (Domains included).</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Receipt size={16} className="text-blue-500" /> Active Monthly Rate
-            </div>
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Receipt size={16} className="text-blue-500" /> Active Monthly Rate</div>
             <div className="text-3xl font-bold text-slate-800">{formatCurrency(monthlyTotal)}</div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-purple-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <CalendarClock size={16} className="text-purple-500" /> Active Annual Rate
-            </div>
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><CalendarClock size={16} className="text-purple-500" /> Active Annual Rate</div>
             <div className="text-3xl font-bold text-slate-800">{formatCurrency(annualTotal)}</div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Landmark size={16} className="text-emerald-500" /> True Yearly Commitment
-            </div>
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Landmark size={16} className="text-emerald-500" /> True Yearly Commitment</div>
             <div className="text-3xl font-bold text-slate-800">{formatCurrency(trueAnnualCommitment)}</div>
           </div>
         </div>
@@ -1754,7 +1392,6 @@ export default function App() {
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
                  <h3 className="font-bold text-slate-700">All Expenses & Domains</h3>
               </div>
-              
               <div className="flex-1 overflow-y-auto">
                 <div className="md:hidden flex flex-col">
                    {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No expenses recorded yet.</div>}
@@ -1763,33 +1400,17 @@ export default function App() {
                   <table className="w-full text-left min-w-[800px]">
                     <thead className="sticky top-0 bg-slate-50 z-10">
                       <tr className="border-b border-slate-200 text-sm font-medium text-slate-500">
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('name')}>
-                          Expense Name <SortIcon columnKey="name" />
-                        </th>
-                        {activeBudgetTab === 'overview' && (
-                          <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('companyId')}>
-                            Company <SortIcon columnKey="companyId" />
-                          </th>
-                        )}
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('category')}>
-                          Category <SortIcon columnKey="category" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('amount')}>
-                          Amount <SortIcon columnKey="amount" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('cycle')}>
-                          Billing Cycle <SortIcon columnKey="cycle" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('renewalDate')}>
-                          Renewal Date <SortIcon columnKey="renewalDate" />
-                        </th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('name')}>Expense Name <SortIcon columnKey="name" /></th>
+                        {activeBudgetTab === 'overview' && <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('companyId')}>Company <SortIcon columnKey="companyId" /></th>}
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('category')}>Category <SortIcon columnKey="category" /></th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('amount')}>Amount <SortIcon columnKey="amount" /></th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('cycle')}>Billing Cycle <SortIcon columnKey="cycle" /></th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('renewalDate')}>Renewal Date <SortIcon columnKey="renewalDate" /></th>
                         <th className="p-4 w-12 bg-slate-50"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseDesktopRow) : (
-                        <tr><td colSpan={activeBudgetTab === 'overview' ? 7 : 6} className="p-8 text-center text-slate-500">No expenses recorded yet.</td></tr>
-                      )}
+                      {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseDesktopRow) : <tr><td colSpan={activeBudgetTab === 'overview' ? 7 : 6} className="p-8 text-center text-slate-500">No expenses recorded yet.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -1812,38 +1433,23 @@ export default function App() {
                         <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                         <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                           <div>
-                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                {isAutoRenewOn ? displayDate : 'CANCELED'}
-                            </div>
+                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-emerald-600' : 'text-slate-500'}`}>{isAutoRenewOn ? displayDate : 'CANCELED'}</div>
                             <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-emerald-600' : 'line-through'}`} onClick={() => openExpenseModal(expense)}>
-                              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-                              {expense.name}
+                              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}{expense.name}
                             </div>
                             <div className="flex items-center gap-2">
-                              {activeBudgetTab === 'overview' && company && (
-                                <div className="flex items-center gap-1">
-                                  <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                                  <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                  <span className="text-slate-300 px-1">•</span>
-                                </div>
-                              )}
-                              <span className="text-[10px] font-semibold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                                {expense.category}
-                              </span>
+                              {activeBudgetTab === 'overview' && company && <div className="flex items-center gap-1"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500 font-medium">{company.name}</span><span className="text-slate-300 px-1">•</span></div>}
+                              <span className="text-[10px] font-semibold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">{expense.category}</span>
                             </div>
                           </div>
                           <div className="text-right">
                              <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(expense.amount)}</div>
-                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                               {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-                             </span>
+                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}</span>
                           </div>
                         </div>
                       </div>
                     )
-                  }) : (
-                     <div className="p-8 text-slate-500 text-sm">No forecasted expenses.</div>
-                  )}
+                  }) : <div className="p-8 text-slate-500 text-sm">No forecasted expenses.</div>}
                </div>
             </div>
           )}
@@ -1885,14 +1491,11 @@ export default function App() {
       let bValue = b[domainSortConfig.key];
 
       if (domainSortConfig.key === 'amount') {
-        aValue = parseFloat(aValue || 0);
-        bValue = parseFloat(bValue || 0);
+        aValue = parseFloat(aValue || 0); bValue = parseFloat(bValue || 0);
       } else if (domainSortConfig.key === 'companyId') {
-        aValue = getCompany(a.companyId)?.name || '';
-        bValue = getCompany(b.companyId)?.name || '';
+        aValue = getCompany(a.companyId)?.name || ''; bValue = getCompany(b.companyId)?.name || '';
       } else if (domainSortConfig.key === 'renewalDate') {
-        aValue = parseNextDate(a.cycle, a.renewalDate).getTime();
-        bValue = parseNextDate(b.cycle, b.renewalDate).getTime();
+        aValue = parseNextDate(a.cycle, a.renewalDate).getTime(); bValue = parseNextDate(b.cycle, b.renewalDate).getTime();
       }
 
       if (aValue < bValue) return domainSortConfig.direction === 'asc' ? -1 : 1;
@@ -1916,28 +1519,13 @@ export default function App() {
           </td>
           {activeDomainTab === 'overview' && (
             <td className="p-4">
-              <div className="flex items-center gap-2">
-                <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                <span className="text-sm text-slate-600">{company?.name}</span>
-              </div>
+              <div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div>
             </td>
           )}
-          <td className="p-4 font-medium text-slate-700">
-            {formatCurrency(domain.amount)} <span className="text-xs text-slate-400 font-normal">/{domain.cycle === 'monthly' ? 'mo' : 'yr'}</span>
-          </td>
-          <td className="p-4">
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${isAutoRenewOn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-              {isAutoRenewOn ? 'ON' : 'OFF'}
-            </span>
-          </td>
-          <td className="p-4 text-sm font-medium text-slate-600">
-            {isAutoRenewOn ? (domain.renewalDate || '--') : <span className="text-slate-400 font-normal">Manual/Off</span>}
-          </td>
-          <td className="p-4 text-right">
-             <button onClick={() => handleDeleteExpense(domain.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-               <Trash2 size={16} />
-             </button>
-          </td>
+          <td className="p-4 font-medium text-slate-700">{formatCurrency(domain.amount)} <span className="text-xs text-slate-400 font-normal">/{domain.cycle === 'monthly' ? 'mo' : 'yr'}</span></td>
+          <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${isAutoRenewOn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>{isAutoRenewOn ? 'ON' : 'OFF'}</span></td>
+          <td className="p-4 text-sm font-medium text-slate-600">{isAutoRenewOn ? (domain.renewalDate || '--') : <span className="text-slate-400 font-normal">Manual/Off</span>}</td>
+          <td className="p-4 text-right"><button onClick={() => handleDeleteExpense(domain.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
         </tr>
       );
     };
@@ -1945,34 +1533,24 @@ export default function App() {
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
         <div className="mb-6 sm:mb-8 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             {activeDomainTab === 'overview' ? 'Domain Portfolio' : `${currentCompany?.name} Domains`}
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">{activeDomainTab === 'overview' ? 'Domain Portfolio' : `${currentCompany?.name} Domains`}</h2>
           <p className="text-slate-500 text-sm mt-1">Manage URLs and hosting renewals. Links directly to your Budget.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-teal-500 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
-                 <Globe size={16} className="text-teal-500" /> Active Domains (Auto-Renew)
-              </div>
+              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1"><Globe size={16} className="text-teal-500" /> Active Domains (Auto-Renew)</div>
               <div className="text-3xl font-bold text-slate-800">{activeDomainCount}</div>
             </div>
-            <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center">
-              <Globe size={24} className="text-teal-500" />
-            </div>
+            <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center"><Globe size={24} className="text-teal-500" /></div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-teal-500 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
-                 <Landmark size={16} className="text-teal-500" /> Estimated Annual Cost
-              </div>
+              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1"><Landmark size={16} className="text-teal-500" /> Estimated Annual Cost</div>
               <div className="text-3xl font-bold text-slate-800">{formatCurrency(totalDomainCost)}</div>
             </div>
-            <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center">
-              <DollarSign size={24} className="text-teal-500" />
-            </div>
+            <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center"><DollarSign size={24} className="text-teal-500" /></div>
           </div>
         </div>
 
@@ -1982,36 +1560,21 @@ export default function App() {
               <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
                  <h3 className="font-bold text-slate-700">Registered Domains</h3>
               </div>
-              
               <div className="flex-1 overflow-y-auto">
                 <div className="w-full overflow-x-auto">
                   <table className="w-full text-left min-w-[600px]">
                     <thead className="sticky top-0 bg-slate-50 z-10">
                       <tr className="border-b border-slate-200 text-sm font-medium text-slate-500">
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
-                          Domain URL <SortIcon columnKey="name" />
-                        </th>
-                        {activeDomainTab === 'overview' && (
-                          <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('companyId')}>
-                            Company <SortIcon columnKey="companyId" />
-                          </th>
-                        )}
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('amount')}>
-                          Cost <SortIcon columnKey="amount" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('autoRenew')}>
-                          Auto-Renew <SortIcon columnKey="autoRenew" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('renewalDate')}>
-                          Renewal Date <SortIcon columnKey="renewalDate" />
-                        </th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>Domain URL <SortIcon columnKey="name" /></th>
+                        {activeDomainTab === 'overview' && <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('companyId')}>Company <SortIcon columnKey="companyId" /></th>}
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('amount')}>Cost <SortIcon columnKey="amount" /></th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('autoRenew')}>Auto-Renew <SortIcon columnKey="autoRenew" /></th>
+                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('renewalDate')}>Renewal Date <SortIcon columnKey="renewalDate" /></th>
                         <th className="p-4 w-12 bg-slate-50"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedDomains.length > 0 ? sortedDomains.map(renderDomainRow) : (
-                        <tr><td colSpan={activeDomainTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>
-                      )}
+                      {sortedDomains.length > 0 ? sortedDomains.map(renderDomainRow) : <tr><td colSpan={activeDomainTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -2034,41 +1597,24 @@ export default function App() {
                         <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-teal-500' : 'bg-slate-300'}`}></div>
                         <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                           <div>
-                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-teal-600' : 'text-slate-500'}`}>
-                              {isAutoRenewOn ? displayDate : 'CANCELED'}
-                            </div>
+                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-teal-600' : 'text-slate-500'}`}>{isAutoRenewOn ? displayDate : 'CANCELED'}</div>
                             <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-teal-600' : 'line-through'}`} onClick={() => openDomainModal(domain)}>
                               <Globe size={14} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} /> {domain.name}
                             </div>
                             <div className="flex items-center gap-2">
-                              {activeDomainTab === 'overview' && company && (
-                                <div className="flex items-center gap-1">
-                                  <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                                  <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                </div>
-                              )}
-                              {!isAutoRenewOn && (
-                                <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>
-                              )}
-                              {domain.notes && (
-                                <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={domain.notes}>
-                                  {domain.notes}
-                                </span>
-                              )}
+                              {activeDomainTab === 'overview' && company && <div className="flex items-center gap-1"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500 font-medium">{company.name}</span></div>}
+                              {!isAutoRenewOn && <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>}
+                              {domain.notes && <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={domain.notes}>{domain.notes}</span>}
                             </div>
                           </div>
                           <div className="text-right">
                              <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(domain.amount)}</div>
-                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${domain.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                               {domain.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-                             </span>
+                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${domain.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{domain.cycle === 'monthly' ? 'Monthly' : 'Annual'}</span>
                           </div>
                         </div>
                       </div>
                     )
-                  }) : (
-                     <div className="p-8 text-slate-500 text-sm">No forecasted domain renewals.</div>
-                  )}
+                  }) : <div className="p-8 text-slate-500 text-sm">No forecasted domain renewals.</div>}
                </div>
             </div>
           )}
@@ -2077,14 +1623,11 @@ export default function App() {
     );
   };
 
-  // --- MODALS RENDERED HERE ---
+  // --- APP RETURN WITH MODALS ---
   return (
     <>
-      {/* THE MAIN APP RENDER */}
       <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col lg:flex-row">
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
-        )}
+        {isMobileMenuOpen && <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
         <div className={`fixed inset-y-0 left-0 z-40 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-200 ease-in-out pb-16 lg:pb-0`}>
           <Sidebar />
         </div>
@@ -2092,9 +1635,7 @@ export default function App() {
           <TopBar />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
-              activeTab === 'mytasks' ? <DashboardView /> : 
-              activeTab === 'capacity' ? <TeamCapacityView /> : 
-              <ProjectView projectId={activeTab} />
+              activeTab === 'mytasks' ? <DashboardView /> : activeTab === 'capacity' ? <TeamCapacityView /> : <ProjectView projectId={activeTab} />
             ) : currentApp === 'budget' ? (
               <BudgetDashboard />
             ) : (
@@ -2103,8 +1644,7 @@ export default function App() {
           </main>
           <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 -ml-2 transition-colors flex flex-col items-center gap-1 ${isMobileMenuOpen ? 'text-white' : 'hover:text-white'}`}>
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                <span className="text-[10px] font-medium tracking-wide">{isMobileMenuOpen ? 'Close' : 'Menu'}</span>
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}<span className="text-[10px] font-medium tracking-wide">{isMobileMenuOpen ? 'Close' : 'Menu'}</span>
              </button>
              <button onClick={openProfileModal} className="p-1 -mr-1 hover:text-white transition-colors flex flex-col items-center gap-1">
                 {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} className="w-7 h-7 rounded-full border border-slate-600 object-cover" alt="Profile" /> : <UserCircle size={28} />}
@@ -2115,8 +1655,6 @@ export default function App() {
       </div>
 
       {/* MODALS */}
-
-      {/* TASK MODAL */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -2185,10 +1723,7 @@ export default function App() {
                     <ul className="space-y-2">
                       {currentTask.files.map((file, idx) => (
                         <li key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 text-sm">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <Paperclip size={14} className="text-slate-400 flex-shrink-0" />
-                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">{file.name}</a>
-                          </div>
+                          <div className="flex items-center gap-2 overflow-hidden"><Paperclip size={14} className="text-slate-400 flex-shrink-0" /><a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">{file.name}</a></div>
                           <button type="button" onClick={() => removeFile(idx)} className="text-slate-400 hover:text-red-500 ml-2"><X size={16} /></button>
                         </li>
                       ))}
@@ -2198,9 +1733,7 @@ export default function App() {
               </form>
             </div>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {currentTask.id && (
-                <button type="button" onClick={() => { handleDeleteTask(currentTask.id); setIsTaskModalOpen(false); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
-              )}
+              {currentTask.id && <button type="button" onClick={() => { handleDeleteTask(currentTask.id); setIsTaskModalOpen(false); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
               <button type="submit" form="taskForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{currentTask.id ? 'Save Changes' : 'Create Task'}</button>
             </div>
@@ -2208,15 +1741,11 @@ export default function App() {
         </div>
       )}
 
-      {/* EXPENSE MODAL */}
       {isExpenseModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Receipt className="text-emerald-500" size={20} />
-                {currentExpense.id ? 'Edit Expense' : 'Add New Expense'}
-              </h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Receipt className="text-emerald-500" size={20} />{currentExpense.id ? 'Edit Expense' : 'Add New Expense'}</h3>
               <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6">
@@ -2225,29 +1754,18 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label>
                   <input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Google Workspace, Canva Pro" />
                 </div>
-
-                {/* AUTO-RENEW TOGGLE */}
                 <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <div>
                     <div className="text-sm font-bold text-slate-800">Active / Auto-Renew</div>
                     <div className="text-xs text-slate-500">Include this cost in yearly budget totals</div>
                   </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})}
-                    className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}
-                  >
-                    {currentExpense.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                  </button>
+                  <button type="button" onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})} className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}>{currentExpense.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
                 </div>
-
                 <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentExpense.autoRenew ? 'opacity-50' : ''}`}>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <DollarSign size={16} className="text-slate-400" />
-                      </div>
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
                       <input required type="number" step="0.01" min="0" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" placeholder="0.00" />
                     </div>
                   </div>
@@ -2292,15 +1810,11 @@ export default function App() {
         </div>
       )}
 
-      {/* DOMAIN MODAL */}
       {isDomainModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-teal-500">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Globe className="text-teal-500" size={20} />
-                {currentDomain.id ? 'Edit Domain' : 'Add New Domain'}
-              </h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Globe className="text-teal-500" size={20} />{currentDomain.id ? 'Edit Domain' : 'Add New Domain'}</h3>
               <button onClick={() => setIsDomainModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6">
@@ -2309,29 +1823,18 @@ export default function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label>
                   <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., mywebsite.com" />
                 </div>
-                
-                {/* AUTO-RENEW TOGGLE */}
                 <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <div>
                     <div className="text-sm font-bold text-slate-800">Auto-Renew</div>
                     <div className="text-xs text-slate-500">Include this domain in yearly budget totals</div>
                   </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})}
-                    className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}
-                  >
-                    {currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                  </button>
+                  <button type="button" onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})} className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}>{currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
                 </div>
-
                 <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentDomain.autoRenew ? 'opacity-50' : ''}`}>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <DollarSign size={16} className="text-slate-400" />
-                      </div>
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
                       <input required type="number" step="0.01" min="0" value={currentDomain.amount} onChange={(e) => setCurrentDomain({...currentDomain, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium text-slate-800" placeholder="0.00" />
                     </div>
                   </div>
@@ -2368,7 +1871,6 @@ export default function App() {
         </div>
       )}
 
-      {/* COMPANY MODAL */}
       {isCompanyModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -2377,55 +1879,34 @@ export default function App() {
               <button onClick={() => setIsCompanyModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <form id="companyForm" onSubmit={handleSaveCompany} className="p-6 overflow-y-auto space-y-6">
-              
-              {/* COMPANY LOGO UPLOAD */}
               <div className="flex flex-col items-center gap-3">
                 <div className="relative">
-                  {editingCompany.logoUrl ? (
-                    <img src={editingCompany.logoUrl} alt="Preview" className="w-24 h-24 rounded-xl object-cover border-4 border-slate-100 shadow-sm bg-white" />
-                  ) : (
-                    <div className="w-24 h-24 rounded-xl bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm">
-                      <Building2 size={40} className="text-slate-400" />
-                    </div>
-                  )}
+                  {editingCompany.logoUrl ? <img src={editingCompany.logoUrl} alt="Preview" className="w-24 h-24 rounded-xl object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-xl bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><Building2 size={40} className="text-slate-400" /></div>}
                   <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Company Logo">
                     <Camera size={16} /><input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} />
                   </label>
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
                 <input required type="text" value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Acme Corp" />
               </div>
-              
-              {/* TEAM ACCESS CONTROLS */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Team Access</label>
                 <div className="flex flex-wrap gap-2">
                   {users.length > 0 ? users.map(user => {
                     const isSelected = editingCompany.userIds && editingCompany.userIds.includes(user.id);
                     return (
-                      <button 
-                        key={user.id} 
-                        type="button" 
-                        onClick={() => toggleCompanyUser(user.id)} 
-                        className={`px-3 py-1.5 flex items-center gap-1.5 rounded-lg text-sm font-medium border transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
-                      >
-                        {isSelected ? <CheckCircle2 size={14} className="text-blue-500"/> : <Circle size={14} className="text-slate-300"/>}
-                        {user.name.split(' ')[0]}
+                      <button key={user.id} type="button" onClick={() => toggleCompanyUser(user.id)} className={`px-3 py-1.5 flex items-center gap-1.5 rounded-lg text-sm font-medium border transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                        {isSelected ? <CheckCircle2 size={14} className="text-blue-500"/> : <Circle size={14} className="text-slate-300"/>}{(user.name || '').split(' ')[0]}
                       </button>
                     )
-                  }) : (
-                    <span className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded border border-dashed border-slate-200">Save your profile first to add team members.</span>
-                  )}
+                  }) : <span className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded border border-dashed border-slate-200">Save your profile first to add team members.</span>}
                 </div>
               </div>
             </form>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {editingCompany.id && (
-                <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
-              )}
+              {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
             </div>
@@ -2433,147 +1914,6 @@ export default function App() {
         </div>
       )}
 
-      {/* TEAM MANAGEMENT MODAL (ADMIN ONLY) */}
-      {isTeamModalOpen && currentUser?.isAdmin && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden">
-            
-            {/* Left Sidebar: User List */}
-            <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
-              <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
-              </div>
-              <div className="overflow-y-auto flex-1 p-2 space-y-1">
-                {users.map(u => (
-                  <button 
-                    key={u.id} 
-                    onClick={() => setEditingTeamMember({...u, password: ''})}
-                    className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}
-                  >
-                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-8 h-8 rounded-full object-cover bg-white" /> : <UserCircle size={32} className="text-slate-400" />}
-                    <div className="overflow-hidden">
-                      <div className="font-semibold text-sm text-slate-800 truncate flex items-center gap-1">
-                        {u.name} {u.isAdmin && <Shield size={12} className="text-amber-500" title="Admin"/>}
-                      </div>
-                      <div className="text-xs text-slate-500 truncate">{u.email}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Pane: Edit Form */}
-            <div className="flex-1 flex flex-col bg-white relative">
-              <button onClick={() => setIsTeamModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10"><X size={20}/></button>
-              
-              {editingTeamMember ? (
-                <div className="p-8 overflow-y-auto flex-1">
-                  <h2 className="text-2xl font-bold mb-6">{editingTeamMember.id ? 'Edit Team Member' : 'Invite New Member'}</h2>
-                  
-                  <div className="flex flex-col items-center gap-3 mb-8">
-                    <div className="relative">
-                      {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                      <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
-                        <Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                      <input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                      <input type="email" required value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                  </div>
-
-                  <div className="mb-8">
-                      <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                        <Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}
-                      </label>
-                      <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-
-                  <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
-                  
-                  <div className="space-y-3">
-                    <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${editingTeamMember.isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                      <div>
-                        <div className="font-bold text-slate-800 flex items-center gap-2"><Shield size={16} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-400'}/> Master Admin</div>
-                        <div className="text-xs text-slate-500 mt-1">Can see all companies, all apps, and manage team members.</div>
-                      </div>
-                      <button type="button" onClick={() => setEditingTeamMember({...editingTeamMember, isAdmin: !editingTeamMember.isAdmin})} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-300'}>
-                        {editingTeamMember.isAdmin ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                      </button>
-                    </label>
-
-                    <div className={`space-y-3 transition-opacity ${editingTeamMember.isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                        <div className="font-medium text-slate-700 flex items-center gap-2"><LayoutDashboard size={16} className="text-blue-500"/> Projects App</div>
-                        <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded" checked={editingTeamMember.canViewProjects} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewProjects: e.target.checked})} />
-                      </label>
-                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                        <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Budget App</div>
-                        <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewBudget} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewBudget: e.target.checked})} />
-                      </label>
-                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                        <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Domains App</div>
-                        <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
-                    <button onClick={handleSaveTeamMember} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Member</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                  <Users size={64} className="mb-4 opacity-20" />
-                  <p>Select a user to edit or create a new one.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SWITCH USER MODAL (FOR TESTING) */}
-      {isSwitchUserModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-               <h3 className="font-bold text-slate-800 flex items-center gap-2"><UserCog size={18}/> Switch Identity</h3>
-               <button onClick={() => setIsSwitchUserModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[60vh] space-y-2">
-               <p className="text-xs text-slate-500 text-center mb-4">Select a user below to see the app exactly how they see it based on their permissions.</p>
-               {users.map(u => (
-                 <button 
-                   key={u.id}
-                   onClick={() => { setLoggedInUserId(u.id); setIsSwitchUserModalOpen(false); }}
-                   className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${loggedInUserId === u.id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'}`}
-                 >
-                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-10 h-10 rounded-full object-cover bg-white" /> : <UserCircle size={40} className="text-slate-300" />}
-                   <div className="text-left flex-1">
-                     <div className="font-bold text-slate-800 flex items-center gap-1">
-                        {u.name} {u.isAdmin && <Shield size={12} className="text-amber-500"/>}
-                     </div>
-                     <div className="text-xs text-slate-500">{u.email}</div>
-                   </div>
-                   {loggedInUserId === u.id && <CheckCircle2 size={20} className="text-blue-500" />}
-                 </button>
-               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PROJECT MODAL */}
       {isProjectModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
@@ -2615,9 +1955,7 @@ export default function App() {
               </div>
             </form>
             <div className="p-6 mt-2 flex justify-end gap-3 border-t border-slate-100 flex-shrink-0">
-              {editingProject.id && (
-                <button type="button" onClick={() => handleDeleteProject(editingProject.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
-              )}
+              {editingProject.id && <button type="button" onClick={() => handleDeleteProject(editingProject.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="projectForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingProject.id ? 'Save Changes' : 'Create Project'}</button>
             </div>
@@ -2625,7 +1963,107 @@ export default function App() {
         </div>
       )}
 
-      {/* PROFILE MODAL */}
+      {isTeamModalOpen && currentUser?.isAdmin && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden">
+            <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
+              <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
+                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                {users.map(u => (
+                  <button key={u.id} onClick={() => setEditingTeamMember({...u, password: ''})} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}>
+                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-8 h-8 rounded-full object-cover bg-white" /> : <UserCircle size={32} className="text-slate-400" />}
+                    <div className="overflow-hidden">
+                      <div className="font-semibold text-sm text-slate-800 truncate flex items-center gap-1">{u.name} {u.isAdmin && <Shield size={12} className="text-amber-500" title="Admin"/>}</div>
+                      <div className="text-xs text-slate-500 truncate">{u.email}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col bg-white relative">
+              <button onClick={() => setIsTeamModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10"><X size={20}/></button>
+              {editingTeamMember ? (
+                <div className="p-8 overflow-y-auto flex-1">
+                  <h2 className="text-2xl font-bold mb-6">{editingTeamMember.id ? 'Edit Team Member' : 'Invite New Member'}</h2>
+                  <div className="flex flex-col items-center gap-3 mb-8">
+                    <div className="relative">
+                      {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
+                      <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} /></label>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div><label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label><input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                    <div><label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label><input type="email" required value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                  </div>
+                  <div className="mb-8">
+                      <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}</label>
+                      <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
+                  <div className="space-y-3">
+                    <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${editingTeamMember.isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div>
+                        <div className="font-bold text-slate-800 flex items-center gap-2"><Shield size={16} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-400'}/> Master Admin</div>
+                        <div className="text-xs text-slate-500 mt-1">Can see all companies, all apps, and manage team members.</div>
+                      </div>
+                      <button type="button" onClick={() => setEditingTeamMember({...editingTeamMember, isAdmin: !editingTeamMember.isAdmin})} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-300'}>{editingTeamMember.isAdmin ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
+                    </label>
+                    <div className={`space-y-3 transition-opacity ${editingTeamMember.isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><LayoutDashboard size={16} className="text-blue-500"/> Projects App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded" checked={editingTeamMember.canViewProjects} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewProjects: e.target.checked})} />
+                      </label>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Budget App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewBudget} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewBudget: e.target.checked})} />
+                      </label>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Domains App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
+                    <button onClick={handleSaveTeamMember} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Member</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+                  <Users size={64} className="mb-4 opacity-20" /><p>Select a user to edit or create a new one.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSwitchUserModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+               <h3 className="font-bold text-slate-800 flex items-center gap-2"><UserCog size={18}/> Switch Identity</h3>
+               <button onClick={() => setIsSwitchUserModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh] space-y-2">
+               <p className="text-xs text-slate-500 text-center mb-4">Select a user below to see the app exactly how they see it based on their permissions.</p>
+               {users.map(u => (
+                 <button key={u.id} onClick={() => { setLoggedInUserId(u.id); setIsSwitchUserModalOpen(false); }} className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${loggedInUserId === u.id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'}`}>
+                   {u.avatarUrl ? <img src={u.avatarUrl} className="w-10 h-10 rounded-full object-cover bg-white" /> : <UserCircle size={40} className="text-slate-300" />}
+                   <div className="text-left flex-1">
+                     <div className="font-bold text-slate-800 flex items-center gap-1">{u.name} {u.isAdmin && <Shield size={12} className="text-amber-500"/>}</div>
+                     <div className="text-xs text-slate-500">{u.email}</div>
+                   </div>
+                   {loggedInUserId === u.id && <CheckCircle2 size={20} className="text-blue-500" />}
+                 </button>
+               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isProfileModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -2637,49 +2075,27 @@ export default function App() {
               <div className="flex flex-col items-center gap-3">
                 <div className="relative">
                   {profileForm.avatarUrl ? <img src={profileForm.avatarUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
-                    <Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} />
-                  </label>
+                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} /></label>
                 </div>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                  <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                  <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                    <Key size={14} className="text-slate-400"/> Change Password
-                  </label>
-                  <input type="text" placeholder="Leave blank to keep current password" value={profileForm.password || ''} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label><input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label><input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled /></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> Change Password</label><input type="text" placeholder="Leave blank to keep current password" value={profileForm.password || ''} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
               </div>
               
-              {/* Emergency Fallback Button just in case dev gets locked out of Admin */}
               {!currentUser?.isAdmin && (
                 <div className="pt-4 flex justify-center">
-                  <button 
-                    type="button" 
-                    onClick={() => {
+                  <button type="button" onClick={() => {
                       const updated = {...currentUser, isAdmin: true, canViewProjects: true, canViewBudget: true, canViewDomains: true};
                       sendToAPI('save_user', updated);
                       setUsers(users.map(u => u.id === currentUser.id ? updated : u));
-                    }} 
-                    className="text-xs text-amber-600 font-bold hover:underline"
-                  >
-                    Force Developer Admin Access
-                  </button>
+                    }} className="text-xs text-amber-600 font-bold hover:underline">Force Developer Admin Access</button>
                 </div>
               )}
             </form>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-shrink-0">
-              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 transition-colors">
-                <LogOut size={16}/> Sign Out
-              </button>
+              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 transition-colors"><LogOut size={16}/> Sign Out</button>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
                 <button onClick={handleSaveProfile} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Profile</button>
@@ -2688,7 +2104,6 @@ export default function App() {
           </div>
         </div>
       )}
-
     </>
   );
 }
