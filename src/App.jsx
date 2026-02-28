@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://fytsolutions.com/api.php';
+const API_URL = 'https://api.fytsolutions.com/api.php';
 
 // --- VISUAL ASSETS (Icons & Colors) ---
 const iconMap = { 
