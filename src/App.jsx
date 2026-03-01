@@ -221,10 +221,17 @@ export default function App() {
       const data = await response.json();
       
       if (data.error) {
-        alert("YouTube Sync Failed: " + data.error);
-        if(data.details) console.log(data.details);
+        let errorMsg = "YouTube Sync Failed: " + data.error;
+        if (data.details && data.details.length > 0) {
+            errorMsg += "\n\nDetails:\n" + data.details.join("\n");
+        }
+        alert(errorMsg);
       } else {
-        alert(`YouTube data synced successfully! Processed ${data.synced} channel(s).`);
+        let msg = `YouTube data synced successfully! Processed ${data.synced} channel(s).`;
+        if (data.errors && data.errors.length > 0) {
+            msg += "\n\nSome channels had issues:\n" + data.errors.join("\n");
+        }
+        alert(msg);
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.youtube_channels) {
