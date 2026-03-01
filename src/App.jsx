@@ -747,6 +747,7 @@ export default function App() {
     const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity';
     const isBudgetView = currentApp === 'budget';
     const isDomainView = currentApp === 'domains';
+    const isYoutubeView = currentApp === 'youtube';
     
     return (
       <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
@@ -823,6 +824,23 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-2 sm:gap-4">
+          {isYoutubeView && (
+             <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
+               <Clock size={16} className="text-red-200 mr-2" />
+               <select 
+                 value={youtubeTimeFilter}
+                 onChange={(e) => setYoutubeTimeFilter(e.target.value)}
+                 className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6"
+               >
+                 <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
+                 <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
+                 <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
+                 <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
+                 <option value="lifetime" className="text-slate-800 font-medium">Lifetime</option>
+               </select>
+               <ChevronDown size={14} className="text-red-200 absolute right-3 pointer-events-none" />
+             </div>
+          )}
           {isProjectView && (
              <>
                <div className="flex bg-blue-700/50 rounded-lg p-1 border border-blue-500/50">
@@ -2191,19 +2209,6 @@ export default function App() {
                {activeChannel.name} Dashboard
             </h2>
             <p className="text-slate-500 text-sm mt-1">Overview of channel performance and estimated revenue.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select 
-              value={youtubeTimeFilter}
-              onChange={(e) => setYoutubeTimeFilter(e.target.value)}
-              className="bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-8 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-sm cursor-pointer hover:bg-slate-50 transition-colors"
-            >
-              <option value="7">Last 7 days</option>
-              <option value="28">Last 28 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="365">Last 365 days</option>
-              <option value="lifetime">Lifetime</option>
-            </select>
           </div>
         </div>
 
