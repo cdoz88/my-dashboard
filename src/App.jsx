@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   LayoutDashboard, Briefcase, FolderKanban, ListTodo, KanbanSquare, 
   CalendarClock, Plus, CheckCircle2, Circle, Clock, Trash2, X, Paperclip,
@@ -1121,1044 +1120,134 @@ export default function App() {
     );
   };
 
-  const DashboardView = () => {
-    const myTasks = tasks.filter(t => t.assigneeId === currentUser?.id);
-    const activeTasks = myTasks.filter(t => t.status !== 'done').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-    const completedTasks = myTasks.filter(t => t.status === 'done').sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
-
-    const renderDesktopRow = (task) => {
-      const project = getProject(task.projectId);
-      const company = project ? getCompany(project.companyId) : null;
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-      
-      return (
-        <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>
-            {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-          </td>
-          <td className="py-4 px-2 w-8">
-            <div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} />
-          </td>
-          <td 
-            className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`}
-            onClick={() => openTaskModal(task)}
-          >
-            <div>{task.title}</div>
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
-                 <Star size={10}/> {task.weight || 1} pts
-              </span>
-            </div>
-          </td>
-          <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
-            {project && company && (
-              <div className={`flex items-center gap-2 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
-                <CompanyLogo company={company} sizeClass="w-6 h-6" textClass="text-[10px]" />
-                <span className={`flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}>
-                  <DynamicIcon name={project.icon} size={14} />
-                  {project.name}
-                </span>
-              </div>
-            )}
-          </td>
-          <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-            <span className="flex items-center gap-1">
-              <Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-              {formatDate(task.dueDate)}
-            </span>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4">
-              <Trash2 size={16} />
-            </button>
-          </td>
-        </tr>
-      );
-    };
-
-    const renderMobileCard = (task) => {
-      const project = getProject(task.projectId);
-      const company = project ? getCompany(project.companyId) : null;
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-      
-      return (
-        <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors group">
-          <div className="flex items-start gap-2.5 mb-2">
-            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>
-              {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-            </button>
-            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-            <div 
-              className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`}
-              onClick={() => openTaskModal(task)}
-            >
-              {task.title}
-            </div>
-          </div>
-          
-          <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-               <Star size={10}/> {task.weight || 1} pts
-            </span>
-            {project && company && (
-              <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
-                <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
-                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}>
-                  <DynamicIcon name={project.icon} size={10} />
-                  <span className="truncate max-w-[120px]">{project.name}</span>
-                </span>
-              </div>
-            )}
-            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-              <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-              {formatDate(task.dueDate)}
-            </div>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-      );
-    };
-
-    return (
-      <div className="p-4 sm:p-8 h-full overflow-y-auto w-full">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">My Tasks</h2>
-        
-        {/* ACTIVE TASKS */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-          <div className="md:hidden flex flex-col divide-y divide-slate-100">
-             {activeTasks.length > 0 ? activeTasks.map(renderMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks assigned to you.</div>}
-          </div>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-500">
-                  <th className="p-4 w-12 pr-1"></th>
-                  <th className="py-4 px-2 w-8"></th>
-                  <th className="p-4">Task</th>
-                  <th className="p-4">Project</th>
-                  <th className="p-4">Due Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeTasks.length > 0 ? activeTasks.map(renderDesktopRow) : (
-                  <tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks assigned to you.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* COMPLETED TASKS */}
-        {completedTasks.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Completed</span>
-              <span className="text-slate-400 text-sm">{completedTasks.length} tasks</span>
-            </div>
-            <div className="bg-white/60 rounded-xl shadow-sm border border-slate-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-               <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                  {completedTasks.map(renderMobileCard)}
-               </div>
-               <div className="hidden md:block overflow-x-auto">
-                 <table className="w-full text-left border-collapse min-w-[600px]">
-                   <tbody>
-                     {completedTasks.map(renderDesktopRow)}
-                   </tbody>
-                 </table>
-               </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const ProjectView = ({ projectId }) => {
-    const projectTasks = tasks.filter(t => t.projectId === projectId);
-    const activeProjectTasks = projectTasks.filter(t => t.status !== 'done').sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
-    const completedProjectTasks = projectTasks.filter(t => t.status === 'done').sort((a,b) => new Date(b.dueDate) - new Date(a.dueDate));
+  const YoutubeDashboard = () => {
+    const [timePeriod, setTimePeriod] = useState('Last 28 days');
+    const timePeriods = ['Last 7 days', 'Last 28 days', 'Last 90 days', 'Last 365 days', 'Lifetime'];
     
-    const currentProject = getProject(projectId);
-    const currentCompany = getCompany(currentProject?.companyId);
-    const progress = calculateProjectProgress(projectId);
-
-    const renderProjectDesktopRow = (task) => {
-      const assignee = getUser(task.assigneeId);
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-      return (
-        <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50 group">
-          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>
-            {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-          </td>
-          <td className="py-4 px-2 w-8">
-            <div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} />
-          </td>
-          <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
-            <div>{task.title}</div>
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
-                 <Star size={10}/> {task.weight || 1} pts
-              </span>
-            </div>
-          </td>
-          <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
-            {assignee && (
-              <span className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-60 grayscale' : ''}`}>
-                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className="w-5 h-5 rounded-full object-cover" /> : <UserCircle size={16} className="text-slate-400" />}
-                {assignee.name.split(' ')[0]}
-              </span>
-            )}
-          </td>
-          <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-            <span>{formatDate(task.dueDate)}</span>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4">
-              <Trash2 size={16} />
-            </button>
-          </td>
-        </tr>
-      );
-    };
-
-    const renderProjectMobileCard = (task) => {
-      const assignee = getUser(task.assigneeId);
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-
-      return (
-        <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors group">
-          <div className="flex items-start gap-2.5 mb-2">
-            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>
-              {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-            </button>
-            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-            <div 
-              className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`}
-              onClick={() => openTaskModal(task)}
-            >
-              {task.title}
-            </div>
-          </div>
-          
-          <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-               <Star size={10}/> {task.weight || 1} pts
-            </span>
-            {assignee && (
-              <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
-                {assignee.avatarUrl ? (
-                   <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} />
-                ) : (
-                   <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />
-                )}
-                {assignee.name.split(' ')[0]}
-              </span>
-            )}
-            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-              <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-              {formatDate(task.dueDate)}
-            </div>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-      );
-    };
+    // Grab the data for whichever channel is selected in the sidebar
+    const activeChannel = youtubeChannels.find(c => c.id === activeYoutubeChannelId) || youtubeChannels[0];
 
     return (
-      <div className="p-4 sm:p-8 h-full flex flex-col w-full">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-6 sm:mb-8 gap-4">
-          <div className="flex-1">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
-               {currentProject && <DynamicIcon name={currentProject.icon} size={24} className={colorStyles[currentProject.color]?.text} />}
-               {currentProject?.name || 'Unknown Project'}
-            </h2>
-            <div className="flex items-center gap-2 mt-2">
-               <CompanyLogo company={currentCompany} sizeClass="w-5 h-5" />
-               <p className="text-slate-500 text-sm font-medium">{currentCompany?.name || 'Unknown Company'}</p>
-            </div>
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 text-slate-800 overflow-y-auto">
+        
+        {/* Top Header & Time Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <Youtube size={32} className="text-red-600" />
+            <h2 className="text-2xl font-bold">Channel Analytics</h2>
           </div>
-          <div className="w-full sm:w-64 bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1.5">
-             <div className="flex justify-between items-center text-sm">
-                <span className="font-semibold text-slate-600">Project Progress</span>
-                <span className={`font-bold ${currentProject ? colorStyles[currentProject.color]?.text : 'text-slate-700'}`}>{progress}%</span>
-             </div>
-             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full ${currentProject ? colorStyles[currentProject.color]?.bar : 'bg-slate-500'} transition-all duration-700`} style={{ width: `${progress}%` }} />
-             </div>
+          
+          <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm flex-wrap gap-1">
+            {timePeriods.map(period => (
+              <button
+                key={period}
+                onClick={() => setTimePeriod(period)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${timePeriod === period ? 'bg-slate-100 text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+              >
+                {period}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          {projectDisplayMode === 'list' && (
-            <div className="h-full overflow-y-auto pr-1 pb-8">
-               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-                 <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                    {activeProjectTasks.length > 0 ? activeProjectTasks.map(renderProjectMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks in this project.</div>}
-                 </div>
-                 <div className="hidden md:block overflow-x-auto">
-                   <table className="w-full text-left min-w-[600px]">
-                     <thead>
-                       <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-500">
-                         <th className="p-4 w-12 pr-1"></th>
-                         <th className="py-4 px-2 w-8"></th>
-                         <th className="p-4">Task Name</th>
-                         <th className="p-4">Assignee</th>
-                         <th className="p-4">Due Date</th>
-                       </tr>
-                     </thead>
-                     <tbody>
-                       {activeProjectTasks.length > 0 ? activeProjectTasks.map(renderProjectDesktopRow) : (
-                         <tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks in this project.</td></tr>
-                       )}
-                     </tbody>
-                   </table>
-                 </div>
-               </div>
+        <div className="flex flex-col xl:flex-row gap-6">
+          {/* LEFT COLUMN: Main Analytics */}
+          <div className="flex-1 space-y-6">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+              <h3 className="text-xl font-bold mb-1">Your channel got {activeChannel?.views || '0'} views in the {timePeriod.toLowerCase()}</h3>
+              <p className="text-slate-500 text-sm mb-6">About the same as usual</p>
 
-               {completedProjectTasks.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-md text-sm font-medium">Completed</span>
-                      <span className="text-slate-400 text-sm">{completedProjectTasks.length} tasks</span>
-                    </div>
-                    <div className="bg-white/60 rounded-xl shadow-sm border border-slate-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-                      <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                         {completedProjectTasks.map(renderProjectMobileCard)}
-                      </div>
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left min-w-[600px]">
-                          <tbody>
-                            {completedProjectTasks.map(renderProjectDesktopRow)}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-               )}
-            </div>
-          )}
+              {/* The Big 4 Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="p-4 bg-slate-50 rounded-lg border-b-2 border-blue-500">
+                  <div className="text-sm text-slate-500 font-medium mb-1">Views</div>
+                  <div className="text-2xl font-bold">{activeChannel?.views || '0'}</div>
+                </div>
+                <div className="p-4 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-b-2 border-transparent">
+                  <div className="text-sm text-slate-500 font-medium mb-1">Watch time (hours)</div>
+                  <div className="text-2xl font-bold">{activeChannel?.watchTime || '0'}</div>
+                </div>
+                <div className="p-4 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-b-2 border-transparent">
+                  <div className="text-sm text-slate-500 font-medium mb-1">Subscribers</div>
+                  <div className="text-2xl font-bold text-emerald-600">{activeChannel?.subs || '0'}</div>
+                </div>
+                <div className="p-4 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-b-2 border-transparent">
+                  <div className="text-sm text-slate-500 font-medium mb-1">Estimated revenue</div>
+                  <div className="text-2xl font-bold">{activeChannel?.revenue || '$0.00'}</div>
+                </div>
+              </div>
 
-          {projectDisplayMode === 'kanban' && (
-            <div className="flex gap-6 h-full overflow-x-auto pb-4">
-              {['todo', 'in-progress', 'done'].map(status => (
-                <div 
-                  key={status} 
-                  className="bg-slate-100 rounded-xl w-80 min-w-[20rem] p-4 flex flex-col h-full border border-slate-200"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, status)}
-                >
-                  <div className="flex justify-between items-center mb-4 px-2">
-                    <h3 className="font-semibold text-slate-700 capitalize">
-                      {status === 'in-progress' ? 'In Progress' : status}
-                    </h3>
-                    <span className="bg-slate-200 text-slate-600 text-xs py-0.5 px-2 rounded-full font-medium">
-                      {projectTasks.filter(t => t.status === status).length}
-                    </span>
-                  </div>
+              {/* Custom SVG Line Chart - NO EXTERNAL DEPENDENCIES */}
+              <div className="h-[250px] w-full relative mt-4">
+                <svg viewBox="0 0 1000 300" className="w-full h-full" preserveAspectRatio="none">
+                  {/* Grid lines */}
+                  <line x1="0" y1="75" x2="1000" y2="75" stroke="#f1f5f9" strokeWidth="2" />
+                  <line x1="0" y1="150" x2="1000" y2="150" stroke="#f1f5f9" strokeWidth="2" />
+                  <line x1="0" y1="225" x2="1000" y2="225" stroke="#f1f5f9" strokeWidth="2" />
+                  <line x1="0" y1="300" x2="1000" y2="300" stroke="#f1f5f9" strokeWidth="2" />
                   
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                    {projectTasks.filter(t => t.status === status).map(task => {
-                      const assignee = getUser(task.assigneeId);
-                      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-                      return (
-                        <div 
-                          key={task.id} 
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
-                          className={`bg-white p-4 rounded-lg shadow-sm border cursor-grab active:cursor-grabbing hover:border-blue-300 transition-colors group ${taskIsOverdue ? 'border-red-200' : 'border-slate-200'}`}
-                        >
-                          <p 
-                            className={`font-medium text-sm mb-2 cursor-pointer group-hover:text-blue-600 transition-colors ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
-                            onClick={() => openTaskModal(task)}
-                          >
-                            {task.title}
-                          </p>
-                          <div className="flex flex-wrap gap-2 mb-3">
-                             <TagDisplay tags={task.tags} />
-                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-                               <Star size={10}/> {task.weight || 1}
-                             </span>
-                          </div>
-                          <div className="flex justify-between items-center text-xs text-slate-500">
-                             <div className="flex items-center gap-2">
-                               <span className={`flex items-center gap-1 px-2 py-1 rounded font-medium ${taskIsOverdue ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'}`}>
-                                 <Clock size={12} /> {formatDate(task.dueDate)}
-                               </span>
-                               {assignee && (
-                                 <span className="flex items-center gap-1 text-slate-500 bg-slate-50 px-2 py-1 rounded" title={assignee.name}>
-                                   {assignee.avatarUrl ? (
-                                      <img src={assignee.avatarUrl} alt="Avatar" className="w-4 h-4 rounded-full object-cover" />
-                                   ) : (
-                                      <UserCircle size={12} />
-                                   )}
-                                   <span className="max-w-[60px] truncate">{assignee.name.split(' ')[0]}</span>
-                                 </span>
-                               )}
-                             </div>
-                             <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1">
-                               <Trash2 size={14} />
-                             </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <button 
-                    onClick={() => openTaskModal(null, projectId, status)}
-                    className="mt-4 w-full py-2 flex items-center justify-center gap-2 text-sm text-slate-500 hover:bg-slate-200 rounded-lg transition-colors border border-dashed border-slate-300"
-                  >
-                    <Plus size={16} /> Add Task
-                  </button>
+                  {/* Gradient Fill under the line */}
+                  <defs>
+                    <linearGradient id="blueGradient" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3"/>
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  
+                  <path 
+                    d="M0,200 L50,150 L100,220 L150,100 L200,140 L250,50 L300,120 L350,20 L400,140 L450,80 L500,160 L550,110 L600,180 L650,70 L700,140 L750,40 L800,120 L850,60 L900,170 L950,80 L1000,140 L1000,300 L0,300 Z" 
+                    fill="url(#blueGradient)" 
+                  />
+                  
+                  {/* The Line */}
+                  <path 
+                    d="M0,200 L50,150 L100,220 L150,100 L200,140 L250,50 L300,120 L350,20 L400,140 L450,80 L500,160 L550,110 L600,180 L650,70 L700,140 L750,40 L800,120 L850,60 L900,170 L950,80 L1000,140" 
+                    fill="none" 
+                    stroke="#3b82f6" 
+                    strokeWidth="4" 
+                    vectorEffect="non-scaling-stroke" 
+                  />
+                </svg>
+                
+                {/* X Axis Labels */}
+                <div className="absolute -bottom-6 left-0 w-full flex justify-between text-xs text-slate-400 px-2">
+                  <span>Jan 31</span>
+                  <span>Feb 7</span>
+                  <span>Feb 14</span>
+                  <span>Feb 21</span>
+                  <span>Feb 28</span>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-
-          {projectDisplayMode === 'timeline' && (
-             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full overflow-y-auto">
-               <div className="relative border-l-2 border-blue-100 ml-3 space-y-8">
-                  {projectTasks.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).map(task => {
-                    const assignee = getUser(task.assigneeId);
-                    const taskIsOverdue = isOverdue(task.dueDate, task.status);
-                    return (
-                      <div key={task.id} className="relative pl-8">
-                        <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-blue-500 border-4 border-white"></div>
-                        <div className={`p-4 rounded-lg border hover:shadow-md transition-shadow group ${taskIsOverdue ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                          <div className="flex items-start gap-2.5 mb-2">
-                            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>
-                              {task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-                            </button>
-                            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-                            <div 
-                              className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`}
-                              onClick={() => openTaskModal(task)}
-                            >
-                              {task.title}
-                            </div>
-                          </div>
-                          
-                          <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
-                            <TagDisplay tags={task.tags} />
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-                               <Star size={10}/> {task.weight || 1} pts
-                            </span>
-                            {assignee && (
-                              <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
-                                {assignee.avatarUrl ? (
-                                   <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} />
-                                ) : (
-                                   <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />
-                                )}
-                                {assignee.name.split(' ')[0]}
-                              </span>
-                            )}
-                            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-                              <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />
-                              {formatDate(task.dueDate)}
-                            </div>
-                            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-               </div>
-             </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const TeamCapacityView = () => {
-    return (
-      <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             <Users className="text-blue-600" size={24} />
-             Team Capacity Dashboard
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">Review active workload and point distributions across the team.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {users.map(user => {
-            const userActiveTasks = tasks.filter(t => t.assigneeId === user.id && t.status !== 'done');
-            const totalPoints = userActiveTasks.reduce((sum, t) => sum + (Number(t.weight) || 1), 0);
             
-            const pointsByProject = {};
-            userActiveTasks.forEach(t => {
-              if (!pointsByProject[t.projectId]) pointsByProject[t.projectId] = 0;
-              pointsByProject[t.projectId] += (Number(t.weight) || 1);
-            });
-
-            return (
-              <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                 <div className="p-5 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm bg-white" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center border-2 border-white shadow-sm">
-                         <UserCircle size={28} className="text-slate-500" />
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="font-bold text-slate-800 flex items-center gap-1.5">
-                        {user.name} 
-                        {user.isAdmin && <Shield size={14} className="text-amber-500" title="Admin" />}
-                      </h3>
-                      <p className="text-xs text-slate-500">{user.email}</p>
-                    </div>
-                 </div>
-                 
-                 <div className="p-5 flex-1 flex flex-col gap-6">
-                    <div className="flex items-center gap-4">
-                       <div className="flex-1 bg-blue-50 rounded-lg p-3 border border-blue-100">
-                          <div className="text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">Active Tasks</div>
-                          <div className="text-2xl font-black text-slate-800">{userActiveTasks.length}</div>
-                       </div>
-                       <div className="flex-1 bg-purple-50 rounded-lg p-3 border border-purple-100">
-                          <div className="text-purple-600 text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><Star size={12}/> Total Points</div>
-                          <div className="text-2xl font-black text-slate-800">{totalPoints}</div>
-                       </div>
-                    </div>
-
-                    <div>
-                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Workload by Project</h4>
-                       {Object.keys(pointsByProject).length > 0 ? (
-                         <div className="space-y-3">
-                           {Object.entries(pointsByProject).sort((a,b) => b[1] - a[1]).map(([projectId, points]) => {
-                             const project = getProject(projectId);
-                             if (!project) return null;
-                             const percentOfLoad = Math.round((points / totalPoints) * 100);
-                             return (
-                               <div key={projectId}>
-                                 <div className="flex justify-between items-center text-sm mb-1">
-                                   <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate pr-2">
-                                     <DynamicIcon name={project.icon} size={14} className={colorStyles[project.color]?.text} />
-                                     <span className="truncate">{project.name}</span>
-                                   </div>
-                                   <div className="font-bold text-slate-600 text-xs">{points} pts</div>
-                                 </div>
-                                 <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                    <div className={`h-full ${colorStyles[project.color]?.bar || 'bg-slate-400'}`} style={{ width: `${percentOfLoad}%` }} />
-                                 </div>
-                               </div>
-                             );
-                           })}
-                         </div>
-                       ) : (
-                         <div className="text-sm text-slate-400 italic bg-slate-50 p-3 rounded border border-dashed border-slate-200 text-center">
-                           No active tasks right now.
-                         </div>
-                       )}
-                    </div>
-                 </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const BudgetDashboard = () => {
-    const viewExpenses = activeBudgetTab === 'overview' 
-      ? expenses 
-      : expenses.filter(e => e.companyId === activeBudgetTab);
-
-    // EXCLUDE items where Auto-Renew is explicitly OFF from the financial totals
-    const activeExpenses = viewExpenses.filter(e => e.autoRenew !== false && e.autoRenew !== 0 && e.autoRenew !== '0');
-
-    const monthlyTotal = activeExpenses.filter(e => e.cycle === 'monthly').reduce((sum, e) => sum + parseFloat(e.amount), 0);
-    const annualTotal = activeExpenses.filter(e => e.cycle === 'annual').reduce((sum, e) => sum + parseFloat(e.amount), 0);
-    const trueAnnualCommitment = (monthlyTotal * 12) + annualTotal;
-
-    const currentCompany = activeBudgetTab === 'overview' ? null : getCompany(activeBudgetTab);
-
-    const handleExpenseSort = (key) => {
-      let direction = 'asc';
-      if (expenseSortConfig.key === key && expenseSortConfig.direction === 'asc') direction = 'desc';
-      setExpenseSortConfig({ key, direction });
-    };
-
-    const SortIcon = ({ columnKey }) => {
-      if (expenseSortConfig.key !== columnKey) return <ChevronsUpDown size={14} className="opacity-30 ml-1 inline" />;
-      return expenseSortConfig.direction === 'asc' ? <ChevronUp size={14} className="ml-1 inline text-emerald-600" /> : <ChevronDown size={14} className="ml-1 inline text-emerald-600" />;
-    };
-
-    const sortedExpenses = [...viewExpenses].sort((a, b) => {
-      let aValue = a[expenseSortConfig.key];
-      let bValue = b[expenseSortConfig.key];
-
-      if (expenseSortConfig.key === 'amount') {
-        aValue = parseFloat(aValue || 0);
-        bValue = parseFloat(bValue || 0);
-      } else if (expenseSortConfig.key === 'companyId') {
-        aValue = getCompany(a.companyId)?.name || '';
-        bValue = getCompany(b.companyId)?.name || '';
-      } else if (expenseSortConfig.key === 'renewalDate') {
-        aValue = parseNextDate(a.cycle, a.renewalDate).getTime();
-        bValue = parseNextDate(b.cycle, b.renewalDate).getTime();
-      }
-
-      if (aValue < bValue) return expenseSortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return expenseSortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    const timelineExpenses = [...viewExpenses]
-      .map(e => ({ ...e, nextDateObj: parseNextDate(e.cycle, e.renewalDate) }))
-      .sort((a, b) => a.nextDateObj - b.nextDateObj);
-
-    const renderExpenseDesktopRow = (expense) => {
-      const company = getCompany(expense.companyId);
-      const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
-
-      return (
-        <tr key={expense.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
-          <td className="p-4 font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors flex items-center gap-2" onClick={() => openExpenseModal(expense)}>
-            {expense.category === 'Domains' ? <Globe size={16} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-            <span className={!isAutoRenewOn ? 'line-through' : ''}>{expense.name}</span>
-          </td>
-          {activeBudgetTab === 'overview' && (
-            <td className="p-4">
-              <div className="flex items-center gap-2" title={company?.name}>
-                <CompanyLogo company={company} sizeClass="w-6 h-6" />
-                <span className="text-sm text-slate-600">{company?.name}</span>
-              </div>
-            </td>
-          )}
-          <td className="p-4">
-            <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">
-              {expense.category}
-            </span>
-          </td>
-          <td className="p-4 font-medium text-slate-700">
-            {formatCurrency(expense.amount)}
-          </td>
-          <td className="p-4">
-             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
-                {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-             </span>
-          </td>
-          <td className="p-4 text-sm text-slate-500">
-             {isAutoRenewOn ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}
-          </td>
-          <td className="p-4 text-right">
-             <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-               <Trash2 size={16} />
-             </button>
-          </td>
-        </tr>
-      );
-    };
-
-    const renderExpenseMobileCard = (expense) => {
-      const company = getCompany(expense.companyId);
-      const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
-
-      return (
-        <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
-          <div className="flex justify-between items-start mb-2">
-            <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
-              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-              {expense.name}
-            </div>
-            <div className="font-bold text-slate-800 flex-shrink-0">
-              {formatCurrency(expense.amount)}
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm mt-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800">
+                    <PlaySquare size={20} className="text-slate-400"/> Top content in this period
+                </h3>
+                <p className="text-sm text-slate-500 italic bg-slate-50 p-4 rounded-lg border border-dashed border-slate-200 text-center">
+                    Video list will populate here when real data is connected.
+                </p>
             </div>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-              {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-            </span>
-            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              {expense.category}
-            </span>
-            {!isAutoRenewOn && (
-              <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>
-            )}
-            {activeBudgetTab === 'overview' && company && (
-              <div className="flex items-center gap-1 ml-auto">
-                <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                <span className="text-[10px] text-slate-500">{company.name}</span>
+
+          {/* RIGHT COLUMN: Realtime */}
+          <div className="w-full xl:w-80 flex flex-col gap-6 mt-6 xl:mt-0">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                Realtime
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse ml-2" />
+                <span className="text-xs font-semibold text-blue-500">Updating live</span>
+              </h3>
+              <div className="mb-6">
+                <div className="text-3xl font-bold text-slate-800">{activeChannel?.realtimeSubs || '0'}</div>
+                <div className="text-sm text-slate-500 font-medium">Subscribers</div>
               </div>
-            )}
-            <button onClick={() => handleDeleteExpense(expense.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-               <Trash2 size={14} />
-            </button>
-          </div>
-          {isAutoRenewOn && expense.renewalDate && (
-             <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-               <Clock size={10} /> Renews: {expense.renewalDate}
-             </div>
-          )}
-        </div>
-      );
-    };
-
-    return (
-      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
-        <div className="mb-6 sm:mb-8 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             {activeBudgetTab === 'overview' ? 'Global Budget Overview' : `${currentCompany?.name} Budget`}
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">Manage and forecast your recurring expenses (Domains included).</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 flex-shrink-0">
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Receipt size={16} className="text-blue-500" /> Active Monthly Rate
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{formatCurrency(monthlyTotal)}</div>
-          </div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-purple-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <CalendarClock size={16} className="text-purple-500" /> Active Annual Rate
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{formatCurrency(annualTotal)}</div>
-          </div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Landmark size={16} className="text-emerald-500" /> True Yearly Commitment
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{formatCurrency(trueAnnualCommitment)}</div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          {budgetDisplayMode === 'list' && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-                 <h3 className="font-bold text-slate-700">All Expenses & Domains</h3>
+              <div className="pt-6 border-t border-slate-100">
+                <div className="text-3xl font-bold text-slate-800">{activeChannel?.realtimeViews || '0'}</div>
+                <div className="text-sm text-slate-500 font-medium">Views · Last 48 hours</div>
               </div>
-              
-              <div className="flex-1 overflow-y-auto">
-                <div className="md:hidden flex flex-col">
-                   {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No expenses recorded yet.</div>}
-                </div>
-                <div className="hidden md:block">
-                  <table className="w-full text-left min-w-[800px]">
-                    <thead className="sticky top-0 bg-slate-50 z-10">
-                      <tr className="border-b border-slate-200 text-sm font-medium text-slate-500">
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('name')}>
-                          Expense Name <SortIcon columnKey="name" />
-                        </th>
-                        {activeBudgetTab === 'overview' && (
-                          <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('companyId')}>
-                            Company <SortIcon columnKey="companyId" />
-                          </th>
-                        )}
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('category')}>
-                          Category <SortIcon columnKey="category" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('amount')}>
-                          Amount <SortIcon columnKey="amount" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('cycle')}>
-                          Billing Cycle <SortIcon columnKey="cycle" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('renewalDate')}>
-                          Renewal Date <SortIcon columnKey="renewalDate" />
-                        </th>
-                        <th className="p-4 w-12 bg-slate-50"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseDesktopRow) : (
-                        <tr><td colSpan={activeBudgetTab === 'overview' ? 7 : 6} className="p-8 text-center text-slate-500">No expenses recorded yet.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {budgetDisplayMode === 'timeline' && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full overflow-y-auto">
-               <h3 className="font-bold text-slate-700 mb-6">Combined Expense Forecast</h3>
-               <div className="relative border-l-2 border-emerald-100 ml-3 space-y-8 pb-8">
-                  {timelineExpenses.length > 0 ? timelineExpenses.map(expense => {
-                    const company = getCompany(expense.companyId);
-                    const isFarFuture = expense.nextDateObj.getFullYear() === 9999;
-                    const displayDate = isFarFuture ? "Date Unknown" : expense.nextDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                    const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
-
-                    return (
-                      <div key={expense.id} className={`relative pl-8 ${!isAutoRenewOn ? 'opacity-50' : ''}`}>
-                        <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
-                        <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
-                          <div>
-                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                {isAutoRenewOn ? displayDate : 'CANCELED'}
-                            </div>
-                            <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-emerald-600' : 'line-through'}`} onClick={() => openExpenseModal(expense)}>
-                              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-                              {expense.name}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {activeBudgetTab === 'overview' && company && (
-                                <div className="flex items-center gap-1">
-                                  <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                                  <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                  <span className="text-slate-300 px-1">•</span>
-                                </div>
-                              )}
-                              <span className="text-[10px] font-semibold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">
-                                {expense.category}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                             <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(expense.amount)}</div>
-                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                               {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-                             </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  }) : (
-                     <div className="p-8 text-slate-500 text-sm">No forecasted expenses.</div>
-                  )}
-               </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const DomainsDashboard = () => {
-    const domainExpenses = expenses.filter(e => e.category === 'Domains');
-    const viewDomains = activeDomainTab === 'overview' 
-      ? domainExpenses 
-      : domainExpenses.filter(e => e.companyId === activeDomainTab);
-
-    // Exclude domains that are NOT auto-renewing from the active counts
-    const activeDomains = viewDomains.filter(e => e.autoRenew !== false && e.autoRenew !== 0 && e.autoRenew !== '0');
-
-    const activeDomainCount = activeDomains.length;
-    const totalDomainCost = activeDomains.reduce((sum, e) => {
-      const annualAmount = e.cycle === 'monthly' ? parseFloat(e.amount) * 12 : parseFloat(e.amount);
-      return sum + annualAmount;
-    }, 0);
-
-    const currentCompany = activeDomainTab === 'overview' ? null : getCompany(activeDomainTab);
-
-    const handleSort = (key) => {
-      let direction = 'asc';
-      if (domainSortConfig.key === key && domainSortConfig.direction === 'asc') direction = 'desc';
-      setDomainSortConfig({ key, direction });
-    };
-
-    const SortIcon = ({ columnKey }) => {
-      if (domainSortConfig.key !== columnKey) return <ChevronsUpDown size={14} className="opacity-30 ml-1 inline" />;
-      return domainSortConfig.direction === 'asc' ? <ChevronUp size={14} className="ml-1 inline text-teal-600" /> : <ChevronDown size={14} className="ml-1 inline text-teal-600" />;
-    };
-
-    const sortedDomains = [...viewDomains].sort((a, b) => {
-      let aValue = a[domainSortConfig.key];
-      let bValue = b[domainSortConfig.key];
-
-      if (domainSortConfig.key === 'amount') {
-        aValue = parseFloat(aValue || 0);
-        bValue = parseFloat(bValue || 0);
-      } else if (domainSortConfig.key === 'companyId') {
-        aValue = getCompany(a.companyId)?.name || '';
-        bValue = getCompany(b.companyId)?.name || '';
-      } else if (domainSortConfig.key === 'renewalDate') {
-        aValue = parseNextDate(a.cycle, a.renewalDate).getTime();
-        bValue = parseNextDate(b.cycle, b.renewalDate).getTime();
-      }
-
-      if (aValue < bValue) return domainSortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return domainSortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    const timelineDomains = [...viewDomains]
-      .map(e => ({ ...e, nextDateObj: parseNextDate(e.cycle, e.renewalDate) }))
-      .sort((a, b) => a.nextDateObj - b.nextDateObj);
-
-    const renderDomainRow = (domain) => {
-      const company = getCompany(domain.companyId);
-      const isAutoRenewOn = domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0';
-
-      return (
-        <tr key={domain.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
-          <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-teal-600 transition-colors flex items-center gap-2" onClick={() => openDomainModal(domain)}>
-            <Globe size={16} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} />
-            <span className={!isAutoRenewOn ? 'line-through' : ''}>{domain.name}</span>
-          </td>
-          {activeDomainTab === 'overview' && (
-            <td className="p-4">
-              <div className="flex items-center gap-2">
-                <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                <span className="text-sm text-slate-600">{company?.name}</span>
-              </div>
-            </td>
-          )}
-          <td className="p-4 font-medium text-slate-700">
-            {formatCurrency(domain.amount)} <span className="text-xs text-slate-400 font-normal">/{domain.cycle === 'monthly' ? 'mo' : 'yr'}</span>
-          </td>
-          <td className="p-4">
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${isAutoRenewOn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-              {isAutoRenewOn ? 'ON' : 'OFF'}
-            </span>
-          </td>
-          <td className="p-4 text-sm font-medium text-slate-600">
-            {isAutoRenewOn ? (domain.renewalDate || '--') : <span className="text-slate-400 font-normal">Manual/Off</span>}
-          </td>
-          <td className="p-4 text-right">
-             <button onClick={() => handleDeleteExpense(domain.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-               <Trash2 size={16} />
-             </button>
-          </td>
-        </tr>
-      );
-    };
-
-    return (
-      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
-        <div className="mb-6 sm:mb-8 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             {activeDomainTab === 'overview' ? 'Domain Portfolio' : `${currentCompany?.name} Domains`}
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">Manage URLs and hosting renewals. Links directly to your Budget.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-teal-500 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
-                 <Globe size={16} className="text-teal-500" /> Active Domains (Auto-Renew)
-              </div>
-              <div className="text-3xl font-bold text-slate-800">{activeDomainCount}</div>
-            </div>
-            <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center">
-              <Globe size={24} className="text-teal-500" />
             </div>
           </div>
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-teal-500 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">
-                 <Landmark size={16} className="text-teal-500" /> Estimated Annual Cost
-              </div>
-              <div className="text-3xl font-bold text-slate-800">{formatCurrency(totalDomainCost)}</div>
-            </div>
-            <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center">
-              <DollarSign size={24} className="text-teal-500" />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          {domainDisplayMode === 'list' && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-                 <h3 className="font-bold text-slate-700">Registered Domains</h3>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto">
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full text-left min-w-[600px]">
-                    <thead className="sticky top-0 bg-slate-50 z-10">
-                      <tr className="border-b border-slate-200 text-sm font-medium text-slate-500">
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
-                          Domain URL <SortIcon columnKey="name" />
-                        </th>
-                        {activeDomainTab === 'overview' && (
-                          <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('companyId')}>
-                            Company <SortIcon columnKey="companyId" />
-                          </th>
-                        )}
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('amount')}>
-                          Cost <SortIcon columnKey="amount" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('autoRenew')}>
-                          Auto-Renew <SortIcon columnKey="autoRenew" />
-                        </th>
-                        <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('renewalDate')}>
-                          Renewal Date <SortIcon columnKey="renewalDate" />
-                        </th>
-                        <th className="p-4 w-12 bg-slate-50"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedDomains.length > 0 ? sortedDomains.map(renderDomainRow) : (
-                        <tr><td colSpan={activeDomainTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {domainDisplayMode === 'timeline' && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full overflow-y-auto">
-               <h3 className="font-bold text-slate-700 mb-6">Renewal Forecast</h3>
-               <div className="relative border-l-2 border-teal-100 ml-3 space-y-8 pb-8">
-                  {timelineDomains.length > 0 ? timelineDomains.map(domain => {
-                    const company = getCompany(domain.companyId);
-                    const isFarFuture = domain.nextDateObj.getFullYear() === 9999;
-                    const displayDate = isFarFuture ? "Date Unknown" : domain.nextDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                    const isAutoRenewOn = domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0';
-
-                    return (
-                      <div key={domain.id} className={`relative pl-8 ${!isAutoRenewOn ? 'opacity-50' : ''}`}>
-                        <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-teal-500' : 'bg-slate-300'}`}></div>
-                        <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
-                          <div>
-                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-teal-600' : 'text-slate-500'}`}>
-                              {isAutoRenewOn ? displayDate : 'CANCELED'}
-                            </div>
-                            <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-teal-600' : 'line-through'}`} onClick={() => openDomainModal(domain)}>
-                              <Globe size={14} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} /> {domain.name}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {activeDomainTab === 'overview' && company && (
-                                <div className="flex items-center gap-1">
-                                  <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                                  <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                </div>
-                              )}
-                              {!isAutoRenewOn && (
-                                <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>
-                              )}
-                              {domain.notes && (
-                                <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={domain.notes}>
-                                  {domain.notes}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                             <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(domain.amount)}</div>
-                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${domain.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                               {domain.cycle === 'monthly' ? 'Monthly' : 'Annual'}
-                             </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  }) : (
-                     <div className="p-8 text-slate-500 text-sm">No forecasted domain renewals.</div>
-                  )}
-               </div>
-            </div>
-          )}
         </div>
       </div>
     );
