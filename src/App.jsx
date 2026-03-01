@@ -74,16 +74,9 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   
   // YouTube State 
-  const [youtubeChannels, setYoutubeChannels] = useState([
-    { id: '1', name: 'Dynasty Football', views: '15.0K', watchTime: '907.3', subs: '+73', revenue: '$24.35', realtimeViews: '1,015', realtimeSubs: '18,404' },
-    { id: '2', name: 'Second Channel', views: '8.2K', watchTime: '420.1', subs: '+12', revenue: '$12.10', realtimeViews: '450', realtimeSubs: '2,100' },
-    { id: '3', name: 'Third Channel', views: '45.1K', watchTime: '1,200.5', subs: '+300', revenue: '$105.00', realtimeViews: '5,000', realtimeSubs: '45,000' },
-    { id: '4', name: 'Fourth Channel', views: '1.2K', watchTime: '45.0', subs: '+2', revenue: '$1.05', realtimeViews: '100', realtimeSubs: '500' }
-  ]);
-  const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState('1');
-  const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
-  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '' });
-  const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); // '7', '28', '90', '365', 'lifetime'
+  const [youtubeChannels, setYoutubeChannels] = useState([]);
+  const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
+  const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); 
 
   // Projects View State
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -163,6 +156,13 @@ export default function App() {
         if(data.projects) setProjects(data.projects);
         if(data.tasks) setTasks(data.tasks);
         if(data.expenses) setExpenses(data.expenses);
+        
+        if(data.youtube_channels) {
+            setYoutubeChannels(data.youtube_channels);
+            if(data.youtube_channels.length > 0 && !activeYoutubeChannelId) {
+                setActiveYoutubeChannelId(data.youtube_channels[0].id);
+            }
+        }
         setIsLoading(false);
       })
       .catch(err => {
@@ -209,6 +209,33 @@ export default function App() {
     setIsLoading(false);
   };
 
+  // --- YOUTUBE SYNC FUNCTION ---
+  const handleSyncYoutube = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}?action=sync_youtube&days=${youtubeTimeFilter}`);
+      const data = await response.json();
+      
+      if (data.error) {
+        alert("YouTube Sync Failed: " + data.error);
+        if(data.details) console.log(data.details);
+      } else {
+        alert("YouTube data synced successfully!");
+        const refresh = await fetch(`${API_URL}?action=get_all`);
+        const freshData = await refresh.json();
+        if(freshData.youtube_channels) {
+            setYoutubeChannels(freshData.youtube_channels);
+            if(freshData.youtube_channels.length > 0 && !activeYoutubeChannelId) {
+                setActiveYoutubeChannelId(freshData.youtube_channels[0].id);
+            }
+        }
+      }
+    } catch (err) {
+      alert("An error occurred during sync. Check your server connection.");
+    }
+    setIsLoading(false);
+  };
+
   // --- CSV PARSING ENGINE ---
   const handleImportCSV = (e, companyId, isDomain = false) => {
     const file = e.target.files[0];
@@ -241,7 +268,6 @@ export default function App() {
         const col2Str = (cols[2] || '').toLowerCase();
         const notesStr = (cols[7] || cols[6] || '').toLowerCase();
 
-        // Smart check for AR Off
         if (col1Str.includes('ar off') || col2Str.includes('ar off') || notesStr.includes('ar off')) {
             autoRenew = false;
         }
@@ -258,7 +284,7 @@ export default function App() {
         } else if (autoRenew) {
            continue; 
         } else {
-           amount = 0; // It is off and has no explicit amount listed
+           amount = 0; 
         }
 
         const renewalDate = cols[4] || '';
@@ -410,33 +436,6 @@ export default function App() {
      setActiveTab('mytasks');
      setIsProjectModalOpen(false);
      sendToAPI('delete_project', { id: projectId });
-  };
-
-  const openYoutubeModal = (channel = null) => {
-    if (channel) setEditingYoutubeChannel(channel);
-    else setEditingYoutubeChannel({ id: null, name: '' });
-    setIsYoutubeModalOpen(true);
-  };
-
-  const handleSaveYoutubeChannel = (e) => {
-    e.preventDefault();
-    if (!editingYoutubeChannel.name.trim()) return;
-
-    const channelData = editingYoutubeChannel.id 
-      ? editingYoutubeChannel 
-      : { 
-          ...editingYoutubeChannel, 
-          id: 'yt' + Date.now(),
-          views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0'
-        };
-
-    if (editingYoutubeChannel.id) {
-      setYoutubeChannels(youtubeChannels.map(c => c.id === channelData.id ? channelData : c));
-    } else {
-      setYoutubeChannels([...youtubeChannels, channelData]);
-      setActiveYoutubeChannelId(channelData.id);
-    }
-    setIsYoutubeModalOpen(false);
   };
 
   const openProfileModal = () => {
@@ -825,21 +824,31 @@ export default function App() {
         
         <div className="flex items-center gap-2 sm:gap-4">
           {isYoutubeView && (
-             <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
-               <Clock size={16} className="text-red-200 mr-2" />
-               <select 
-                 value={youtubeTimeFilter}
-                 onChange={(e) => setYoutubeTimeFilter(e.target.value)}
-                 className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6"
-               >
-                 <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
-                 <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
-                 <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
-                 <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
-                 <option value="lifetime" className="text-slate-800 font-medium">Lifetime</option>
-               </select>
-               <ChevronDown size={14} className="text-red-200 absolute right-3 pointer-events-none" />
-             </div>
+             <>
+               <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
+                 <Clock size={16} className="text-red-200 mr-2" />
+                 <select 
+                   value={youtubeTimeFilter}
+                   onChange={(e) => setYoutubeTimeFilter(e.target.value)}
+                   className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6"
+                 >
+                   <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
+                   <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
+                   <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
+                   <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
+                 </select>
+                 <ChevronDown size={14} className="text-red-200 absolute right-3 pointer-events-none" />
+               </div>
+               {currentUser?.isAdmin && (
+                 <button 
+                   onClick={handleSyncYoutube}
+                   className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                   title="Sync with Google API"
+                 >
+                   <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
+                 </button>
+               )}
+             </>
           )}
           {isProjectView && (
              <>
@@ -1079,14 +1088,10 @@ export default function App() {
               <div className="px-4 mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Channels</p>
-                  {currentUser?.isAdmin && (
-                    <button onClick={() => openYoutubeModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Channel">
-                      <Plus size={16} />
-                    </button>
-                  )}
+                  {/* Note: In future steps, we will let users add channels here, but for now we are pulling from the API */}
                 </div>
                 <div className="flex flex-col gap-1">
-                  {youtubeChannels.map(channel => (
+                  {youtubeChannels.length > 0 ? youtubeChannels.map(channel => (
                     <div key={channel.id} className="flex items-center justify-between group/channel">
                       <button
                         onClick={() => { setActiveYoutubeChannelId(channel.id); setIsMobileMenuOpen(false); }}
@@ -1095,13 +1100,10 @@ export default function App() {
                         <Youtube size={16} className={`flex-shrink-0 ${activeYoutubeChannelId === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
                         <span className="truncate">{channel.name}</span>
                       </button>
-                      {currentUser?.isAdmin && (
-                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1">
-                          <button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button>
-                        </div>
-                      )}
                     </div>
-                  ))}
+                  )) : (
+                     <div className="text-xs text-slate-500 p-3 text-center italic">No channels synced yet. Click the Sync button above!</div>
+                  )}
                 </div>
               </div>
             </>
