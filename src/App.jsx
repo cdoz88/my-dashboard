@@ -116,8 +116,10 @@ export default function App() {
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
+  
+  // YOUTUBE Channel States
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
-  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '' });
+  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '', refreshToken: '' });
 
   // --- COMPUTE CURRENT USER & PERMISSIONS ---
   const currentUser = users.find(u => u.id === loggedInUserId);
@@ -222,7 +224,7 @@ export default function App() {
         alert("YouTube Sync Failed: " + data.error);
         if(data.details) console.log(data.details);
       } else {
-        alert("YouTube data synced successfully!");
+        alert(`YouTube data synced successfully! Processed ${data.synced} channel(s).`);
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.youtube_channels) {
@@ -440,15 +442,19 @@ export default function App() {
      sendToAPI('delete_project', { id: projectId });
   };
 
+  // --- NEW YOUTUBE FUNCTIONS ---
   const openYoutubeModal = (channel = null) => {
-    if (channel) setEditingYoutubeChannel(channel);
-    else setEditingYoutubeChannel({ id: null, name: '' });
+    if (channel) setEditingYoutubeChannel({ ...channel, refreshToken: channel.refreshToken || '' });
+    else setEditingYoutubeChannel({ id: null, name: '', refreshToken: '' });
     setIsYoutubeModalOpen(true);
   };
 
   const handleSaveYoutubeChannel = (e) => {
     e.preventDefault();
-    if (!editingYoutubeChannel.name.trim()) return;
+    if (!editingYoutubeChannel.name.trim() || !editingYoutubeChannel.refreshToken?.trim()) {
+        alert("Please provide both a Channel Name and a Refresh Token.");
+        return;
+    }
 
     const channelData = editingYoutubeChannel.id 
       ? editingYoutubeChannel 
@@ -465,6 +471,17 @@ export default function App() {
       setActiveYoutubeChannelId(channelData.id);
     }
     setIsYoutubeModalOpen(false);
+    sendToAPI('save_youtube_channel', channelData);
+  };
+
+  const handleDeleteYoutubeChannel = (channelId) => {
+    setYoutubeChannels(youtubeChannels.filter(c => c.id !== channelId));
+    if(activeYoutubeChannelId === channelId) {
+        const remaining = youtubeChannels.filter(c => c.id !== channelId);
+        setActiveYoutubeChannelId(remaining.length > 0 ? remaining[0].id : null);
+    }
+    setIsYoutubeModalOpen(false);
+    sendToAPI('delete_youtube_channel', { id: channelId });
   };
 
   const openProfileModal = () => {
@@ -1117,7 +1134,11 @@ export default function App() {
               <div className="px-4 mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Channels</p>
-                  {/* Note: In future steps, we will let users add channels here, but for now we are pulling from the API */}
+                  {currentUser?.isAdmin && (
+                    <button onClick={() => openYoutubeModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Channel">
+                      <Plus size={16} />
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1">
                   {youtubeChannels.length > 0 ? youtubeChannels.map(channel => (
@@ -1129,9 +1150,14 @@ export default function App() {
                         <Youtube size={16} className={`flex-shrink-0 ${activeYoutubeChannelId === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
                         <span className="truncate">{channel.name}</span>
                       </button>
+                      {currentUser?.isAdmin && (
+                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1">
+                          <button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button>
+                        </div>
+                      )}
                     </div>
                   )) : (
-                     <div className="text-xs text-slate-500 p-3 text-center italic">No channels synced yet. Click the Sync button above!</div>
+                     <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div>
                   )}
                 </div>
               </div>
@@ -2362,19 +2388,19 @@ export default function App() {
             <form id="youtubeForm" onSubmit={handleSaveYoutubeChannel} className="p-6 overflow-y-auto">
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Channel Name</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Channel Name (Internal Label)</label>
                   <input required type="text" value={editingYoutubeChannel.name} onChange={(e) => setEditingYoutubeChannel({...editingYoutubeChannel, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., My Gaming Channel" />
                 </div>
-                {/* Note: In the next step, we will add fields here for the actual YouTube Channel ID from Google! */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">OAuth Refresh Token</label>
+                  <input required type="text" value={editingYoutubeChannel.refreshToken || ''} onChange={(e) => setEditingYoutubeChannel({...editingYoutubeChannel, refreshToken: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="1//04J8SdfMd..." />
+                  <p className="text-xs text-slate-500 mt-2">Paste the Refresh Token generated from the Google OAuth Playground.</p>
+                </div>
               </div>
             </form>
             <div className="p-6 mt-2 flex justify-end gap-3 border-t border-slate-100 flex-shrink-0">
               {editingYoutubeChannel.id && (
-                <button type="button" onClick={() => {
-                  setYoutubeChannels(youtubeChannels.filter(c => c.id !== editingYoutubeChannel.id));
-                  if(activeYoutubeChannelId === editingYoutubeChannel.id) setActiveYoutubeChannelId(youtubeChannels[0]?.id || null);
-                  setIsYoutubeModalOpen(false);
-                }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
+                <button type="button" onClick={() => handleDeleteYoutubeChannel(editingYoutubeChannel.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
               )}
               <button type="button" onClick={() => setIsYoutubeModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="youtubeForm" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">{editingYoutubeChannel.id ? 'Save Changes' : 'Add Channel'}</button>
