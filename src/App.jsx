@@ -83,6 +83,7 @@ export default function App() {
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState('1');
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '' });
+  const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); // '7', '28', '90', '365', 'lifetime'
 
   // Projects View State
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -2183,18 +2184,33 @@ export default function App() {
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
-        <div className="mb-6 sm:mb-8 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             <Youtube className="text-red-600" size={28} />
-             {activeChannel.name} Dashboard
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">Overview of channel performance and estimated revenue.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 flex-shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+               <Youtube className="text-red-600" size={28} />
+               {activeChannel.name} Dashboard
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">Overview of channel performance and estimated revenue.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select 
+              value={youtubeTimeFilter}
+              onChange={(e) => setYoutubeTimeFilter(e.target.value)}
+              className="bg-white border border-slate-200 text-slate-700 py-2 pl-4 pr-8 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-sm cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              <option value="7">Last 7 days</option>
+              <option value="28">Last 28 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last 365 days</option>
+              <option value="lifetime">Lifetime</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <PlaySquare size={16} className="text-blue-500" /> Views (28 days)
+               <PlaySquare size={16} className="text-blue-500" /> Views {youtubeTimeFilter === 'lifetime' ? '(Lifetime)' : `(${youtubeTimeFilter} days)`}
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeChannel.views}</div>
           </div>
