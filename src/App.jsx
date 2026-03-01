@@ -1165,7 +1165,7 @@ export default function App() {
 
               {/* The Big 4 Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="p-4 bg-slate-50 rounded-lg border-b-2 border-blue-500">
+                <div className="p-4 bg-slate-50 rounded-lg border-b-2 border-red-500">
                   <div className="text-sm text-slate-500 font-medium mb-1">Views</div>
                   <div className="text-2xl font-bold">{activeChannel?.views || '0'}</div>
                 </div>
@@ -1194,22 +1194,22 @@ export default function App() {
                   
                   {/* Gradient Fill under the line */}
                   <defs>
-                    <linearGradient id="blueGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3"/>
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
+                    <linearGradient id="redGradient" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity="0.3"/>
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity="0"/>
                     </linearGradient>
                   </defs>
                   
                   <path 
                     d="M0,200 L50,150 L100,220 L150,100 L200,140 L250,50 L300,120 L350,20 L400,140 L450,80 L500,160 L550,110 L600,180 L650,70 L700,140 L750,40 L800,120 L850,60 L900,170 L950,80 L1000,140 L1000,300 L0,300 Z" 
-                    fill="url(#blueGradient)" 
+                    fill="url(#redGradient)" 
                   />
                   
                   {/* The Line */}
                   <path 
                     d="M0,200 L50,150 L100,220 L150,100 L200,140 L250,50 L300,120 L350,20 L400,140 L450,80 L500,160 L550,110 L600,180 L650,70 L700,140 L750,40 L800,120 L850,60 L900,170 L950,80 L1000,140" 
                     fill="none" 
-                    stroke="#3b82f6" 
+                    stroke="#ef4444" 
                     strokeWidth="4" 
                     vectorEffect="non-scaling-stroke" 
                   />
