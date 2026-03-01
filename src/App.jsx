@@ -666,7 +666,13 @@ export default function App() {
             alert(data.error);
           } else {
             setLoggedInUserId(data.user.id);
-            setUsers(users.map(u => u.id === data.user.id ? data.user : u));
+            // Safely handle updating the users list so the app doesn't hang
+            setUsers(prevUsers => {
+              if (prevUsers.find(u => u.id === data.user.id)) {
+                return prevUsers.map(u => u.id === data.user.id ? data.user : u);
+              }
+              return [...prevUsers, data.user];
+            });
           }
         } catch (err) {
           alert("Could not connect to the authentication server.");
@@ -1097,7 +1103,7 @@ export default function App() {
             )}
             <div className="flex flex-col items-start truncate text-left pr-2">
               <span className="font-bold text-sm truncate w-full flex items-center gap-1.5 text-slate-200 group-hover:text-white transition-colors">
-                {currentUser?.name.split(' ')[0]}
+                {(currentUser?.name || 'User').split(' ')[0]}
               </span>
               <span className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 truncate w-full ${currentUser?.isAdmin ? 'text-amber-500' : 'text-blue-400'}`}>
                 {currentUser?.isAdmin ? 'Workspace Admin' : 'Team Member'}
