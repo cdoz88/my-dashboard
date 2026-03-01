@@ -2168,6 +2168,84 @@ export default function App() {
     );
   };
 
+  const YoutubeDashboard = () => {
+    const activeChannel = youtubeChannels.find(c => c.id === activeYoutubeChannelId);
+
+    if (!activeChannel) {
+      return (
+        <div className="p-4 sm:p-8 h-full flex flex-col items-center justify-center bg-slate-50/50">
+          <Youtube size={64} className="text-slate-300 mb-4" />
+          <h2 className="text-xl font-bold text-slate-500">No YouTube Channel Selected</h2>
+          <p className="text-slate-400 mt-2 text-center max-w-md">Select a channel from the sidebar or add a new one to see your stats.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
+        <div className="mb-6 sm:mb-8 flex-shrink-0">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+             <Youtube className="text-red-600" size={28} />
+             {activeChannel.name} Dashboard
+          </h2>
+          <p className="text-slate-500 text-sm mt-1">Overview of channel performance and estimated revenue.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <PlaySquare size={16} className="text-blue-500" /> Views (28 days)
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeChannel.views}</div>
+          </div>
+          
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Users size={16} className="text-emerald-500" /> Subscribers
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeChannel.subs}</div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-purple-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Clock size={16} className="text-purple-500" /> Watch Time (hrs)
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeChannel.watchTime}</div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-amber-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <DollarSign size={16} className="text-amber-500" /> Est. Revenue
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeChannel.revenue}</div>
+          </div>
+        </div>
+
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Realtime (48 hours)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">Views</p>
+              <p className="text-2xl font-bold text-slate-800">{activeChannel.realtimeViews}</p>
+            </div>
+            <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center">
+              <Zap size={24} className="text-red-500" />
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-1">Subscribers</p>
+              <p className="text-2xl font-bold text-slate-800">{activeChannel.realtimeSubs}</p>
+            </div>
+            <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center">
+              <UserCircle size={24} className="text-red-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // --- STOP UNAUTHORIZED ACCESS ---
   if (isLoading) {
     return (
