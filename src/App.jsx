@@ -229,7 +229,7 @@ export default function App() {
       } else {
         let msg = `YouTube data synced successfully! Processed ${data.synced} channel(s).`;
         if (data.errors && data.errors.length > 0) {
-            msg += "\n\nSome channels had issues:\n" + data.errors.join("\n");
+            msg += "\n\nSome channels had minor issues:\n" + data.errors.join("\n");
         }
         alert(msg);
         const refresh = await fetch(`${API_URL}?action=get_all`);
@@ -468,7 +468,7 @@ export default function App() {
       : { 
           ...editingYoutubeChannel, 
           id: 'yt' + Date.now(),
-          views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0'
+          views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0', topVideos: '[]'
         };
 
     if (editingYoutubeChannel.id) {
@@ -661,6 +661,15 @@ export default function App() {
      }
   };
   const handleDragOver = (e) => e.preventDefault();
+
+  // Helper for Youtube AVD
+  const formatAVD = (minutes, views) => {
+    if (!views || views === 0 || !minutes) return '0:00';
+    const avgMin = Number(minutes) / Number(views);
+    const m = Math.floor(avgMin);
+    const s = Math.floor((avgMin - m) * 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   // --- ENFORCE PERMISSIONS ON COMPANIES ---
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
@@ -2264,8 +2273,17 @@ export default function App() {
       );
     }
 
+    let topVideos = [];
+    try {
+        if (activeChannel.topVideos) {
+            topVideos = JSON.parse(activeChannel.topVideos);
+        }
+    } catch(e) {
+        console.error("Could not parse top videos json", e);
+    }
+
     return (
-      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -2276,7 +2294,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* 4 MAIN STAT CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
                <PlaySquare size={16} className="text-blue-500" /> Views {youtubeTimeFilter === 'lifetime' ? '(Lifetime)' : `(${youtubeTimeFilter} days)`}
@@ -2306,8 +2325,9 @@ export default function App() {
           </div>
         </div>
 
-        <h3 className="text-lg font-bold text-slate-800 mb-4">Realtime (48 hours)</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* REALTIME CARDS */}
+        <h3 className="text-lg font-bold text-slate-800 mb-4 flex-shrink-0">Realtime (48 hours)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500 mb-1">Views</p>
@@ -2327,6 +2347,65 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* TOP CONTENT TABLE */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-shrink-0 mb-8">
+           <div className="p-5 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                 <PlaySquare size={18} className="text-red-600" /> Top content in this period
+              </h3>
+           </div>
+           
+           {topVideos.length > 0 ? (
+             <div className="overflow-x-auto">
+               <table className="w-full text-left min-w-[600px]">
+                  <thead>
+                     <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-white">
+                        <th className="p-4 w-12 text-center">#</th>
+                        <th className="p-4">Content</th>
+                        <th className="p-4 text-right">Avg. view duration</th>
+                        <th className="p-4 text-right">Views</th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                     {topVideos.map((video, idx) => (
+                        <tr key={video.id} className="hover:bg-slate-50 transition-colors group">
+                           <td className="p-4 text-center text-slate-400 font-medium">{idx + 1}</td>
+                           <td className="p-4">
+                              <div className="flex items-center gap-4">
+                                 {video.thumbnail ? (
+                                    <img src={video.thumbnail} alt={video.title} className="w-[120px] h-[68px] object-cover rounded-md shadow-sm border border-slate-200" />
+                                 ) : (
+                                    <div className="w-[120px] h-[68px] bg-slate-100 rounded-md border border-slate-200 flex items-center justify-center">
+                                        <PlaySquare size={24} className="text-slate-300" />
+                                    </div>
+                                 )}
+                                 <div className="flex flex-col justify-center">
+                                    <p className="text-sm font-bold text-slate-800 line-clamp-2 max-w-md group-hover:text-blue-600 transition-colors leading-snug">{video.title}</p>
+                                    <p className="text-xs text-slate-500 mt-1 font-medium">{new Date(video.publishedAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}</p>
+                                 </div>
+                              </div>
+                           </td>
+                           <td className="p-4 text-right text-sm text-slate-600 font-medium">
+                              {formatAVD(video.minutes, video.views)}
+                           </td>
+                           <td className="p-4 text-right text-sm text-slate-800 font-bold">
+                              {video.views.toLocaleString()}
+                           </td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+             </div>
+           ) : (
+             <div className="p-12 text-center flex flex-col items-center">
+               <Youtube size={32} className="text-slate-300 mb-3" />
+               <p className="text-slate-500 font-medium">Video list will populate here when real data is connected.</p>
+               <p className="text-xs text-slate-400 mt-1">Make sure you hit the Sync button in the top right.</p>
+             </div>
+           )}
+        </div>
+
       </div>
     );
   };
