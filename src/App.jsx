@@ -116,6 +116,8 @@ export default function App() {
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
+  const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
+  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '' });
 
   // --- COMPUTE CURRENT USER & PERMISSIONS ---
   const currentUser = users.find(u => u.id === loggedInUserId);
@@ -436,6 +438,33 @@ export default function App() {
      setActiveTab('mytasks');
      setIsProjectModalOpen(false);
      sendToAPI('delete_project', { id: projectId });
+  };
+
+  const openYoutubeModal = (channel = null) => {
+    if (channel) setEditingYoutubeChannel(channel);
+    else setEditingYoutubeChannel({ id: null, name: '' });
+    setIsYoutubeModalOpen(true);
+  };
+
+  const handleSaveYoutubeChannel = (e) => {
+    e.preventDefault();
+    if (!editingYoutubeChannel.name.trim()) return;
+
+    const channelData = editingYoutubeChannel.id 
+      ? editingYoutubeChannel 
+      : { 
+          ...editingYoutubeChannel, 
+          id: 'yt' + Date.now(),
+          views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0'
+        };
+
+    if (editingYoutubeChannel.id) {
+      setYoutubeChannels(youtubeChannels.map(c => c.id === channelData.id ? channelData : c));
+    } else {
+      setYoutubeChannels([...youtubeChannels, channelData]);
+      setActiveYoutubeChannelId(channelData.id);
+    }
+    setIsYoutubeModalOpen(false);
   };
 
   const openProfileModal = () => {
