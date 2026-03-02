@@ -87,6 +87,7 @@ export default function App() {
   // Spreaker State
   const [spreakerShows, setSpreakerShows] = useState([]);
   const [activeSpreakerShowId, setActiveSpreakerShowId] = useState(null);
+  const [spreakerTimeFilter, setSpreakerTimeFilter] = useState('28');
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
   const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '', apiToken: '' });
 
@@ -94,7 +95,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('mytasks'); 
   const [projectDisplayMode, setProjectDisplayMode] = useState('list');
   
-  // Expenses View State (Formerly Budget)
+  // Expenses View State
   const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
   const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -201,6 +202,7 @@ export default function App() {
      if (events.length > 0 && currentUser?.isAdmin) {
          events.forEach(event => {
              let updatedEvent = null;
+             
              if (!event.expenseId) {
                  const isInstallments = event.installments && event.installments.length > 0;
                  const hasCost = parseFloat(event.cost) > 0;
@@ -306,7 +308,7 @@ export default function App() {
   const handleSyncSpreaker = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}?action=sync_spreaker`);
+      const response = await fetch(`${API_URL}?action=sync_spreaker&days=${spreakerTimeFilter}`);
       const data = await response.json();
       if (data.error) {
         let errorMsg = "Spreaker Sync Failed: " + data.error;
@@ -958,9 +960,22 @@ export default function App() {
              </>
           )}
           {isSpreakerView && currentUser?.isAdmin && (
-             <button onClick={handleSyncSpreaker} className="bg-slate-900 text-[#ffc005] hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Spreaker API">
-               <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
-             </button>
+             <>
+               <div className="relative flex items-center bg-slate-900/10 rounded-lg border border-slate-900/20 px-3 py-1.5 hover:bg-slate-900/20 transition-colors cursor-pointer mr-2">
+                 <Clock size={16} className="text-slate-900 mr-2" />
+                 <select value={spreakerTimeFilter} onChange={(e) => setSpreakerTimeFilter(e.target.value)} className="bg-transparent text-slate-900 text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
+                   <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
+                   <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
+                   <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
+                   <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
+                   <option value="lifetime" className="text-slate-800 font-medium">Lifetime</option>
+                 </select>
+                 <ChevronDown size={14} className="text-slate-900 absolute right-3 pointer-events-none" />
+               </div>
+               <button onClick={handleSyncSpreaker} className="bg-slate-900 text-[#ffc005] hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Spreaker API">
+                 <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
+               </button>
+             </>
           )}
           {isProjectView && (
              <>
@@ -2141,28 +2156,28 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#ffc005]">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Play size={16} className="text-[#ffc005]" /> Total Plays
+               <Play size={16} className="text-[#ffc005]" /> Total Plays {spreakerTimeFilter === 'lifetime' ? '(Lifetime)' : `(${spreakerTimeFilter}d)`}
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.plays || '0'}</div>
           </div>
           
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Download size={16} className="text-blue-500" /> Downloads
+               <Download size={16} className="text-blue-500" /> Downloads {spreakerTimeFilter === 'lifetime' ? '(Lifetime)' : `(${spreakerTimeFilter}d)`}
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.downloads || '0'}</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Heart size={16} className="text-red-500" /> Likes
+               <Heart size={16} className="text-red-500" /> Likes (Lifetime)
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.likes || '0'}</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Users size={16} className="text-emerald-500" /> Followers
+               <Users size={16} className="text-emerald-500" /> Followers (Lifetime)
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.followers || '0'}</div>
           </div>
