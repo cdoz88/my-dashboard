@@ -84,7 +84,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('mytasks'); 
   const [projectDisplayMode, setProjectDisplayMode] = useState('list');
   
-  // Budget View State
+  // Expenses View State (Formerly Budget)
   const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
   const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -97,7 +97,8 @@ export default function App() {
   // Events View State
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months' });
+  const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
+  const [paymentMode, setPaymentMode] = useState('single'); // 'single' or 'installments'
 
   // Modal states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -161,7 +162,7 @@ export default function App() {
                canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
                canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
-               canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, // default true
+               canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
            }));
            setUsers(mappedUsers);
         }
@@ -192,22 +193,50 @@ export default function App() {
              let updatedEvent = null;
              
              // Sync Event Expense
-             if (parseFloat(event.cost) > 0 && !event.expenseId) {
-                 const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
-                 const newExpense = {
-                     id: newExpenseId,
-                     companyId: event.companyId,
-                     name: `Event: ${event.title}`,
-                     category: 'Company Expense',
-                     amount: event.cost,
-                     cycle: 'one-time', 
-                     renewalDate: event.eventDate,
-                     notes: `Auto-generated for event ${event.title}`,
-                     autoRenew: false 
-                 };
-                 sendToAPI('save_expense', newExpense);
-                 setExpenses(prev => [...prev, newExpense]);
-                 updatedEvent = { ...event, expenseId: newExpenseId };
+             if (!event.expenseId) {
+                 const isInstallments = event.installments && event.installments.length > 0;
+                 const hasCost = parseFloat(event.cost) > 0;
+
+                 if (isInstallments) {
+                     const newIds = [];
+                     let tempExpenses = [];
+                     event.installments.forEach((inst, idx) => {
+                         const newExpenseId = 'e' + Date.now() + idx + Math.random().toString(36).substr(2, 5);
+                         newIds.push(newExpenseId);
+                         const newExpense = {
+                             id: newExpenseId,
+                             companyId: event.companyId,
+                             name: `Event: ${event.title} (Installment ${idx + 1})`,
+                             category: 'Company Expense',
+                             amount: inst.amount,
+                             cycle: 'one-time', 
+                             renewalDate: inst.date,
+                             notes: `Auto-generated installment for event ${event.title}`,
+                             autoRenew: false 
+                         };
+                         sendToAPI('save_expense', newExpense);
+                         tempExpenses.push(newExpense);
+                     });
+                     setExpenses(prev => [...prev, ...tempExpenses]);
+                     updatedEvent = { ...event, expenseId: newIds.join(',') };
+
+                 } else if (hasCost) {
+                     const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
+                     const newExpense = {
+                         id: newExpenseId,
+                         companyId: event.companyId,
+                         name: `Event: ${event.title}`,
+                         category: 'Company Expense',
+                         amount: event.cost,
+                         cycle: 'one-time', 
+                         renewalDate: event.billingDate || event.eventDate,
+                         notes: `Auto-generated for event ${event.title}`,
+                         autoRenew: false 
+                     };
+                     sendToAPI('save_expense', newExpense);
+                     setExpenses(prev => [...prev, newExpense]);
+                     updatedEvent = { ...event, expenseId: newExpenseId };
+                 }
              }
 
              // Sync Event Project
@@ -215,11 +244,15 @@ export default function App() {
                  const eventDateObj = new Date(`${event.eventDate}T12:00:00`); // Force local timezone interpretation
                  let triggerDate = new Date(eventDateObj);
                  
-                 const leadTime = parseInt(event.projectLeadTime);
-                 if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
-                 if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
-                 if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
-                 if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
+                 if (event.projectLeadUnit === 'now') {
+                     triggerDate = new Date(0); // Force it to immediately trigger
+                 } else {
+                     const leadTime = parseInt(event.projectLeadTime);
+                     if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
+                     if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
+                     if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
+                     if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
+                 }
                  
                  const today = new Date();
                  if (today >= triggerDate) {
@@ -460,19 +493,35 @@ export default function App() {
   };
 
   const openEventModal = (ev = null) => {
-    if (ev) setEditingEvent({ ...ev, autoProject: ev.autoProject == 1 || ev.autoProject === true });
-    else setEditingEvent({ id: null, title: '', companyId: companies[0]?.id || '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months' });
+    if (ev) {
+        setEditingEvent({ ...ev, autoProject: ev.autoProject == 1 || ev.autoProject === true, installments: ev.installments || [] });
+        setPaymentMode(ev.installments && ev.installments.length > 0 ? 'installments' : 'single');
+    } else {
+        setEditingEvent({ id: null, title: '', companyId: companies[0]?.id || '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
+        setPaymentMode('single');
+    }
     setIsEventModalOpen(true);
   };
 
   const handleSaveEvent = (e) => {
     e.preventDefault();
-    const eventData = editingEvent.id ? editingEvent : { ...editingEvent, id: 'ev' + Date.now() };
+    let finalCost = editingEvent.cost;
+    
+    // Auto-calculate cost from installments if applicable
+    if (paymentMode === 'installments') {
+        const total = editingEvent.installments.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
+        finalCost = total;
+    }
+
+    const eventData = editingEvent.id 
+        ? { ...editingEvent, cost: finalCost, installments: paymentMode === 'installments' ? editingEvent.installments : [] } 
+        : { ...editingEvent, id: 'ev' + Date.now(), cost: finalCost, installments: paymentMode === 'installments' ? editingEvent.installments : [] };
+    
     if (editingEvent.id) setEvents(events.map(ev => ev.id === eventData.id ? eventData : ev));
     else setEvents([...events, eventData]);
+    
     setIsEventModalOpen(false);
     sendToAPI('save_event', eventData);
-    // The auto-trigger engine in the useEffect above will catch this newly saved event!
   };
 
   const handleDeleteEvent = (eventId) => {
@@ -682,6 +731,25 @@ export default function App() {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-');
     return `${month}-${day}-${year.slice(2)}`;
+  };
+
+  const formatExpenseDate = (dateStr, cycle) => {
+    if (cycle !== 'one-time') return dateStr || '--';
+    if (!dateStr) return '--';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const d = new Date(`${dateStr}T12:00:00`);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return dateStr;
+  };
+
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '';
+    let [hours, minutes] = time24.split(':');
+    hours = parseInt(hours, 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
   };
 
   const calculateProjectProgress = (projectId) => {
@@ -925,7 +993,7 @@ export default function App() {
             ) : (
               <Globe size={24} className="text-white/70" />
             )}
-            <span className="capitalize">{currentApp === 'youtube' ? 'YouTube Studio' : currentApp}</span>
+            <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp}</span>
             <ChevronsUpDown size={18} className="text-white/60 ml-1" />
           </button>
 
@@ -963,7 +1031,7 @@ export default function App() {
                     <div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
                       <Wallet size={18} />
                     </div>
-                    Budget
+                    Expenses
                   </button>
                 )}
                 {(currentUser.isAdmin || currentUser.canViewDomains) && (
@@ -1187,7 +1255,7 @@ export default function App() {
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
                 >
                   <PieChart size={18} />
-                  All Budgets
+                  All Expenses
                 </button>
               </div>
               
@@ -1980,7 +2048,7 @@ export default function App() {
              </span>
           </td>
           <td className="p-4 text-sm text-slate-500">
-             {isAutoRenewOn || expense.cycle === 'one-time' ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}
+             {isAutoRenewOn || expense.cycle === 'one-time' ? formatExpenseDate(expense.renewalDate, expense.cycle) : <span className="text-red-500 font-medium">Canceled</span>}
           </td>
           <td className="p-4 text-right">
              <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2029,7 +2097,7 @@ export default function App() {
           </div>
           {(isAutoRenewOn || expense.cycle === 'one-time') && expense.renewalDate && (
              <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-               <Clock size={10} /> {expense.cycle === 'one-time' ? 'Date:' : 'Renews:'} {expense.renewalDate}
+               <Clock size={10} /> {expense.cycle === 'one-time' ? 'Date:' : 'Renews:'} {formatExpenseDate(expense.renewalDate, expense.cycle)}
              </div>
           )}
         </div>
@@ -2040,7 +2108,7 @@ export default function App() {
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
         <div className="mb-6 sm:mb-8 flex-shrink-0">
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             {activeBudgetTab === 'overview' ? 'Global Budget Overview' : `${currentCompany?.name} Budget`}
+             {activeBudgetTab === 'overview' ? 'Global Expenses Overview' : `${currentCompany?.name} Expenses`}
           </h2>
           <p className="text-slate-500 text-sm mt-1">Manage and forecast your recurring expenses (Domains included).</p>
         </div>
@@ -2272,7 +2340,7 @@ export default function App() {
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
              {activeDomainTab === 'overview' ? 'Domain Portfolio' : `${currentCompany?.name} Domains`}
           </h2>
-          <p className="text-slate-500 text-sm mt-1">Manage URLs and hosting renewals. Links directly to your Budget.</p>
+          <p className="text-slate-500 text-sm mt-1">Manage URLs and hosting renewals. Links directly to your Expenses.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
@@ -2369,7 +2437,7 @@ export default function App() {
                                 <div className="flex items-center gap-1">
                                   <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
                                   <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                 </div>
+                                </div>
                               )}
                               {!isAutoRenewOn && (
                                 <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>
@@ -2422,14 +2490,15 @@ export default function App() {
                 </div>
               </td>
               <td className="p-4 text-sm font-medium text-slate-700">
-                {evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{ev.eventTime}</span>}
+                {evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{formatTime12Hour(ev.eventTime)}</span>}
               </td>
               <td className="p-4 font-medium text-slate-700">
                 {ev.cost > 0 ? formatCurrency(ev.cost) : <span className="text-slate-400 text-sm font-normal">--</span>}
+                {ev.installments && ev.installments.length > 0 && <span className="text-xs text-slate-400 font-normal ml-1 border bg-slate-50 px-1 rounded">Mult</span>}
               </td>
               <td className="p-4">
                 <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${ev.autoProject == 1 ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                  {ev.autoProject == 1 ? `YES (${ev.projectLeadTime}${ev.projectLeadUnit.charAt(0)})` : 'NO'}
+                  {ev.autoProject == 1 ? (ev.projectLeadUnit === 'now' ? 'YES (Immediate)' : `YES (${ev.projectLeadTime}${ev.projectLeadUnit.charAt(0)})`) : 'NO'}
                 </span>
               </td>
               <td className="p-4 text-right">
@@ -2448,7 +2517,7 @@ export default function App() {
                <CalendarDays className="text-purple-600" size={28} />
                Events & Conferences
             </h2>
-            <p className="text-slate-500 text-sm mt-1">Plan your major events. Budgets and Prep Projects will generate automatically.</p>
+            <p className="text-slate-500 text-sm mt-1">Plan your major events. Expenses and Prep Projects will generate automatically.</p>
           </div>
   
           <div className="flex-1 overflow-hidden">
@@ -2497,7 +2566,7 @@ export default function App() {
                           <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                             <div>
                               <div className="text-sm font-bold mb-1 text-purple-600">
-                                  {displayDate} {ev.eventTime && <span className="text-slate-400 font-normal ml-1">@ {ev.eventTime}</span>}
+                                  {displayDate} {ev.eventTime && <span className="text-slate-400 font-normal ml-1">@ {formatTime12Hour(ev.eventTime)}</span>}
                               </div>
                               <div className="font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 hover:text-purple-600" onClick={() => openEventModal(ev)}>
                                 {ev.title}
@@ -2512,7 +2581,7 @@ export default function App() {
                                 )}
                                 {ev.autoProject == 1 && (
                                   <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                                    Prep Project: {ev.projectLeadTime} {ev.projectLeadUnit} before
+                                    Prep Project: {ev.projectLeadUnit === 'now' ? 'Created Immediately' : `${ev.projectLeadTime} ${ev.projectLeadUnit} before`}
                                   </span>
                                 )}
                               </div>
@@ -2521,7 +2590,9 @@ export default function App() {
                                {ev.cost > 0 ? (
                                    <>
                                       <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(ev.cost)}</div>
-                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Added to Budget</span>
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
+                                        {ev.installments && ev.installments.length > 0 ? 'Multi-Payment' : 'Added to Expenses'}
+                                      </span>
                                    </>
                                ) : (
                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400">No Cost</span>
@@ -2808,18 +2879,82 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Estimated Cost / Budget ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <DollarSign size={16} className="text-slate-400" />
-                      </div>
-                      <input type="number" step="0.01" min="0" value={editingEvent.cost} onChange={(e) => setEditingEvent({...editingEvent, cost: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0.00" disabled={!!editingEvent.expenseId} />
+                <div className="pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <div className="text-sm font-bold text-slate-800">Estimated Cost / Expenses</div>
+                            <div className="text-[10px] text-slate-500">Auto-generates one-time expenses for your budget.</div>
+                        </div>
+                        <select 
+                            value={paymentMode} 
+                            onChange={(e) => {
+                                setPaymentMode(e.target.value);
+                                if (e.target.value === 'installments' && editingEvent.installments.length === 0) {
+                                    setEditingEvent({...editingEvent, installments: [{amount: '', date: ''}]});
+                                }
+                            }}
+                            className="text-xs border border-slate-300 rounded-md px-2 py-1 bg-slate-50 text-slate-700 focus:outline-none"
+                            disabled={!!editingEvent.expenseId}
+                        >
+                            <option value="single">Single Payment</option>
+                            <option value="installments">Multiple Installments</option>
+                        </select>
                     </div>
-                    {editingEvent.expenseId ? (
-                        <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle2 size={10}/> This cost has been logged in your Budget as a One-Time Expense.</p>
+
+                    {paymentMode === 'single' ? (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Amount ($)</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <DollarSign size={14} className="text-slate-400" />
+                                    </div>
+                                    <input type="number" step="0.01" min="0" value={editingEvent.cost} onChange={(e) => setEditingEvent({...editingEvent, cost: e.target.value})} className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0.00" disabled={!!editingEvent.expenseId} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Billing Date</label>
+                                <input type="date" value={editingEvent.billingDate} onChange={(e) => setEditingEvent({...editingEvent, billingDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                            </div>
+                        </div>
                     ) : (
-                        <p className="text-[10px] text-slate-500 mt-1">If entered, this will automatically generate a One-Time expense in your budget.</p>
+                        <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200 animate-in fade-in">
+                            {editingEvent.installments.map((inst, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <div className="relative flex-1">
+                                        <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none"><DollarSign size={12} className="text-slate-400" /></div>
+                                        <input type="number" required placeholder="Amount" value={inst.amount} onChange={(e) => {
+                                            const newInsts = [...editingEvent.installments];
+                                            newInsts[idx].amount = e.target.value;
+                                            setEditingEvent({...editingEvent, installments: newInsts});
+                                        }} className="w-full pl-6 pr-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                                    </div>
+                                    <input type="date" required value={inst.date} onChange={(e) => {
+                                        const newInsts = [...editingEvent.installments];
+                                        newInsts[idx].date = e.target.value;
+                                        setEditingEvent({...editingEvent, installments: newInsts});
+                                    }} className="flex-1 px-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                                    
+                                    {!editingEvent.expenseId && (
+                                        <button type="button" onClick={() => {
+                                            const newInsts = editingEvent.installments.filter((_, i) => i !== idx);
+                                            setEditingEvent({...editingEvent, installments: newInsts});
+                                        }} className="p-1.5 text-slate-400 hover:text-red-500"><X size={14}/></button>
+                                    )}
+                                </div>
+                            ))}
+                            {!editingEvent.expenseId && (
+                                <button type="button" onClick={() => setEditingEvent({...editingEvent, installments: [...editingEvent.installments, {amount: '', date: ''}]})} className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 mt-2">
+                                    <Plus size={12}/> Add Installment
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {editingEvent.expenseId ? (
+                        <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1"><CheckCircle2 size={10}/> Expenses have been mapped to your Budget.</p>
+                    ) : (
+                        <p className="text-[10px] text-slate-400 mt-2 italic">Note: Changing the cost after saving will not update the generated expenses.</p>
                     )}
                 </div>
 
@@ -2847,8 +2982,11 @@ export default function App() {
                     {editingEvent.autoProject && !editingEvent.projectId && (
                         <div className="flex items-center gap-2 bg-purple-50 p-3 rounded-lg border border-purple-100 animate-in fade-in slide-in-from-top-2">
                             <span className="text-sm font-medium text-purple-800 flex-shrink-0">Create</span>
-                            <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                            {editingEvent.projectLeadUnit !== 'now' && (
+                                <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                            )}
                             <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800">
+                                <option value="now">Immediately</option>
                                 <option value="days">Days before event</option>
                                 <option value="weeks">Weeks before event</option>
                                 <option value="months">Months before event</option>
@@ -3319,7 +3457,7 @@ export default function App() {
                         <input type="checkbox" className="w-5 h-5 accent-purple-600 rounded" checked={editingTeamMember.canViewEvents} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewEvents: e.target.checked})} />
                       </label>
                       <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                        <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Budget App</div>
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Expenses App</div>
                         <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewBudget} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewBudget: e.target.checked})} />
                       </label>
                       <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
