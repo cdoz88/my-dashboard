@@ -62,6 +62,11 @@ const convertToBase64 = (file) => {
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
+  // Set Document Title
+  useEffect(() => {
+    document.title = "FYT Solutions Control Room";
+  }, []);
+
   // Core App State
   const [currentApp, setCurrentApp] = useState('projects'); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
@@ -95,6 +100,7 @@ export default function App() {
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   // Events View State
+  const [activeEventTab, setActiveEventTab] = useState('overview');
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
@@ -560,6 +566,7 @@ export default function App() {
     setExpenses(expenses.filter(e => e.companyId !== companyId));
     if (activeBudgetTab === companyId) setActiveBudgetTab('overview');
     if (activeDomainTab === companyId) setActiveDomainTab('overview');
+    if (activeEventTab === companyId) setActiveEventTab('overview');
     setIsCompanyModalOpen(false);
     sendToAPI('delete_company', { id: companyId });
   };
@@ -1372,11 +1379,32 @@ export default function App() {
           {currentApp === 'events' && (
             <>
               <div className="px-4 mb-6">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Planning</p>
+                <button 
+                  onClick={() => { setActiveEventTab('overview'); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeEventTab === 'overview' ? 'bg-purple-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
+                >
+                  <CalendarDays size={18} />
+                  All Events
+                </button>
+              </div>
+              
+              <div className="px-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Planning</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
                 </div>
-                <div className="text-xs text-slate-400 leading-relaxed bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
-                   Events automatically generate Budget Expenses and auto-schedule Prep Projects for your team based on your settings.
+                <div className="flex flex-col gap-1">
+                  {visibleCompanies.filter(c => events.some(e => e.companyId === c.id)).map(company => (
+                    <div key={company.id} className="flex items-center justify-between group/company">
+                      <button
+                        onClick={() => { setActiveEventTab(company.id); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeEventTab === company.id ? 'bg-slate-800 text-purple-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                        <span className="truncate">{company.name}</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
@@ -2470,8 +2498,14 @@ export default function App() {
   };
 
   const EventsDashboard = () => {
-    const upcomingEvents = events.filter(e => new Date(`${e.eventDate}T12:00:00`) >= new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(a.eventDate) - new Date(b.eventDate));
-    const pastEvents = events.filter(e => new Date(`${e.eventDate}T12:00:00`) < new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(b.eventDate) - new Date(a.eventDate));
+    const viewEvents = activeEventTab === 'overview' 
+      ? events 
+      : events.filter(e => e.companyId === activeEventTab);
+
+    const upcomingEvents = viewEvents.filter(e => new Date(`${e.eventDate}T12:00:00`) >= new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(a.eventDate) - new Date(b.eventDate));
+    const pastEvents = viewEvents.filter(e => new Date(`${e.eventDate}T12:00:00`) < new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(b.eventDate) - new Date(a.eventDate));
+
+    const currentCompany = activeEventTab === 'overview' ? null : getCompany(activeEventTab);
 
     const renderEventRow = (ev) => {
         const company = getCompany(ev.companyId);
@@ -2483,12 +2517,14 @@ export default function App() {
                 <CalendarDays size={16} className="text-purple-500" />
                 {ev.title}
               </td>
-              <td className="p-4">
-                <div className="flex items-center gap-2">
-                  <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                  <span className="text-sm text-slate-600">{company?.name}</span>
-                </div>
-              </td>
+              {activeEventTab === 'overview' && (
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                    <span className="text-sm text-slate-600">{company?.name}</span>
+                  </div>
+                </td>
+              )}
               <td className="p-4 text-sm font-medium text-slate-700">
                 {evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{formatTime12Hour(ev.eventTime)}</span>}
               </td>
@@ -2515,9 +2551,9 @@ export default function App() {
           <div className="mb-6 sm:mb-8 flex-shrink-0">
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                <CalendarDays className="text-purple-600" size={28} />
-               Events & Conferences
+               {activeEventTab === 'overview' ? 'Events' : `${currentCompany?.name} Events`}
             </h2>
-            <p className="text-slate-500 text-sm mt-1">Plan your major events. Expenses and Prep Projects will generate automatically.</p>
+            <p className="text-slate-500 text-sm mt-1">Plan for your major events.</p>
           </div>
   
           <div className="flex-1 overflow-hidden">
@@ -2531,7 +2567,7 @@ export default function App() {
                       <thead className="sticky top-0 bg-slate-50 z-10">
                         <tr className="border-b border-slate-200 text-sm font-medium text-slate-500">
                           <th className="p-4">Event Name</th>
-                          <th className="p-4">Company</th>
+                          {activeEventTab === 'overview' && <th className="p-4">Company</th>}
                           <th className="p-4">Date & Time</th>
                           <th className="p-4">Estimated Cost</th>
                           <th className="p-4">Auto-Project</th>
@@ -2539,13 +2575,13 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {upcomingEvents.length > 0 && <tr><td colSpan="6" className="bg-purple-50 text-purple-800 text-xs font-bold uppercase tracking-wider p-2 px-4">Upcoming</td></tr>}
+                        {upcomingEvents.length > 0 && <tr><td colSpan={activeEventTab === 'overview' ? 6 : 5} className="bg-purple-50 text-purple-800 text-xs font-bold uppercase tracking-wider p-2 px-4">Upcoming</td></tr>}
                         {upcomingEvents.map(renderEventRow)}
                         
-                        {pastEvents.length > 0 && <tr><td colSpan="6" className="bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider p-2 px-4 border-t border-slate-200">Past Events</td></tr>}
+                        {pastEvents.length > 0 && <tr><td colSpan={activeEventTab === 'overview' ? 6 : 5} className="bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider p-2 px-4 border-t border-slate-200">Past Events</td></tr>}
                         {pastEvents.map(renderEventRow)}
 
-                        {events.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-slate-500">No events recorded yet.</td></tr>}
+                        {viewEvents.length === 0 && <tr><td colSpan={activeEventTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No events recorded yet.</td></tr>}
                       </tbody>
                     </table>
                 </div>
@@ -2572,7 +2608,7 @@ export default function App() {
                                 {ev.title}
                               </div>
                               <div className="flex items-center gap-2">
-                                {company && (
+                                {activeEventTab === 'overview' && company && (
                                   <div className="flex items-center gap-1">
                                     <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
                                     <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
@@ -2622,7 +2658,12 @@ export default function App() {
                                         <div className="font-medium text-slate-600 cursor-pointer flex items-center gap-1.5" onClick={() => openEventModal(ev)}>
                                            {ev.title}
                                         </div>
-                                        <div className="text-xs text-slate-400 mt-1">{displayDate} • {company?.name}</div>
+                                        {activeEventTab === 'overview' && (
+                                            <div className="text-xs text-slate-400 mt-1">{displayDate} • {company?.name}</div>
+                                        )}
+                                        {activeEventTab !== 'overview' && (
+                                            <div className="text-xs text-slate-400 mt-1">{displayDate}</div>
+                                        )}
                                     </div>
                                     </div>
                                 </div>
