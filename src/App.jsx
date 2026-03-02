@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, PlaySquare
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, PlaySquare, CalendarDays, Ticket
 } from 'lucide-react';
 
 // API Configuration
@@ -19,7 +19,8 @@ const iconMap = {
   Rocket, Code, Monitor, Heart, Star, Briefcase, FolderKanban,
   Users, Settings, Mail, Camera, Box, PenTool, Database, Cloud, 
   FileText, Zap, Compass, MapPin, Coffee, Music, ImageIcon, 
-  FileVideo, Shield, Target, Award, Crown, Upload, RefreshCw
+  FileVideo, Shield, Target, Award, Crown, Upload, RefreshCw,
+  CalendarDays, Ticket
 };
 const availableIcons = Object.keys(iconMap);
 
@@ -72,6 +73,7 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [events, setEvents] = useState([]);
   
   // YouTube State 
   const [youtubeChannels, setYoutubeChannels] = useState([]);
@@ -91,6 +93,11 @@ export default function App() {
   const [activeDomainTab, setActiveDomainTab] = useState('overview');
   const [domainDisplayMode, setDomainDisplayMode] = useState('list'); 
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
+
+  // Events View State
+  const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months' });
 
   // Modal states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -137,6 +144,7 @@ export default function App() {
     if (currentUser) {
       if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('projects');
       if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
+      if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
 
@@ -153,6 +161,7 @@ export default function App() {
                canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
                canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
+               canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, // default true
            }));
            setUsers(mappedUsers);
         }
@@ -160,6 +169,7 @@ export default function App() {
         if(data.projects) setProjects(data.projects);
         if(data.tasks) setTasks(data.tasks);
         if(data.expenses) setExpenses(data.expenses);
+        if(data.events) setEvents(data.events);
         
         if(data.youtube_channels) {
             setYoutubeChannels(data.youtube_channels);
@@ -174,6 +184,67 @@ export default function App() {
         setIsLoading(false);
       });
   }, []);
+
+  // --- AUTO-TRIGGER ENGINE FOR EVENTS ---
+  useEffect(() => {
+     if (events.length > 0 && currentUser?.isAdmin) {
+         events.forEach(event => {
+             let updatedEvent = null;
+             
+             // Sync Event Expense
+             if (parseFloat(event.cost) > 0 && !event.expenseId) {
+                 const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
+                 const newExpense = {
+                     id: newExpenseId,
+                     companyId: event.companyId,
+                     name: `Event: ${event.title}`,
+                     category: 'Company Expense',
+                     amount: event.cost,
+                     cycle: 'one-time', 
+                     renewalDate: event.eventDate,
+                     notes: `Auto-generated for event ${event.title}`,
+                     autoRenew: false 
+                 };
+                 sendToAPI('save_expense', newExpense);
+                 setExpenses(prev => [...prev, newExpense]);
+                 updatedEvent = { ...event, expenseId: newExpenseId };
+             }
+
+             // Sync Event Project
+             if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
+                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); // Force local timezone interpretation
+                 let triggerDate = new Date(eventDateObj);
+                 
+                 const leadTime = parseInt(event.projectLeadTime);
+                 if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
+                 if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
+                 if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
+                 if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
+                 
+                 const today = new Date();
+                 if (today >= triggerDate) {
+                     const newProjectId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
+                     const newProject = {
+                         id: newProjectId,
+                         companyId: event.companyId,
+                         name: `${event.title} (Event Prep)`,
+                         icon: 'CalendarDays',
+                         color: 'purple'
+                     };
+                     sendToAPI('save_project', newProject);
+                     setProjects(prev => [...prev, newProject]);
+                     updatedEvent = { ...(updatedEvent || event), projectId: newProjectId };
+                 }
+             }
+
+             // Only save if something was updated to prevent infinite loops
+             if (updatedEvent) {
+                 sendToAPI('save_event', updatedEvent);
+                 setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+             }
+         });
+     }
+  }, [events, currentUser]); // Runs once when events are loaded
 
   // --- API HELPER FUNCTION ---
   const sendToAPI = async (action, data) => {
@@ -388,6 +459,28 @@ export default function App() {
     sendToAPI('delete_expense', { id: expenseId });
   };
 
+  const openEventModal = (ev = null) => {
+    if (ev) setEditingEvent({ ...ev, autoProject: ev.autoProject == 1 || ev.autoProject === true });
+    else setEditingEvent({ id: null, title: '', companyId: companies[0]?.id || '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months' });
+    setIsEventModalOpen(true);
+  };
+
+  const handleSaveEvent = (e) => {
+    e.preventDefault();
+    const eventData = editingEvent.id ? editingEvent : { ...editingEvent, id: 'ev' + Date.now() };
+    if (editingEvent.id) setEvents(events.map(ev => ev.id === eventData.id ? eventData : ev));
+    else setEvents([...events, eventData]);
+    setIsEventModalOpen(false);
+    sendToAPI('save_event', eventData);
+    // The auto-trigger engine in the useEffect above will catch this newly saved event!
+  };
+
+  const handleDeleteEvent = (eventId) => {
+    setEvents(events.filter(e => e.id !== eventId));
+    setIsEventModalOpen(false);
+    sendToAPI('delete_event', { id: eventId });
+  };
+
   const openCompanyModal = (companyToEdit = null) => {
     if (companyToEdit) setEditingCompany({ ...companyToEdit, userIds: companyToEdit.userIds || [currentUser?.id] });
     else setEditingCompany({ id: null, name: '', logoUrl: '', userIds: [currentUser?.id] });
@@ -449,7 +542,6 @@ export default function App() {
      sendToAPI('delete_project', { id: projectId });
   };
 
-  // --- NEW YOUTUBE FUNCTIONS ---
   const openYoutubeModal = (channel = null) => {
     if (channel) setEditingYoutubeChannel({ ...channel, refreshToken: channel.refreshToken || '' });
     else setEditingYoutubeChannel({ id: null, name: '', refreshToken: '' });
@@ -621,6 +713,9 @@ export default function App() {
          if (nextDate < today) nextDate.setFullYear(nextDate.getFullYear() + 1);
          return nextDate;
        }
+    } else if (cycle === 'one-time') {
+       const nextDate = new Date(`${dateStr}T12:00:00`);
+       if (!isNaN(nextDate.getTime())) return nextDate;
     }
     return new Date(9999, 11, 31);
   };
@@ -697,6 +792,7 @@ export default function App() {
            canViewProjects: true,
            canViewBudget: isFirstUser,
            canViewDomains: isFirstUser,
+           canViewEvents: isFirstUser,
            avatarUrl: ''
         };
         
@@ -809,13 +905,14 @@ export default function App() {
     const isBudgetView = currentApp === 'budget';
     const isDomainView = currentApp === 'domains';
     const isYoutubeView = currentApp === 'youtube';
+    const isEventView = currentApp === 'events';
     
     return (
-      <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
+      <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
         <div className="relative">
           <button 
             onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
-            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : 'hover:bg-teal-600'}`}
+            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : 'hover:bg-teal-600'}`}
           >
             {currentApp === 'projects' ? (
               <LayoutDashboard size={24} className="text-white/70" />
@@ -823,6 +920,8 @@ export default function App() {
               <Wallet size={24} className="text-white/70" />
             ) : currentApp === 'youtube' ? (
               <Youtube size={24} className="text-white/70" />
+            ) : currentApp === 'events' ? (
+              <CalendarDays size={24} className="text-white/70" />
             ) : (
               <Globe size={24} className="text-white/70" />
             )}
@@ -843,6 +942,17 @@ export default function App() {
                       <LayoutDashboard size={18} />
                     </div>
                     Projects
+                  </button>
+                )}
+                {(currentUser.isAdmin || currentUser.canViewEvents) && (
+                  <button 
+                    onClick={() => { setCurrentApp('events'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'events' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${currentApp === 'events' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}>
+                      <CalendarDays size={18} />
+                    </div>
+                    Events
                   </button>
                 )}
                 {(currentUser.isAdmin || currentUser.canViewBudget) && (
@@ -885,6 +995,17 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-2 sm:gap-4">
+          {isEventView && (
+             <>
+               <div className="flex bg-purple-700/50 rounded-lg p-1 border border-purple-500/50">
+                  <button onClick={() => setEventDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${eventDisplayMode === 'list' ? 'bg-white text-purple-600 shadow-sm' : 'text-purple-100 hover:text-white hover:bg-purple-500/50'}`}><ListTodo size={16} /></button>
+                  <button onClick={() => setEventDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${eventDisplayMode === 'timeline' ? 'bg-white text-purple-600 shadow-sm' : 'text-purple-100 hover:text-white hover:bg-purple-500/50'}`}><CalendarClock size={16} /></button>
+               </div>
+               <button onClick={() => openEventModal()} className="bg-white text-purple-600 hover:bg-purple-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                 <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Event</span>
+               </button>
+             </>
+          )}
           {isYoutubeView && (
              <>
                <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
@@ -1175,6 +1296,19 @@ export default function App() {
                   )) : (
                      <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div>
                   )}
+                </div>
+              </div>
+            </>
+          )}
+          
+          {currentApp === 'events' && (
+            <>
+              <div className="px-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Planning</p>
+                </div>
+                <div className="text-xs text-slate-400 leading-relaxed bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                   Events automatically generate Budget Expenses and auto-schedule Prep Projects for your team based on your settings.
                 </div>
               </div>
             </>
@@ -1774,6 +1908,7 @@ export default function App() {
 
     const monthlyTotal = activeExpenses.filter(e => e.cycle === 'monthly').reduce((sum, e) => sum + parseFloat(e.amount), 0);
     const annualTotal = activeExpenses.filter(e => e.cycle === 'annual').reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    const oneTimeTotal = activeExpenses.filter(e => e.cycle === 'one-time').reduce((sum, e) => sum + parseFloat(e.amount), 0);
     const trueAnnualCommitment = (monthlyTotal * 12) + annualTotal;
 
     const currentCompany = activeBudgetTab === 'overview' ? null : getCompany(activeBudgetTab);
@@ -1818,10 +1953,10 @@ export default function App() {
       const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
 
       return (
-        <tr key={expense.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
+        <tr key={expense.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-60' : ''}`}>
           <td className="p-4 font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors flex items-center gap-2" onClick={() => openExpenseModal(expense)}>
             {expense.category === 'Domains' ? <Globe size={16} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-            <span className={!isAutoRenewOn ? 'line-through' : ''}>{expense.name}</span>
+            <span className={!isAutoRenewOn && expense.cycle !== 'one-time' ? 'line-through' : ''}>{expense.name}</span>
           </td>
           {activeBudgetTab === 'overview' && (
             <td className="p-4">
@@ -1840,12 +1975,12 @@ export default function App() {
             {formatCurrency(expense.amount)}
           </td>
           <td className="p-4">
-             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
-                {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
+             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                {expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time'}
              </span>
           </td>
           <td className="p-4 text-sm text-slate-500">
-             {isAutoRenewOn ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}
+             {isAutoRenewOn || expense.cycle === 'one-time' ? (expense.renewalDate || '--') : <span className="text-red-500 font-medium">Canceled</span>}
           </td>
           <td className="p-4 text-right">
              <button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1861,9 +1996,9 @@ export default function App() {
       const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
 
       return (
-        <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
+        <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-60' : ''}`}>
           <div className="flex justify-between items-start mb-2">
-            <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
+            <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
               {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
               {expense.name}
             </div>
@@ -1873,13 +2008,13 @@ export default function App() {
           </div>
           
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-              {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-600'}`}>
+              {expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time'}
             </span>
             <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
               {expense.category}
             </span>
-            {!isAutoRenewOn && (
+            {!isAutoRenewOn && expense.cycle !== 'one-time' && (
               <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>
             )}
             {activeBudgetTab === 'overview' && company && (
@@ -1892,9 +2027,9 @@ export default function App() {
                <Trash2 size={14} />
             </button>
           </div>
-          {isAutoRenewOn && expense.renewalDate && (
+          {(isAutoRenewOn || expense.cycle === 'one-time') && expense.renewalDate && (
              <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
-               <Clock size={10} /> Renews: {expense.renewalDate}
+               <Clock size={10} /> {expense.cycle === 'one-time' ? 'Date:' : 'Renews:'} {expense.renewalDate}
              </div>
           )}
         </div>
@@ -1910,24 +2045,30 @@ export default function App() {
           <p className="text-slate-500 text-sm mt-1">Manage and forecast your recurring expenses (Domains included).</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 flex-shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
                <Receipt size={16} className="text-blue-500" /> Active Monthly Rate
             </div>
-            <div className="text-3xl font-bold text-slate-800">{formatCurrency(monthlyTotal)}</div>
+            <div className="text-2xl font-bold text-slate-800">{formatCurrency(monthlyTotal)}</div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-purple-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
                <CalendarClock size={16} className="text-purple-500" /> Active Annual Rate
             </div>
-            <div className="text-3xl font-bold text-slate-800">{formatCurrency(annualTotal)}</div>
+            <div className="text-2xl font-bold text-slate-800">{formatCurrency(annualTotal)}</div>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
                <Landmark size={16} className="text-emerald-500" /> True Yearly Commitment
             </div>
-            <div className="text-3xl font-bold text-slate-800">{formatCurrency(trueAnnualCommitment)}</div>
+            <div className="text-2xl font-bold text-slate-800">{formatCurrency(trueAnnualCommitment)}</div>
+          </div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Ticket size={16} className="text-slate-500" /> Total One-Time / Events
+            </div>
+            <div className="text-2xl font-bold text-slate-800">{formatCurrency(oneTimeTotal)}</div>
           </div>
         </div>
 
@@ -1964,7 +2105,7 @@ export default function App() {
                           Billing Cycle <SortIcon columnKey="cycle" />
                         </th>
                         <th className="p-4 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleExpenseSort('renewalDate')}>
-                          Renewal Date <SortIcon columnKey="renewalDate" />
+                          Date <SortIcon columnKey="renewalDate" />
                         </th>
                         <th className="p-4 w-12 bg-slate-50"></th>
                       </tr>
@@ -1991,14 +2132,14 @@ export default function App() {
                     const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
 
                     return (
-                      <div key={expense.id} className={`relative pl-8 ${!isAutoRenewOn ? 'opacity-50' : ''}`}>
-                        <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                      <div key={expense.id} className={`relative pl-8 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-50' : ''}`}>
+                        <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white ${isAutoRenewOn || expense.cycle === 'one-time' ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                         <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                           <div>
-                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                {isAutoRenewOn ? displayDate : 'CANCELED'}
+                            <div className={`text-sm font-bold mb-1 ${isAutoRenewOn || expense.cycle === 'one-time' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                {isAutoRenewOn || expense.cycle === 'one-time' ? displayDate : 'CANCELED'}
                             </div>
-                            <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-emerald-600' : 'line-through'}`} onClick={() => openExpenseModal(expense)}>
+                            <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn || expense.cycle === 'one-time' ? 'hover:text-emerald-600' : 'line-through'}`} onClick={() => openExpenseModal(expense)}>
                               {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
                               {expense.name}
                             </div>
@@ -2017,8 +2158,8 @@ export default function App() {
                           </div>
                           <div className="text-right">
                              <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(expense.amount)}</div>
-                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                               {expense.cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600' : 'bg-slate-200 text-slate-600'}`}>
+                               {expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time'}
                              </span>
                           </div>
                         </div>
@@ -2228,7 +2369,7 @@ export default function App() {
                                 <div className="flex items-center gap-1">
                                   <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
                                   <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                </div>
+                                 </div>
                               )}
                               {!isAutoRenewOn && (
                                 <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>
@@ -2259,6 +2400,172 @@ export default function App() {
       </div>
     );
   };
+
+  const EventsDashboard = () => {
+    const upcomingEvents = events.filter(e => new Date(`${e.eventDate}T12:00:00`) >= new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(a.eventDate) - new Date(b.eventDate));
+    const pastEvents = events.filter(e => new Date(`${e.eventDate}T12:00:00`) < new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(b.eventDate) - new Date(a.eventDate));
+
+    const renderEventRow = (ev) => {
+        const company = getCompany(ev.companyId);
+        const evDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        
+        return (
+            <tr key={ev.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
+              <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-purple-600 transition-colors flex items-center gap-2" onClick={() => openEventModal(ev)}>
+                <CalendarDays size={16} className="text-purple-500" />
+                {ev.title}
+              </td>
+              <td className="p-4">
+                <div className="flex items-center gap-2">
+                  <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                  <span className="text-sm text-slate-600">{company?.name}</span>
+                </div>
+              </td>
+              <td className="p-4 text-sm font-medium text-slate-700">
+                {evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{ev.eventTime}</span>}
+              </td>
+              <td className="p-4 font-medium text-slate-700">
+                {ev.cost > 0 ? formatCurrency(ev.cost) : <span className="text-slate-400 text-sm font-normal">--</span>}
+              </td>
+              <td className="p-4">
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${ev.autoProject == 1 ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                  {ev.autoProject == 1 ? `YES (${ev.projectLeadTime}${ev.projectLeadUnit.charAt(0)})` : 'NO'}
+                </span>
+              </td>
+              <td className="p-4 text-right">
+                 <button onClick={() => handleDeleteEvent(ev.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <Trash2 size={16} />
+                 </button>
+              </td>
+            </tr>
+        );
+    };
+
+    return (
+        <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
+          <div className="mb-6 sm:mb-8 flex-shrink-0">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+               <CalendarDays className="text-purple-600" size={28} />
+               Events & Conferences
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">Plan your major events. Budgets and Prep Projects will generate automatically.</p>
+          </div>
+  
+          <div className="flex-1 overflow-hidden">
+            {eventDisplayMode === 'list' && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 h-full flex flex-col overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
+                   <h3 className="font-bold text-slate-700">All Scheduled Events</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    <table className="w-full text-left min-w-[800px]">
+                      <thead className="sticky top-0 bg-slate-50 z-10">
+                        <tr className="border-b border-slate-200 text-sm font-medium text-slate-500">
+                          <th className="p-4">Event Name</th>
+                          <th className="p-4">Company</th>
+                          <th className="p-4">Date & Time</th>
+                          <th className="p-4">Estimated Cost</th>
+                          <th className="p-4">Auto-Project</th>
+                          <th className="p-4 w-12"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {upcomingEvents.length > 0 && <tr><td colSpan="6" className="bg-purple-50 text-purple-800 text-xs font-bold uppercase tracking-wider p-2 px-4">Upcoming</td></tr>}
+                        {upcomingEvents.map(renderEventRow)}
+                        
+                        {pastEvents.length > 0 && <tr><td colSpan="6" className="bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider p-2 px-4 border-t border-slate-200">Past Events</td></tr>}
+                        {pastEvents.map(renderEventRow)}
+
+                        {events.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-slate-500">No events recorded yet.</td></tr>}
+                      </tbody>
+                    </table>
+                </div>
+              </div>
+            )}
+  
+            {eventDisplayMode === 'timeline' && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-full overflow-y-auto">
+                 <h3 className="font-bold text-slate-700 mb-6">Upcoming Events Timeline</h3>
+                 <div className="relative border-l-2 border-purple-100 ml-3 space-y-8 pb-8">
+                    {upcomingEvents.length > 0 ? upcomingEvents.map(ev => {
+                      const company = getCompany(ev.companyId);
+                      const displayDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  
+                      return (
+                        <div key={ev.id} className="relative pl-8">
+                          <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white bg-purple-500"></div>
+                          <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
+                            <div>
+                              <div className="text-sm font-bold mb-1 text-purple-600">
+                                  {displayDate} {ev.eventTime && <span className="text-slate-400 font-normal ml-1">@ {ev.eventTime}</span>}
+                              </div>
+                              <div className="font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 hover:text-purple-600" onClick={() => openEventModal(ev)}>
+                                {ev.title}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {company && (
+                                  <div className="flex items-center gap-1">
+                                    <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
+                                    <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
+                                    <span className="text-slate-300 px-1">•</span>
+                                  </div>
+                                )}
+                                {ev.autoProject == 1 && (
+                                  <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                                    Prep Project: {ev.projectLeadTime} {ev.projectLeadUnit} before
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                               {ev.cost > 0 ? (
+                                   <>
+                                      <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(ev.cost)}</div>
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Added to Budget</span>
+                                   </>
+                               ) : (
+                                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400">No Cost</span>
+                               )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }) : (
+                       <div className="p-8 text-slate-500 text-sm">No upcoming events planned. Click the + Event button above!</div>
+                    )}
+                 </div>
+
+                 {pastEvents.length > 0 && (
+                     <>
+                        <h3 className="font-bold text-slate-400 mb-6 mt-12 pt-6 border-t border-slate-100">Past Events</h3>
+                        <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-8">
+                            {pastEvents.map(ev => {
+                                const company = getCompany(ev.companyId);
+                                const displayDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+                                return (
+                                <div key={ev.id} className="relative pl-8 opacity-60 hover:opacity-100 transition-opacity">
+                                    <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white bg-slate-400"></div>
+                                    <div className="p-3 rounded-lg border bg-white border-slate-200 group flex items-start justify-between">
+                                    <div>
+                                        <div className="font-medium text-slate-600 cursor-pointer flex items-center gap-1.5" onClick={() => openEventModal(ev)}>
+                                           {ev.title}
+                                        </div>
+                                        <div className="text-xs text-slate-400 mt-1">{displayDate} • {company?.name}</div>
+                                    </div>
+                                    </div>
+                                </div>
+                                )
+                            })}
+                        </div>
+                     </>
+                 )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+  }
 
   const YoutubeDashboard = () => {
     const activeChannel = youtubeChannels.find(c => c.id === activeYoutubeChannelId);
@@ -2444,6 +2751,8 @@ export default function App() {
               <BudgetDashboard />
             ) : currentApp === 'domains' ? (
               <DomainsDashboard />
+            ) : currentApp === 'events' ? (
+              <EventsDashboard />
             ) : (
               <YoutubeDashboard />
             )}
@@ -2462,6 +2771,112 @@ export default function App() {
       </div>
 
       {/* MODALS */}
+
+      {/* EVENT MODAL */}
+      {isEventModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-purple-600">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <CalendarDays className="text-purple-600" size={20} />
+                {editingEvent.id ? 'Edit Event' : 'Add New Event'}
+              </h3>
+              <button onClick={() => setIsEventModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <form id="eventForm" onSubmit={handleSaveEvent} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Event Name</label>
+                  <input required type="text" value={editingEvent.title} onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., CES 2027" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+                  <select required value={editingEvent.companyId} onChange={(e) => setEditingEvent({...editingEvent, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
+                    <option value="" disabled>Select a company</option>
+                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                    <input required type="date" value={editingEvent.eventDate} onChange={(e) => setEditingEvent({...editingEvent, eventDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Time <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                    <input type="time" value={editingEvent.eventTime} onChange={(e) => setEditingEvent({...editingEvent, eventTime: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Estimated Cost / Budget ($)</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <DollarSign size={16} className="text-slate-400" />
+                      </div>
+                      <input type="number" step="0.01" min="0" value={editingEvent.cost} onChange={(e) => setEditingEvent({...editingEvent, cost: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0.00" disabled={!!editingEvent.expenseId} />
+                    </div>
+                    {editingEvent.expenseId ? (
+                        <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle2 size={10}/> This cost has been logged in your Budget as a One-Time Expense.</p>
+                    ) : (
+                        <p className="text-[10px] text-slate-500 mt-1">If entered, this will automatically generate a One-Time expense in your budget.</p>
+                    )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <div className="text-sm font-bold text-slate-800">Auto-Generate Prep Project</div>
+                            <div className="text-[10px] text-slate-500">Automatically creates a project for your team to start planning.</div>
+                        </div>
+                        <button 
+                            type="button" 
+                            onClick={() => {
+                                if (editingEvent.projectId) {
+                                    alert("A project has already been generated for this event. You cannot turn this off.");
+                                    return;
+                                }
+                                setEditingEvent({...editingEvent, autoProject: !editingEvent.autoProject});
+                            }}
+                            className={`${editingEvent.autoProject ? 'text-purple-600' : 'text-slate-300'} transition-colors`}
+                        >
+                            {editingEvent.autoProject ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                        </button>
+                    </div>
+
+                    {editingEvent.autoProject && !editingEvent.projectId && (
+                        <div className="flex items-center gap-2 bg-purple-50 p-3 rounded-lg border border-purple-100 animate-in fade-in slide-in-from-top-2">
+                            <span className="text-sm font-medium text-purple-800 flex-shrink-0">Create</span>
+                            <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                            <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800">
+                                <option value="days">Days before event</option>
+                                <option value="weeks">Weeks before event</option>
+                                <option value="months">Months before event</option>
+                                <option value="years">Years before event</option>
+                            </select>
+                        </div>
+                    )}
+                    {editingEvent.projectId && (
+                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                             <p className="text-xs text-purple-700 font-bold flex items-center gap-1"><CheckCircle2 size={14}/> Prep Project has been generated!</p>
+                             <p className="text-[10px] text-purple-600 mt-0.5">Check your Projects dashboard to manage tasks for this event.</p>
+                        </div>
+                    )}
+                </div>
+
+              </form>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
+              {editingEvent.id && (
+                <button type="button" onClick={() => handleDeleteEvent(editingEvent.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
+              )}
+              <button type="button" onClick={() => setIsEventModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+              <button type="submit" form="eventForm" className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">{editingEvent.id ? 'Save Changes' : 'Create Event'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* YOUTUBE CHANNEL MODAL */}
       {isYoutubeModalOpen && (
@@ -2606,7 +3021,7 @@ export default function App() {
                 </div>
 
                 {/* AUTO-RENEW TOGGLE */}
-                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className={`flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 ${currentExpense.cycle === 'one-time' ? 'hidden' : ''}`}>
                   <div>
                     <div className="text-sm font-bold text-slate-800">Active / Auto-Renew</div>
                     <div className="text-xs text-slate-500">Include this cost in yearly budget totals</div>
@@ -2620,7 +3035,7 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentExpense.autoRenew ? 'opacity-50' : ''}`}>
+                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentExpense.autoRenew && currentExpense.cycle !== 'one-time' ? 'opacity-50' : ''}`}>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
                     <div className="relative">
@@ -2632,9 +3047,13 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentExpense.cycle} onChange={(e) => setCurrentExpense({...currentExpense, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                    <select required value={currentExpense.cycle} onChange={(e) => {
+                        const newCycle = e.target.value;
+                        setCurrentExpense({...currentExpense, cycle: newCycle, autoRenew: newCycle === 'one-time' ? false : currentExpense.autoRenew});
+                    }} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
                       <option value="monthly">Monthly</option>
                       <option value="annual">Annually</option>
+                      <option value="one-time">One-Time / Event</option>
                     </select>
                   </div>
                 </div>
@@ -2654,8 +3073,8 @@ export default function App() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Renewal Date <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <input type="text" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., 1st of month, Jan 15" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                  <input type="text" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={currentExpense.cycle === 'one-time' ? 'e.g., 2026-11-20' : 'e.g., 1st of month, Jan 15'} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Notes <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
@@ -2821,7 +3240,7 @@ export default function App() {
             <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
               <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+                <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
               </div>
               <div className="overflow-y-auto flex-1 p-2 space-y-1">
                 {users.map(u => (
@@ -2894,6 +3313,10 @@ export default function App() {
                       <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                         <div className="font-medium text-slate-700 flex items-center gap-2"><LayoutDashboard size={16} className="text-blue-500"/> Projects App</div>
                         <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded" checked={editingTeamMember.canViewProjects} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewProjects: e.target.checked})} />
+                      </label>
+                      <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                        <div className="font-medium text-slate-700 flex items-center gap-2"><CalendarDays size={16} className="text-purple-500"/> Events App</div>
+                        <input type="checkbox" className="w-5 h-5 accent-purple-600 rounded" checked={editingTeamMember.canViewEvents} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewEvents: e.target.checked})} />
                       </label>
                       <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                         <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Budget App</div>
