@@ -590,6 +590,7 @@ export default function App() {
     sendToAPI('delete_spreaker_show', { id: showId });
   };
 
+
   const openProfileModal = () => {
     if(currentUser) {
       setProfileForm({ name: currentUser.name, email: currentUser.email, password: '', avatarUrl: currentUser.avatarUrl });
