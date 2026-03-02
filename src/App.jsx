@@ -87,7 +87,7 @@ export default function App() {
   // Spreaker State
   const [spreakerShows, setSpreakerShows] = useState([]);
   const [activeSpreakerShowId, setActiveSpreakerShowId] = useState(null);
-  const [spreakerTimeFilter, setSpreakerTimeFilter] = useState('28');
+  const [spreakerTimeFilter, setSpreakerTimeFilter] = useState('30');
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
   const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '', apiToken: '' });
 
@@ -95,7 +95,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('mytasks'); 
   const [projectDisplayMode, setProjectDisplayMode] = useState('list');
   
-  // Expenses View State
+  // Expenses View State (Formerly Budget)
   const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
   const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -961,14 +961,15 @@ export default function App() {
           )}
           {isSpreakerView && currentUser?.isAdmin && (
              <>
-               <div className="relative flex items-center bg-slate-900/10 rounded-lg border border-slate-900/20 px-3 py-1.5 hover:bg-slate-900/20 transition-colors cursor-pointer mr-2">
+               <div className="relative flex items-center bg-slate-900/10 rounded-lg border border-slate-900/20 px-3 py-1.5 hover:bg-slate-900/20 transition-colors cursor-pointer mr-3">
                  <Clock size={16} className="text-slate-900 mr-2" />
                  <select value={spreakerTimeFilter} onChange={(e) => setSpreakerTimeFilter(e.target.value)} className="bg-transparent text-slate-900 text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
+                   <option value="1" className="text-slate-800 font-medium">Today (so far)</option>
+                   <option value="2" className="text-slate-800 font-medium">Yesterday</option>
                    <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
-                   <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
-                   <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
-                   <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
-                   <option value="lifetime" className="text-slate-800 font-medium">Lifetime</option>
+                   <option value="30" className="text-slate-800 font-medium">Last 30 days</option>
+                   <option value="365" className="text-slate-800 font-medium">Last 12 months</option>
+                   <option value="lifetime" className="text-slate-800 font-medium">All Time</option>
                  </select>
                  <ChevronDown size={14} className="text-slate-900 absolute right-3 pointer-events-none" />
                </div>
@@ -2156,30 +2157,30 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#ffc005]">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Play size={16} className="text-[#ffc005]" /> Total Plays {spreakerTimeFilter === 'lifetime' ? '(Lifetime)' : `(${spreakerTimeFilter}d)`}
+               <Play size={16} className="text-[#ffc005]" /> Total Plays
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.plays || '0'}</div>
           </div>
           
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Download size={16} className="text-blue-500" /> Downloads {spreakerTimeFilter === 'lifetime' ? '(Lifetime)' : `(${spreakerTimeFilter}d)`}
+               <Download size={16} className="text-blue-500" /> Downloads
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.downloads || '0'}</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Heart size={16} className="text-red-500" /> Likes (Lifetime)
+               <MapPin size={16} className="text-red-500" /> Top Location
             </div>
-            <div className="text-3xl font-bold text-slate-800">{activeShow.likes || '0'}</div>
+            <div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topGeo || 'N/A'}>{activeShow.topGeo || 'N/A'}</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Users size={16} className="text-emerald-500" /> Followers (Lifetime)
+               <Compass size={16} className="text-emerald-500" /> Top Source
             </div>
-            <div className="text-3xl font-bold text-slate-800">{activeShow.followers || '0'}</div>
+            <div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topSource || 'N/A'}>{activeShow.topSource || 'N/A'}</div>
           </div>
         </div>
 
