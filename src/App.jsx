@@ -61,12 +61,17 @@ const convertToBase64 = (file) => {
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => { document.title = "FYT Solutions Control Room"; }, []);
+  // Set Document Title
+  useEffect(() => {
+    document.title = "FYT Solutions Control Room";
+  }, []);
 
+  // Core App State
   const [currentApp, setCurrentApp] = useState('projects'); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Database State
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -74,32 +79,39 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [events, setEvents] = useState([]);
   
+  // YouTube State 
   const [youtubeChannels, setYoutubeChannels] = useState([]);
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
   const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); 
 
+  // Spreaker State
   const [spreakerShows, setSpreakerShows] = useState([]);
   const [activeSpreakerShowId, setActiveSpreakerShowId] = useState(null);
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
   const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '', apiToken: '' });
 
+  // Projects View State
   const [activeTab, setActiveTab] = useState('mytasks'); 
   const [projectDisplayMode, setProjectDisplayMode] = useState('list');
   
+  // Expenses View State (Formerly Budget)
   const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
   const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
 
+  // Domains View State
   const [activeDomainTab, setActiveDomainTab] = useState('overview');
   const [domainDisplayMode, setDomainDisplayMode] = useState('list'); 
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
 
+  // Events View State
   const [activeEventTab, setActiveEventTab] = useState('overview');
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
   const [paymentMode, setPaymentMode] = useState('single');
 
+  // Modal states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], assigneeId: '', tags: [], weight: 1 });
 
@@ -118,6 +130,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', email: '', password: '', avatarUrl: '' });
 
+  // Team Management & Auth States
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
