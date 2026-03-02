@@ -381,9 +381,25 @@ export default function App() {
       const data = await response.json();
       
       if (data.error) {
-        alert("Spreaker Sync: " + data.error);
+        let errorMsg = "Spreaker Sync Failed: " + data.error;
+        if (data.details && data.details.length > 0) {
+            errorMsg += "\n\nDetails:\n" + data.details.join("\n");
+        }
+        alert(errorMsg);
       } else {
-        alert("Spreaker synced successfully!");
+        let msg = `Spreaker data synced successfully! Processed ${data.synced} show(s).`;
+        if (data.errors && data.errors.length > 0) {
+            msg += "\n\nSome shows had minor issues:\n" + data.errors.join("\n");
+        }
+        alert(msg);
+        const refresh = await fetch(`${API_URL}?action=get_all`);
+        const freshData = await refresh.json();
+        if(freshData.spreaker_shows) {
+            setSpreakerShows(freshData.spreaker_shows);
+            if(freshData.spreaker_shows.length > 0 && !activeSpreakerShowId) {
+                setActiveSpreakerShowId(freshData.spreaker_shows[0].id);
+            }
+        }
       }
     } catch (err) {
       alert("An error occurred during sync. Check your server connection.");
