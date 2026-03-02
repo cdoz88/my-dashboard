@@ -188,11 +188,9 @@ export default function App() {
      if (events.length > 0 && currentUser?.isAdmin) {
          events.forEach(event => {
              let updatedEvent = null;
-             
              if (!event.expenseId) {
                  const isInstallments = event.installments && event.installments.length > 0;
                  const hasCost = parseFloat(event.cost) > 0;
-
                  if (isInstallments) {
                      const newIds = [];
                      let tempExpenses = [];
@@ -205,7 +203,6 @@ export default function App() {
                      });
                      setExpenses(prev => [...prev, ...tempExpenses]);
                      updatedEvent = { ...event, expenseId: newIds.join(',') };
-
                  } else if (hasCost) {
                      const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
                      const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title}`, category: 'Company Expense', amount: event.cost, cycle: 'one-time', renewalDate: event.billingDate || event.eventDate, notes: `Auto-generated for event ${event.title}`, autoRenew: false };
@@ -218,7 +215,6 @@ export default function App() {
              if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
                  const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
                  let triggerDate = new Date(eventDateObj);
-                 
                  if (event.projectLeadUnit === 'now') {
                      triggerDate = new Date(0);
                  } else {
@@ -228,7 +224,6 @@ export default function App() {
                      if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
                      if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
                  }
-                 
                  const today = new Date();
                  if (today >= triggerDate) {
                      const newProjectId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
@@ -456,7 +451,6 @@ export default function App() {
     
     if (editingEvent.id) setEvents(events.map(ev => ev.id === eventData.id ? eventData : ev));
     else setEvents([...events, eventData]);
-    
     setIsEventModalOpen(false);
     sendToAPI('save_event', eventData);
   };
@@ -2770,6 +2764,7 @@ export default function App() {
                   <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., mywebsite.com" />
                 </div>
                 
+                {/* AUTO-RENEW TOGGLE */}
                 <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <div>
                     <div className="text-sm font-bold text-slate-800">Auto-Renew</div>
