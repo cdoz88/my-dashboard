@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, PlaySquare, CalendarDays, Ticket
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, PlaySquare, CalendarDays, Ticket, Mic, Headphones, Play, Download
 } from 'lucide-react';
 
 // API Configuration
@@ -20,7 +20,7 @@ const iconMap = {
   Users, Settings, Mail, Camera, Box, PenTool, Database, Cloud, 
   FileText, Zap, Compass, MapPin, Coffee, Music, ImageIcon, 
   FileVideo, Shield, Target, Award, Crown, Upload, RefreshCw,
-  CalendarDays, Ticket
+  CalendarDays, Ticket, Mic, Headphones
 };
 const availableIcons = Object.keys(iconMap);
 
@@ -84,6 +84,12 @@ export default function App() {
   const [youtubeChannels, setYoutubeChannels] = useState([]);
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
   const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); 
+
+  // Spreaker State
+  const [spreakerShows, setSpreakerShows] = useState([]);
+  const [activeSpreakerShowId, setActiveSpreakerShowId] = useState(null);
+  const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
+  const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '', apiToken: '' });
 
   // Projects View State
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -152,6 +158,7 @@ export default function App() {
       if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('projects');
       if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
       if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('projects');
+      if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
 
@@ -169,6 +176,7 @@ export default function App() {
                canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
                canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
+               canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
            }));
            setUsers(mappedUsers);
         }
@@ -184,6 +192,14 @@ export default function App() {
                 setActiveYoutubeChannelId(data.youtube_channels[0].id);
             }
         }
+
+        if(data.spreaker_shows) {
+            setSpreakerShows(data.spreaker_shows);
+            if(data.spreaker_shows.length > 0 && !activeSpreakerShowId) {
+                setActiveSpreakerShowId(data.spreaker_shows[0].id);
+            }
+        }
+
         setIsLoading(false);
       })
       .catch(err => {
@@ -247,7 +263,7 @@ export default function App() {
 
              // Sync Event Project
              if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
-                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); // Force local timezone interpretation
+                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
                  let triggerDate = new Date(eventDateObj);
                  
                  if (event.projectLeadUnit === 'now') {
@@ -283,7 +299,7 @@ export default function App() {
              }
          });
      }
-  }, [events, currentUser]); // Runs once when events are loaded
+  }, [events, currentUser]); 
 
   // --- API HELPER FUNCTION ---
   const sendToAPI = async (action, data) => {
@@ -350,6 +366,24 @@ export default function App() {
                 setActiveYoutubeChannelId(freshData.youtube_channels[0].id);
             }
         }
+      }
+    } catch (err) {
+      alert("An error occurred during sync. Check your server connection.");
+    }
+    setIsLoading(false);
+  };
+
+  // --- SPREAKER SYNC FUNCTION ---
+  const handleSyncSpreaker = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}?action=sync_spreaker`);
+      const data = await response.json();
+      
+      if (data.error) {
+        alert("Spreaker Sync: " + data.error);
+      } else {
+        alert("Spreaker synced successfully!");
       }
     } catch (err) {
       alert("An error occurred during sync. Check your server connection.");
@@ -639,6 +673,48 @@ export default function App() {
     sendToAPI('delete_youtube_channel', { id: channelId });
   };
 
+  const openSpreakerModal = (show = null) => {
+    if (show) setEditingSpreakerShow({ ...show, apiToken: show.apiToken || '' });
+    else setEditingSpreakerShow({ id: null, name: '', apiToken: '' });
+    setIsSpreakerModalOpen(true);
+  };
+
+  const handleSaveSpreakerShow = (e) => {
+    e.preventDefault();
+    if (!editingSpreakerShow.name.trim() || !editingSpreakerShow.apiToken?.trim()) {
+        alert("Please provide both a Show Name and a Developer Token.");
+        return;
+    }
+
+    const showData = editingSpreakerShow.id 
+      ? editingSpreakerShow 
+      : { 
+          ...editingSpreakerShow, 
+          id: 'sp' + Date.now(),
+          plays: '0', downloads: '0', likes: '0', followers: '0'
+        };
+
+    if (editingSpreakerShow.id) {
+      setSpreakerShows(spreakerShows.map(c => c.id === showData.id ? showData : c));
+    } else {
+      setSpreakerShows([...spreakerShows, showData]);
+      setActiveSpreakerShowId(showData.id);
+    }
+    setIsSpreakerModalOpen(false);
+    sendToAPI('save_spreaker_show', showData);
+  };
+
+  const handleDeleteSpreakerShow = (showId) => {
+    setSpreakerShows(spreakerShows.filter(c => c.id !== showId));
+    if(activeSpreakerShowId === showId) {
+        const remaining = spreakerShows.filter(c => c.id !== showId);
+        setActiveSpreakerShowId(remaining.length > 0 ? remaining[0].id : null);
+    }
+    setIsSpreakerModalOpen(false);
+    sendToAPI('delete_spreaker_show', { id: showId });
+  };
+
+
   const openProfileModal = () => {
     if(currentUser) {
       setProfileForm({ name: currentUser.name, email: currentUser.email, password: '', avatarUrl: currentUser.avatarUrl });
@@ -652,11 +728,10 @@ export default function App() {
         ...currentUser,
         name: profileForm.name, 
         email: profileForm.email, 
-        password: profileForm.password, // Only processed by backend if not empty
+        password: profileForm.password, 
         avatarUrl: profileForm.avatarUrl 
     };
     
-    // Update local state without saving the literal password
     const localUser = { ...updatedUser };
     delete localUser.password;
     
@@ -675,7 +750,7 @@ export default function App() {
     if (!userToSave.id) userToSave.id = 'u' + Date.now();
     
     const localUser = { ...userToSave };
-    delete localUser.password; // Do not keep password in browser memory
+    delete localUser.password; 
     
     if (users.find(u => u.id === userToSave.id)) {
       setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
@@ -832,7 +907,6 @@ export default function App() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
-  // Helper for Youtube AVD
   const formatAVD = (minutes, views) => {
     if (!views || views === 0 || !minutes) return '0:00';
     const avgMin = Number(minutes) / Number(views);
@@ -868,6 +942,7 @@ export default function App() {
            canViewBudget: isFirstUser,
            canViewDomains: isFirstUser,
            canViewEvents: isFirstUser,
+           canViewSpreaker: isFirstUser,
            avatarUrl: ''
         };
         
@@ -885,7 +960,6 @@ export default function App() {
           return;
         }
         
-        // Authenticate with server
         try {
           const response = await fetch(`${API_URL}?action=login`, {
             method: 'POST',
@@ -898,7 +972,6 @@ export default function App() {
             alert(data.error);
           } else {
             setLoggedInUserId(data.user.id);
-            // Safely handle updating the users list so the app doesn't hang
             setUsers(prevUsers => {
               if (prevUsers.find(u => u.id === data.user.id)) {
                 return prevUsers.map(u => u.id === data.user.id ? data.user : u);
@@ -981,27 +1054,30 @@ export default function App() {
     const isDomainView = currentApp === 'domains';
     const isYoutubeView = currentApp === 'youtube';
     const isEventView = currentApp === 'events';
+    const isSpreakerView = currentApp === 'spreaker';
     
     return (
-      <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : 'bg-teal-500'} text-white h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
+      <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : 'bg-teal-500'} ${currentApp === 'spreaker' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
         <div className="relative">
           <button 
             onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
-            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : 'hover:bg-teal-600'}`}
+            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : 'hover:bg-teal-600'}`}
           >
             {currentApp === 'projects' ? (
-              <LayoutDashboard size={24} className="text-white/70" />
+              <LayoutDashboard size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
             ) : currentApp === 'budget' ? (
-              <Wallet size={24} className="text-white/70" />
+              <Wallet size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
             ) : currentApp === 'youtube' ? (
-              <Youtube size={24} className="text-white/70" />
+              <Youtube size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
             ) : currentApp === 'events' ? (
-              <CalendarDays size={24} className="text-white/70" />
+              <CalendarDays size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
+            ) : currentApp === 'spreaker' ? (
+              <Mic size={24} className="text-slate-900/70" />
             ) : (
-              <Globe size={24} className="text-white/70" />
+              <Globe size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
             )}
-            <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp}</span>
-            <ChevronsUpDown size={18} className="text-white/60 ml-1" />
+            <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp}</span>
+            <ChevronsUpDown size={18} className={`${currentApp === 'spreaker' ? 'text-slate-900/60' : 'text-white/60'} ml-1`} />
           </button>
 
           {isAppSwitcherOpen && (
@@ -1052,7 +1128,6 @@ export default function App() {
                     Domains
                   </button>
                 )}
-                {/* Relying on generic permission to view YouTube, we can add custom permission later */}
                 {(currentUser.isAdmin || currentUser.canViewProjects) && ( 
                   <button 
                     onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
@@ -1062,6 +1137,17 @@ export default function App() {
                       <Youtube size={18} />
                     </div>
                     YouTube
+                  </button>
+                )}
+                {(currentUser.isAdmin || currentUser.canViewSpreaker) && ( 
+                  <button 
+                    onClick={() => { setCurrentApp('spreaker'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'spreaker' ? 'bg-[#ffc005]/10 text-[#d9a304]' : 'text-slate-700 hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${currentApp === 'spreaker' ? 'bg-[#ffc005]/20 text-[#ffc005]' : 'bg-slate-100 text-slate-500'}`}>
+                      <Mic size={18} />
+                    </div>
+                    Spreaker
                   </button>
                 )}
               </div>
@@ -1107,6 +1193,15 @@ export default function App() {
                  </button>
                )}
              </>
+          )}
+          {isSpreakerView && currentUser?.isAdmin && (
+             <button 
+               onClick={handleSyncSpreaker}
+               className="bg-slate-900 text-[#ffc005] hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+               title="Sync with Spreaker API"
+             >
+               <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
+             </button>
           )}
           {isProjectView && (
              <>
@@ -1370,6 +1465,41 @@ export default function App() {
                     </div>
                   )) : (
                      <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {currentApp === 'spreaker' && (
+            <>
+              <div className="px-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Podcasts</p>
+                  {currentUser?.isAdmin && (
+                    <button onClick={() => openSpreakerModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Show">
+                      <Plus size={16} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {spreakerShows.length > 0 ? spreakerShows.map(show => (
+                    <div key={show.id} className="flex items-center justify-between group/show">
+                      <button
+                        onClick={() => { setActiveSpreakerShowId(show.id); setIsMobileMenuOpen(false); }}
+                        className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeSpreakerShowId === show.id ? 'bg-slate-800 text-[#ffc005] font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <Mic size={16} className={`flex-shrink-0 ${activeSpreakerShowId === show.id ? 'text-[#ffc005]' : 'text-slate-500'}`} />
+                        <span className="truncate">{show.name}</span>
+                      </button>
+                      {currentUser?.isAdmin && (
+                        <div className="flex items-center flex-shrink-0 opacity-0 group-hover/show:opacity-100 transition-opacity ml-1">
+                          <button onClick={(e) => { e.stopPropagation(); openSpreakerModal(show); }} className="text-slate-500 hover:text-white p-1" title="Edit Show"><Pencil size={12} /></button>
+                        </div>
+                      )}
+                    </div>
+                  )) : (
+                     <div className="text-xs text-slate-500 p-3 text-center italic">No podcasts added yet.</div>
                   )}
                 </div>
               </div>
@@ -2679,6 +2809,74 @@ export default function App() {
       );
   }
 
+  const SpreakerDashboard = () => {
+    const activeShow = spreakerShows.find(c => c.id === activeSpreakerShowId);
+
+    if (!activeShow) {
+      return (
+        <div className="p-4 sm:p-8 h-full flex flex-col items-center justify-center bg-slate-50/50">
+          <Mic size={64} className="text-slate-300 mb-4" />
+          <h2 className="text-xl font-bold text-slate-500">No Spreaker Podcasts Found</h2>
+          <p className="text-slate-400 mt-2 text-center max-w-md">Select a show from the sidebar or add a new one to start tracking your podcast analytics.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 flex-shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+               <Mic className="text-[#ffc005]" size={28} />
+               {activeShow.name} Dashboard
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">Overview of your podcast performance and reach.</p>
+          </div>
+        </div>
+
+        {/* 4 MAIN STAT CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#ffc005]">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Play size={16} className="text-[#ffc005]" /> Total Plays
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeShow.plays || '0'}</div>
+          </div>
+          
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Download size={16} className="text-blue-500" /> Downloads
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeShow.downloads || '0'}</div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Heart size={16} className="text-red-500" /> Likes
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeShow.likes || '0'}</div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
+               <Users size={16} className="text-emerald-500" /> Followers
+            </div>
+            <div className="text-3xl font-bold text-slate-800">{activeShow.followers || '0'}</div>
+          </div>
+        </div>
+
+        <div className="bg-[#ffc005]/10 p-6 rounded-xl border border-[#ffc005]/20 flex flex-col items-center justify-center text-center py-12">
+            <Headphones size={48} className="text-[#ffc005]/60 mb-4" />
+            <h3 className="font-bold text-slate-800 text-lg mb-2">Spreaker Sync Ready</h3>
+            <p className="text-slate-600 max-w-md">
+                Your database is configured to store Spreaker podcast analytics! To activate this feature, you will need to map your Spreaker Personal Access Token to the backend API.
+            </p>
+        </div>
+
+      </div>
+    );
+  };
+
   const YoutubeDashboard = () => {
     const activeChannel = youtubeChannels.find(c => c.id === activeYoutubeChannelId);
 
@@ -2865,6 +3063,8 @@ export default function App() {
               <DomainsDashboard />
             ) : currentApp === 'events' ? (
               <EventsDashboard />
+            ) : currentApp === 'spreaker' ? (
+              <SpreakerDashboard />
             ) : (
               <YoutubeDashboard />
             )}
@@ -3051,6 +3251,39 @@ export default function App() {
               )}
               <button type="button" onClick={() => setIsEventModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
               <button type="submit" form="eventForm" className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">{editingEvent.id ? 'Save Changes' : 'Create Event'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* SPREAKER CHANNEL MODAL */}
+      {isSpreakerModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800">{editingSpreakerShow.id ? 'Edit Show' : 'Add New Show'}</h3>
+              <button onClick={() => setIsSpreakerModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form id="spreakerForm" onSubmit={handleSaveSpreakerShow} className="p-6 overflow-y-auto">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Show Name (Internal Label)</label>
+                  <input required type="text" value={editingSpreakerShow.name} onChange={(e) => setEditingSpreakerShow({...editingSpreakerShow, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ffc005]" placeholder="e.g., My Podcast" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Developer Token / App Token</label>
+                  <input required type="text" value={editingSpreakerShow.apiToken || ''} onChange={(e) => setEditingSpreakerShow({...editingSpreakerShow, apiToken: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ffc005]" placeholder="Paste Spreaker API Token..." />
+                  <p className="text-xs text-slate-500 mt-2">Generate this from your Spreaker Developer Portal.</p>
+                </div>
+              </div>
+            </form>
+            <div className="p-6 mt-2 flex justify-end gap-3 border-t border-slate-100 flex-shrink-0">
+              {editingSpreakerShow.id && (
+                <button type="button" onClick={() => handleDeleteSpreakerShow(editingSpreakerShow.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
+              )}
+              <button type="button" onClick={() => setIsSpreakerModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
+              <button type="submit" form="spreakerForm" className="px-4 py-2 bg-[#ffc005] hover:bg-[#e6ad04] text-slate-900 rounded-lg font-bold">{editingSpreakerShow.id ? 'Save Changes' : 'Add Show'}</button>
             </div>
           </div>
         </div>
