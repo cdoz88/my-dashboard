@@ -281,10 +281,11 @@ export default function App() {
     setIsLoading(false);
   };
 
-  const handleSyncYoutube = async () => {
+  const handleSyncYoutube = async (overrideDays = null) => {
+    const daysToSync = typeof overrideDays === 'string' ? overrideDays : youtubeTimeFilter;
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}?action=sync_youtube&days=${youtubeTimeFilter}`);
+      const response = await fetch(`${API_URL}?action=sync_youtube&days=${daysToSync}`);
       const data = await response.json();
       if (data.error) {
         let errorMsg = "YouTube Sync Failed: " + data.error;
@@ -305,10 +306,11 @@ export default function App() {
     setIsLoading(false);
   };
 
-  const handleSyncSpreaker = async () => {
+  const handleSyncSpreaker = async (overrideDays = null) => {
+    const daysToSync = typeof overrideDays === 'string' ? overrideDays : spreakerTimeFilter;
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}?action=sync_spreaker&days=${spreakerTimeFilter}`);
+      const response = await fetch(`${API_URL}?action=sync_spreaker&days=${daysToSync}`);
       const data = await response.json();
       if (data.error) {
         let errorMsg = "Spreaker Sync Failed: " + data.error;
@@ -584,7 +586,7 @@ export default function App() {
     }
     const showData = editingSpreakerShow.id 
       ? editingSpreakerShow 
-      : { ...editingSpreakerShow, id: 'sp' + Date.now(), plays: '0', downloads: '0', likes: '0', followers: '0' };
+      : { ...editingSpreakerShow, id: 'sp' + Date.now(), plays: '0', downloads: '0', topGeo: 'N/A', topSource: 'N/A' };
 
     if (editingSpreakerShow.id) setSpreakerShows(spreakerShows.map(c => c.id === showData.id ? showData : c));
     else {
@@ -944,16 +946,17 @@ export default function App() {
              <>
                <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
                  <Clock size={16} className="text-red-200 mr-2" />
-                 <select value={youtubeTimeFilter} onChange={(e) => setYoutubeTimeFilter(e.target.value)} className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
+                 <select value={youtubeTimeFilter} onChange={handleYoutubeFilterChange} className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
                    <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
                    <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
                    <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
                    <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
+                   <option value="lifetime" className="text-slate-800 font-medium">Lifetime</option>
                  </select>
                  <ChevronDown size={14} className="text-red-200 absolute right-3 pointer-events-none" />
                </div>
                {currentUser?.isAdmin && (
-                 <button onClick={handleSyncYoutube} className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Google API">
+                 <button onClick={() => handleSyncYoutube()} className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Google API">
                    <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
                  </button>
                )}
@@ -963,7 +966,7 @@ export default function App() {
              <>
                <div className="relative flex items-center bg-slate-900/10 rounded-lg border border-slate-900/20 px-3 py-1.5 hover:bg-slate-900/20 transition-colors cursor-pointer mr-3">
                  <Clock size={16} className="text-slate-900 mr-2" />
-                 <select value={spreakerTimeFilter} onChange={(e) => setSpreakerTimeFilter(e.target.value)} className="bg-transparent text-slate-900 text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
+                 <select value={spreakerTimeFilter} onChange={handleSpreakerFilterChange} className="bg-transparent text-slate-900 text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
                    <option value="1" className="text-slate-800 font-medium">Today (so far)</option>
                    <option value="2" className="text-slate-800 font-medium">Yesterday</option>
                    <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
@@ -973,7 +976,7 @@ export default function App() {
                  </select>
                  <ChevronDown size={14} className="text-slate-900 absolute right-3 pointer-events-none" />
                </div>
-               <button onClick={handleSyncSpreaker} className="bg-slate-900 text-[#ffc005] hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Spreaker API">
+               <button onClick={() => handleSyncSpreaker()} className="bg-slate-900 text-[#ffc005] hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Spreaker API">
                  <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
                </button>
              </>
@@ -2141,6 +2144,19 @@ export default function App() {
       );
     }
 
+    const getSpreakerTimeLabel = () => {
+      switch(spreakerTimeFilter) {
+          case '1': return 'Today';
+          case '2': return 'Yesterday';
+          case '7': return 'Last 7 Days';
+          case '30': return 'Last 30 Days';
+          case '365': return 'Last 12 Months';
+          default: return 'All Time';
+      }
+    };
+    
+    const spLabel = getSpreakerTimeLabel();
+
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 flex-shrink-0">
@@ -2157,28 +2173,28 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#ffc005]">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Play size={16} className="text-[#ffc005]" /> Total Plays
+               <Play size={16} className="text-[#ffc005]" /> Total Plays {spLabel !== 'All Time' && `(${spLabel})`}
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.plays || '0'}</div>
           </div>
           
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Download size={16} className="text-blue-500" /> Downloads
+               <Download size={16} className="text-blue-500" /> Downloads {spLabel !== 'All Time' && `(${spLabel})`}
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeShow.downloads || '0'}</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <MapPin size={16} className="text-red-500" /> Top Location
+               <MapPin size={16} className="text-red-500" /> Top Location {spLabel !== 'All Time' && `(${spLabel})`}
             </div>
             <div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topGeo || 'N/A'}>{activeShow.topGeo || 'N/A'}</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Compass size={16} className="text-emerald-500" /> Top Source
+               <Compass size={16} className="text-emerald-500" /> Top Source {spLabel !== 'All Time' && `(${spLabel})`}
             </div>
             <div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topSource || 'N/A'}>{activeShow.topSource || 'N/A'}</div>
           </div>
