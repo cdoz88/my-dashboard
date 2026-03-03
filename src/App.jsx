@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, CalendarDays, Ticket, Mic, Headphones, Play, Download
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, CalendarDays, Ticket, Mic, Headphones, Play, Download, Archive
 } from 'lucide-react';
 
 // API Configuration
@@ -118,7 +118,7 @@ export default function App() {
   const [editingCompany, setEditingCompany] = useState({ id: null, name: '', logoUrl: '', userIds: [] });
 
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate' });
+  const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false });
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', email: '', password: '', avatarUrl: '' });
@@ -533,8 +533,8 @@ export default function App() {
   };
 
   const openProjectModal = (companyId = '', projectToEdit = null) => {
-    if (projectToEdit) setEditingProject(projectToEdit);
-    else setEditingProject({ id: null, name: '', companyId: companyId || companies[0]?.id || '', icon: 'FolderKanban', color: 'slate' });
+    if (projectToEdit) setEditingProject({ ...projectToEdit, isArchived: projectToEdit.isArchived == 1 || projectToEdit.isArchived === true });
+    else setEditingProject({ id: null, name: '', companyId: companyId || companies[0]?.id || '', icon: 'FolderKanban', color: 'slate', isArchived: false });
     setIsProjectModalOpen(true);
   };
 
@@ -551,10 +551,28 @@ export default function App() {
     sendToAPI('save_project', projectData);
   };
 
-  const handleDeleteProject = (projectId) => {
-     setProjects(projects.filter(p => p.id !== projectId));
+  const handleArchiveProject = (project) => {
+     const updated = { ...project, isArchived: true };
+     setProjects(projects.map(p => p.id === project.id ? updated : p));
+     sendToAPI('save_project', updated);
+     if (activeTab === project.id) setActiveTab('mytasks');
+     setIsProjectModalOpen(false);
+  };
+
+  const handleRestoreProject = (project) => {
+     const updated = { ...project, isArchived: false };
+     setProjects(projects.map(p => p.id === project.id ? updated : p));
+     sendToAPI('save_project', updated);
+     setIsProjectModalOpen(false);
+  };
+
+  const handlePermanentDeleteProject = (projectId) => {
+     const projectTasks = tasks.filter(t => t.projectId === projectId);
+     projectTasks.forEach(t => sendToAPI('delete_task', { id: t.id }));
+     
      setTasks(tasks.filter(t => t.projectId !== projectId));
-     setActiveTab('mytasks');
+     setProjects(projects.filter(p => p.id !== projectId));
+     if (activeTab === projectId) setActiveTab('mytasks');
      setIsProjectModalOpen(false);
      sendToAPI('delete_project', { id: projectId });
   };
@@ -628,7 +646,6 @@ export default function App() {
     setIsSpreakerModalOpen(false);
     sendToAPI('delete_spreaker_show', { id: showId });
   };
-
 
   const openProfileModal = () => {
     if(currentUser) {
@@ -891,7 +908,7 @@ export default function App() {
   };
 
   const TopBar = () => {
-    const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity';
+    const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
     const isBudgetView = currentApp === 'budget';
     const isDomainView = currentApp === 'domains';
     const isYoutubeView = currentApp === 'youtube';
@@ -1083,6 +1100,9 @@ export default function App() {
                   <button onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
                     <Users size={18} /> Team Capacity
                   </button>
+                  <button onClick={() => { setActiveTab('archived'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'archived' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
+                    <Archive size={18} /> Archived
+                  </button>
                 </div>
               </div>
 
@@ -1107,7 +1127,7 @@ export default function App() {
                       )}
                     </div>
                     <div className="pl-4 flex flex-col gap-0.5">
-                      {projects.filter(p => p.companyId === company.id).map(project => (
+                      {projects.filter(p => p.companyId === company.id && !p.isArchived).map(project => (
                         <div key={project.id} className="flex items-center justify-between group/project">
                           <button onClick={() => { setActiveTab(project.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${activeTab === project.id ? 'bg-slate-800 text-white font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                             <DynamicIcon name={project.icon} size={14} className={`flex-shrink-0 ${activeTab === project.id ? colorStyles[project.color]?.text : ''}`} />
@@ -1394,6 +1414,47 @@ export default function App() {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const ArchivedProjectsView = () => {
+    const archived = projects.filter(p => p.isArchived);
+    return (
+      <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Archive className="text-slate-500" size={24} /> Archived Projects</h2>
+          <p className="text-slate-500 text-sm mt-1">Projects stored away. You can restore them or permanently delete them.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {archived.map(project => {
+            const company = getCompany(project.companyId);
+            return (
+              <div key={project.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                 <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-slate-100 rounded-lg">
+                      <DynamicIcon name={project.icon} size={24} className="text-slate-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800">{project.name}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{company?.name || 'Unknown Company'}</p>
+                    </div>
+                 </div>
+                 <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <button onClick={() => handlePermanentDeleteProject(project.id)} className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Delete Forever</button>
+                    <button onClick={() => handleRestoreProject(project)} className="text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Restore</button>
+                 </div>
+              </div>
+            )
+          })}
+          {archived.length === 0 && (
+             <div className="col-span-full p-12 text-center flex flex-col items-center bg-white rounded-xl border border-slate-200 border-dashed">
+               <Archive size={32} className="text-slate-300 mb-3" />
+               <p className="text-slate-500 font-medium">No archived projects.</p>
+             </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -2452,6 +2513,7 @@ export default function App() {
             {currentApp === 'projects' ? (
               activeTab === 'mytasks' ? <DashboardView /> : 
               activeTab === 'capacity' ? <TeamCapacityView /> : 
+              activeTab === 'archived' ? <ArchivedProjectsView /> :
               <ProjectView projectId={activeTab} />
             ) : currentApp === 'budget' ? (
               <BudgetDashboard />
@@ -3157,7 +3219,7 @@ export default function App() {
               </div>
             </form>
             <div className="p-6 mt-2 flex justify-end gap-3 border-t border-slate-100 flex-shrink-0">
-              {editingProject.id && <button type="button" onClick={() => handleDeleteProject(editingProject.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+              {editingProject.id && <button type="button" onClick={() => handleArchiveProject(editingProject)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Archive</button>}
               <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="projectForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingProject.id ? 'Save Changes' : 'Create Project'}</button>
             </div>
@@ -3217,6 +3279,47 @@ export default function App() {
               {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
               <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" disabled={isUploading}>{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROFILE MODAL */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800">My Profile Settings</h3>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-6">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  {profileForm.avatarUrl ? <img src={profileForm.avatarUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
+                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isUploading} /></label>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                  <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                  <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> Change Password</label>
+                  <input type="text" placeholder="Leave blank to keep current password" value={profileForm.password || ''} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </form>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-shrink-0">
+              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 transition-colors"><LogOut size={16}/> Sign Out</button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
+                <button onClick={handleSaveProfile} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium" disabled={isUploading}>Save Profile</button>
+              </div>
             </div>
           </div>
         </div>
