@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, Briefcase, FolderKanban, ListTodo, KanbanSquare, 
-  CalendarClock, Plus, CheckCircle2, Circle, Clock, Trash2, X, Paperclip,
+  LayoutDashboard, Briefcase, FolderKanban, ListTodo, Kanban, 
+  CalendarClock, Plus, CheckCircle, Circle, Clock, Trash2, X, Paperclip,
   Building2, Globe, Smartphone, Megaphone, ShoppingCart, Rocket, Code, 
   Monitor, Heart, Star, Users, Settings, Mail, Camera, Box, PenTool, 
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, PlaySquare, CalendarDays, Ticket, Mic, Headphones, Play, Download
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, CalendarDays, Ticket, Mic, Headphones, Play, Download
 } from 'lucide-react';
 
 // API Configuration
@@ -281,6 +281,12 @@ export default function App() {
     setIsLoading(false);
   };
 
+  const handleYoutubeFilterChange = (e) => {
+    const val = e.target.value;
+    setYoutubeTimeFilter(val);
+    handleSyncYoutube(val);
+  };
+
   const handleSyncYoutube = async (overrideDays = null) => {
     const daysToSync = typeof overrideDays === 'string' ? overrideDays : youtubeTimeFilter;
     setIsLoading(true);
@@ -292,9 +298,6 @@ export default function App() {
         if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
         alert(errorMsg);
       } else {
-        let msg = `YouTube data synced successfully! Processed ${data.synced} channel(s).`;
-        if (data.errors && data.errors.length > 0) msg += "\n\nSome channels had minor issues:\n" + data.errors.join("\n");
-        alert(msg);
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.youtube_channels) {
@@ -304,6 +307,12 @@ export default function App() {
       }
     } catch (err) { alert("An error occurred during sync. Check your server connection."); }
     setIsLoading(false);
+  };
+
+  const handleSpreakerFilterChange = (e) => {
+    const val = e.target.value;
+    setSpreakerTimeFilter(val);
+    handleSyncSpreaker(val);
   };
 
   const handleSyncSpreaker = async (overrideDays = null) => {
@@ -317,9 +326,6 @@ export default function App() {
         if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
         alert(errorMsg);
       } else {
-        let msg = `Spreaker data synced successfully! Processed ${data.synced} show(s).`;
-        if (data.errors && data.errors.length > 0) msg += "\n\nSome shows had minor issues:\n" + data.errors.join("\n");
-        alert(msg);
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.spreaker_shows) {
@@ -401,6 +407,7 @@ export default function App() {
 
   const handleDeleteTask = (taskId) => {
     setTasks(tasks.filter(t => t.id !== taskId));
+    setIsTaskModalOpen(false);
     sendToAPI('delete_task', { id: taskId });
   };
 
@@ -442,6 +449,8 @@ export default function App() {
 
   const handleDeleteExpense = (expenseId) => {
     setExpenses(expenses.filter(e => e.id !== expenseId));
+    setIsExpenseModalOpen(false);
+    setIsDomainModalOpen(false);
     sendToAPI('delete_expense', { id: expenseId });
   };
 
@@ -985,7 +994,7 @@ export default function App() {
              <>
                <div className="flex bg-blue-700/50 rounded-lg p-1 border border-blue-500/50">
                   <button onClick={() => setProjectDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><ListTodo size={16} /></button>
-                  <button onClick={() => setProjectDisplayMode('kanban')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'kanban' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><KanbanSquare size={16} /></button>
+                  <button onClick={() => setProjectDisplayMode('kanban')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'kanban' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><Kanban size={16} /></button>
                   <button onClick={() => setProjectDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'timeline' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><CalendarClock size={16} /></button>
                </div>
                <button onClick={() => openTaskModal(null, activeTab, 'todo')} className="bg-white text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
@@ -1047,7 +1056,7 @@ export default function App() {
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Global</p>
                 <div className="space-y-1">
                   <button onClick={() => { setActiveTab('mytasks'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'mytasks' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-                    <CheckCircle2 size={18} /> My Tasks
+                    <CheckCircle size={18} /> My Tasks
                   </button>
                   <button onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
                     <Users size={18} /> Team Capacity
@@ -1266,13 +1275,16 @@ export default function App() {
       
       return (
         <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
+          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
           <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
           <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
             <div>{task.title}</div>
-            <div className="flex flex-wrap gap-2 mt-1.5">
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span>
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
+                 <Star size={10}/> {task.weight || 1} pts
+                 {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" title="Has Attachments" />}
+              </span>
             </div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
@@ -1299,13 +1311,16 @@ export default function App() {
       return (
         <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors group">
           <div className="flex items-start gap-2.5 mb-2">
-            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
+            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
             <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
             <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
           </div>
           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
             <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
+            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
+               <Star size={10}/> {task.weight || 1} pts
+               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
+            </span>
             {project && company && (
               <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
                 <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
@@ -1367,13 +1382,16 @@ export default function App() {
       const taskIsOverdue = isOverdue(task.dueDate, task.status);
       return (
         <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50 group">
-          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
+          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
           <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
           <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
             <div>{task.title}</div>
-            <div className="flex flex-wrap gap-2 mt-1.5">
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span>
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
+                 <Star size={10}/> {task.weight || 1} pts
+                 {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" title="Has Attachments" />}
+              </span>
             </div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
@@ -1399,13 +1417,16 @@ export default function App() {
       return (
         <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors group">
           <div className="flex items-start gap-2.5 mb-2">
-            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
+            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
             <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
             <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
           </div>
           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
             <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
+            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
+               <Star size={10}/> {task.weight || 1} pts
+               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
+            </span>
             {assignee && (
               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
                 {assignee.avatarUrl ? ( <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> ) : ( <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} /> )}
@@ -1496,9 +1517,12 @@ export default function App() {
                       return (
                         <div key={task.id} draggable onDragStart={(e) => handleDragStart(e, task.id)} className={`bg-white p-4 rounded-lg shadow-sm border cursor-grab active:cursor-grabbing hover:border-blue-300 transition-colors group ${taskIsOverdue ? 'border-red-200' : 'border-slate-200'}`}>
                           <p className={`font-medium text-sm mb-2 cursor-pointer group-hover:text-blue-600 transition-colors ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`} onClick={() => openTaskModal(task)}>{task.title}</p>
-                          <div className="flex flex-wrap gap-2 mb-3">
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
                              <TagDisplay tags={task.tags} />
-                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1}</span>
+                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
+                               <Star size={10}/> {task.weight || 1}
+                               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
+                             </span>
                           </div>
                           <div className="flex justify-between items-center text-xs text-slate-500">
                              <div className="flex items-center gap-2">
@@ -1535,14 +1559,17 @@ export default function App() {
                         <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-blue-500 border-4 border-white"></div>
                         <div className={`p-4 rounded-lg border hover:shadow-md transition-shadow group ${taskIsOverdue ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
                           <div className="flex items-start gap-2.5 mb-2">
-                            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
+                            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
                             <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
                             <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
                           </div>
                           
                           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
                             <TagDisplay tags={task.tags} />
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
+                               <Star size={10}/> {task.weight || 1} pts
+                               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
+                            </span>
                             {assignee && (
                               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
                                 {assignee.avatarUrl ? ( <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> ) : ( <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} /> )}
@@ -2238,7 +2265,7 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <PlaySquare size={16} className="text-blue-500" /> Views {youtubeTimeFilter === 'lifetime' ? '(Lifetime)' : `(${youtubeTimeFilter} days)`}
+               <Play size={16} className="text-blue-500" /> Views {youtubeTimeFilter === 'lifetime' ? '(Lifetime)' : `(${youtubeTimeFilter} days)`}
             </div>
             <div className="text-3xl font-bold text-slate-800">{activeChannel.views}</div>
           </div>
@@ -2292,7 +2319,7 @@ export default function App() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-shrink-0 mb-8">
            <div className="p-5 border-b border-slate-100 bg-slate-50">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                 <PlaySquare size={18} className="text-red-600" /> Top content in this period
+                 <Play size={18} className="text-red-600" /> Top content in this period
               </h3>
            </div>
            
@@ -2317,7 +2344,7 @@ export default function App() {
                                     <img src={video.thumbnail} alt={video.title} className="w-[120px] h-[68px] object-cover rounded-md shadow-sm border border-slate-200" />
                                  ) : (
                                     <div className="w-[120px] h-[68px] bg-slate-100 rounded-md border border-slate-200 flex items-center justify-center">
-                                        <PlaySquare size={24} className="text-slate-300" />
+                                        <Play size={24} className="text-slate-300" />
                                     </div>
                                  )}
                                  <div className="flex flex-col justify-center">
@@ -2330,7 +2357,7 @@ export default function App() {
                               {formatAVD(video.minutes, video.views)}
                            </td>
                            <td className="p-4 text-right text-sm text-slate-800 font-bold">
-                              {video.views.toLocaleString()}
+                              {video.views?.toLocaleString() || '0'}
                            </td>
                         </tr>
                      ))}
@@ -2406,6 +2433,292 @@ export default function App() {
       </div>
 
       {/* MODALS */}
+      {/* TASK MODAL */}
+      {isTaskModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800">{currentTask.id ? 'Edit Task' : 'New Task'}</h3>
+              <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <form id="taskForm" onSubmit={handleSaveTask} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Task Title</label>
+                  <input required type="text" value={currentTask.title} onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="What needs to be done?" />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
+                    <select value={currentTask.assigneeId} onChange={(e) => setCurrentTask({...currentTask, assigneeId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option value="">Unassigned</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                    <input type="date" value={currentTask.dueDate} onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                    <select value={currentTask.status} onChange={(e) => setCurrentTask({...currentTask, status: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option value="todo">To Do</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="done">Done</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Points (Weight)</label>
+                    <input type="number" min="1" max="100" value={currentTask.weight} onChange={(e) => setCurrentTask({...currentTask, weight: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Tags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map(tag => (
+                      <button key={tag} type="button" onClick={() => {
+                        const newTags = currentTask.tags.includes(tag) ? currentTask.tags.filter(t => t !== tag) : [...currentTask.tags, tag];
+                        setCurrentTask({...currentTask, tags: newTags});
+                      }} className={`px-2 py-1 rounded border text-xs font-semibold transition-colors ${currentTask.tags.includes(tag) ? tagStyles[tag] : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea rows="4" value={currentTask.description} onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add more details about this task..." />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Attachments</label>
+                  <div className="space-y-3">
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Upload className="w-6 h-6 text-slate-400 mb-2" />
+                        <p className="text-sm text-slate-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                      </div>
+                      <input type="file" className="hidden" multiple onChange={handleFileUpload} />
+                    </label>
+                    
+                    {currentTask.files && currentTask.files.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {currentTask.files.map((file, index) => (
+                          <div key={index} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-slate-50 aspect-video flex items-center justify-center">
+                            {file.url.startsWith('data:image') ? (
+                              <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="flex flex-col items-center p-2 text-center">
+                                <FileText size={24} className="text-slate-400 mb-1" />
+                                <span className="text-[10px] text-slate-500 truncate w-full">{file.name}</span>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                               <a href={file.url} download={file.name} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a>
+                               <button type="button" onClick={() => removeFile(index)} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
+              {currentTask.id && <button type="button" onClick={() => handleDeleteTask(currentTask.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+              <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+              <button type="submit" form="taskForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{currentTask.id ? 'Save Changes' : 'Create Task'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EXPENSE MODAL */}
+      {isExpenseModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-600">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <Receipt className="text-emerald-600" size={20} />
+                {currentExpense.id ? 'Edit Expense' : 'Add New Expense'}
+              </h3>
+              <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <form id="expenseForm" onSubmit={handleSaveExpense} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label>
+                  <input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Adobe Creative Cloud" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+                    <select required value={currentExpense.companyId} onChange={(e) => setCurrentExpense({...currentExpense, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                      <option value="" disabled>Select a company</option>
+                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                    <select value={currentExpense.category} onChange={(e) => setCurrentExpense({...currentExpense, category: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                      {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
+                      <input required type="number" step="0.01" min="0" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
+                    <select value={currentExpense.cycle} onChange={(e) => setCurrentExpense({...currentExpense, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                      <option value="monthly">Monthly</option>
+                      <option value="annual">Annual</option>
+                      <option value="one-time">One-Time</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                      <label className="block text-sm font-medium text-slate-700">Next Renewal Date</label>
+                      {currentExpense.cycle !== 'one-time' && (
+                          <label className="flex items-center gap-2 cursor-pointer">
+                              <span className="text-xs font-semibold text-slate-500">Auto-Renew:</span>
+                              <button type="button" onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})} className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}>
+                                  {currentExpense.autoRenew ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                              </button>
+                          </label>
+                      )}
+                  </div>
+                  {currentExpense.cycle === 'monthly' ? (
+                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        Renews every month on day: 
+                        <input type="number" min="1" max="31" placeholder="DD" value={currentExpense.renewalDate ? currentExpense.renewalDate.replace(/\D/g,'') : ''} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: `Day ${e.target.value}`})} className="w-16 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                     </div>
+                  ) : currentExpense.cycle === 'annual' ? (
+                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        Renews every year on: 
+                        <input type="text" placeholder="e.g. Mar 15" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                     </div>
+                  ) : (
+                     <input type="date" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                  <textarea rows="2" value={currentExpense.notes || ''} onChange={(e) => setCurrentExpense({...currentExpense, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Optional details..." />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
+              {currentExpense.id && <button type="button" onClick={() => handleDeleteExpense(currentExpense.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+              <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+              <button type="submit" form="expenseForm" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium">{currentExpense.id ? 'Save Changes' : 'Add Expense'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOMAIN MODAL */}
+      {isDomainModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-teal-500">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <Globe className="text-teal-500" size={20} />
+                {currentDomain.id ? 'Edit Domain' : 'Add New Domain'}
+              </h3>
+              <button onClick={() => setIsDomainModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <form id="domainForm" onSubmit={handleSaveDomain} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label>
+                  <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., example.com" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+                    <select required value={currentDomain.companyId} onChange={(e) => setCurrentDomain({...currentDomain, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
+                      <option value="" disabled>Select a company</option>
+                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
+                    <select value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                      <option value="annual">Annual</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
+                      <input required type="number" step="0.01" min="0" value={currentDomain.amount} onChange={(e) => setCurrentDomain({...currentDomain, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="15.99" />
+                    </div>
+                  </div>
+                  <div>
+                     <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-slate-700">Auto-Renew</label>
+                     </div>
+                     <div className="flex items-center h-[42px]">
+                         <button type="button" onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})} className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}>
+                             {currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
+                         </button>
+                         <span className="ml-2 text-sm font-bold text-slate-600">{currentDomain.autoRenew ? 'ON' : 'OFF'}</span>
+                     </div>
+                  </div>
+                </div>
+
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Renewal Date</label>
+                   {currentDomain.cycle === 'monthly' ? (
+                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        Renews every month on day: 
+                        <input type="number" min="1" max="31" placeholder="DD" value={currentDomain.renewalDate ? currentDomain.renewalDate.replace(/\D/g,'') : ''} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: `Day ${e.target.value}`})} className="w-16 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                     </div>
+                  ) : (
+                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        Renews every year on: 
+                        <input type="text" placeholder="e.g. Mar 15" value={currentDomain.renewalDate} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: e.target.value})} className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                     </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Where is it hosted?</label>
+                  <input type="text" value={currentDomain.notes || ''} onChange={(e) => setCurrentDomain({...currentDomain, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., GoDaddy, Namecheap..." />
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
+              {currentDomain.id && <button type="button" onClick={() => handleDeleteExpense(currentDomain.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+              <button type="button" onClick={() => setIsDomainModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+              <button type="submit" form="domainForm" className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors font-medium">{currentDomain.id ? 'Save Changes' : 'Add Domain'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EVENT MODAL */}
       {isEventModalOpen && (
@@ -2504,7 +2817,7 @@ export default function App() {
                     )}
 
                     {editingEvent.expenseId ? (
-                        <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1"><CheckCircle2 size={10}/> Expenses have been mapped to your Budget.</p>
+                        <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1"><CheckCircle size={10}/> Expenses have been mapped to your Budget.</p>
                     ) : (
                         <p className="text-[10px] text-slate-400 mt-2 italic">Note: Changing the cost after saving will not update the generated expenses.</p>
                     )}
@@ -2541,7 +2854,7 @@ export default function App() {
                     )}
                     {editingEvent.projectId && (
                         <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-                             <p className="text-xs text-purple-700 font-bold flex items-center gap-1"><CheckCircle2 size={14}/> Prep Project has been generated!</p>
+                             <p className="text-xs text-purple-700 font-bold flex items-center gap-1"><CheckCircle size={14}/> Prep Project has been generated!</p>
                              <p className="text-[10px] text-purple-600 mt-0.5">Check your Projects dashboard to manage tasks for this event.</p>
                         </div>
                     )}
@@ -2616,298 +2929,6 @@ export default function App() {
               )}
               <button type="button" onClick={() => setIsYoutubeModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="youtubeForm" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">{editingYoutubeChannel.id ? 'Save Changes' : 'Add Channel'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TASK MODAL */}
-      {isTaskModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{currentTask.id ? 'Edit Task' : 'Add New Task'}</h3>
-              <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="taskForm" onSubmit={handleSaveTask} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Task Title</label>
-                  <input required type="text" value={currentTask.title} onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Update landing page copy" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description / Notes</label>
-                  <textarea value={currentTask.description || ''} onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Add details, notes, or links here..." />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
-                    <input required type="date" value={currentTask.dueDate} onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select value={currentTask.status} onChange={(e) => setCurrentTask({...currentTask, status: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="todo">To Do</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="done">Done</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Assigned To</label>
-                    <select required value={currentTask.assigneeId} onChange={(e) => setCurrentTask({...currentTask, assigneeId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
-                      <option value="" disabled>Select teammate</option>
-                      {users.length === 0 && <option value={currentUser?.id}>{currentUser?.name}</option>}
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Weight / Pts</label>
-                    <input required type="number" min="1" value={currentTask.weight || 1} onChange={(e) => setCurrentTask({...currentTask, weight: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Tags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableTags.map(tag => {
-                      const isSelected = (currentTask.tags || []).includes(tag);
-                      return (
-                        <button key={tag} type="button" onClick={() => { const tags = currentTask.tags || []; setCurrentTask({ ...currentTask, tags: isSelected ? tags.filter(t => t !== tag) : [...tags, tag] }); }} className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${isSelected ? (tagStyles[tag] || tagStyles['See Notes']) + ' ring-2 ring-offset-1 ring-slate-300 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}`}>
-                          {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Attachments</label>
-                  <div className="flex items-center gap-3 mb-3">
-                    <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-slate-200">
-                      <Paperclip size={16} /> Attach Files
-                      <input type="file" multiple className="hidden" onChange={handleFileUpload} />
-                    </label>
-                  </div>
-                  {currentTask.files && currentTask.files.length > 0 && (
-                    <ul className="space-y-2">
-                      {currentTask.files.map((file, idx) => (
-                        <li key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 text-sm">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <Paperclip size={14} className="text-slate-400 flex-shrink-0" />
-                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">{file.name}</a>
-                          </div>
-                          <button type="button" onClick={() => removeFile(idx)} className="text-slate-400 hover:text-red-500 ml-2"><X size={16} /></button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {currentTask.id && (
-                <button type="button" onClick={() => { handleDeleteTask(currentTask.id); setIsTaskModalOpen(false); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
-              )}
-              <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="taskForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{currentTask.id ? 'Save Changes' : 'Create Task'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EXPENSE MODAL */}
-      {isExpenseModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Receipt className="text-emerald-500" size={20} />
-                {currentExpense.id ? 'Edit Expense' : 'Add New Expense'}
-              </h3>
-              <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="expenseForm" onSubmit={handleSaveExpense} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label>
-                  <input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Google Workspace, Canva Pro" />
-                </div>
-
-                {/* AUTO-RENEW TOGGLE */}
-                <div className={`flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 ${currentExpense.cycle === 'one-time' ? 'hidden' : ''}`}>
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Active / Auto-Renew</div>
-                    <div className="text-xs text-slate-500">Include this cost in yearly budget totals</div>
-                  </div>
-                  <button type="button" onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})} className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}>
-                    {currentExpense.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                  </button>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentExpense.autoRenew && currentExpense.cycle !== 'one-time' ? 'opacity-50' : ''}`}>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
-                      <input required type="number" step="0.01" min="0" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" placeholder="0.00" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentExpense.cycle} onChange={(e) => { const newCycle = e.target.value; setCurrentExpense({...currentExpense, cycle: newCycle, autoRenew: newCycle === 'one-time' ? false : currentExpense.autoRenew}); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                      <option value="monthly">Monthly</option>
-                      <option value="annual">Annually</option>
-                      <option value="one-time">One-Time / Event</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                    <select required value={currentExpense.companyId} onChange={(e) => setCurrentExpense({...currentExpense, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                      <option value="" disabled>Select a company</option>
-                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-                    <select required value={currentExpense.category} onChange={(e) => setCurrentExpense({...currentExpense, category: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                      {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <input type="text" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={currentExpense.cycle === 'one-time' ? 'e.g., 2026-11-20' : 'e.g., 1st of month, Jan 15'} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <textarea value={currentExpense.notes} onChange={(e) => setCurrentExpense({...currentExpense, notes: e.target.value})} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Account info, login details, etc." />
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="expenseForm" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium">{currentExpense.id ? 'Save Changes' : 'Add Expense'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DOMAIN MODAL */}
-      {isDomainModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-teal-500">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Globe className="text-teal-500" size={20} />
-                {currentDomain.id ? 'Edit Domain' : 'Add New Domain'}
-              </h3>
-              <button onClick={() => setIsDomainModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="domainForm" onSubmit={handleSaveDomain} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label>
-                  <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., mywebsite.com" />
-                </div>
-                
-                {/* AUTO-RENEW TOGGLE */}
-                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Auto-Renew</div>
-                    <div className="text-xs text-slate-500">Include this domain in yearly budget totals</div>
-                  </div>
-                  <button type="button" onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})} className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}>
-                    {currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                  </button>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentDomain.autoRenew ? 'opacity-50' : ''}`}>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
-                      <input required type="number" step="0.01" min="0" value={currentDomain.amount} onChange={(e) => setCurrentDomain({...currentDomain, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium text-slate-800" placeholder="0.00" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                      <option value="annual">Annually</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                  <select required value={currentDomain.companyId} onChange={(e) => setCurrentDomain({...currentDomain, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
-                    <option value="" disabled>Select a company</option>
-                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Renewal Date <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <input type="text" value={currentDomain.renewalDate} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., Nov 22" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes / Registrar <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <textarea value={currentDomain.notes} onChange={(e) => setCurrentDomain({...currentDomain, notes: e.target.value})} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" placeholder="Registered on GoDaddy, points to Vercel, etc." />
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              <button type="button" onClick={() => setIsDomainModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="domainForm" className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors font-medium">{currentDomain.id ? 'Save Changes' : 'Add Domain'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COMPANY MODAL */}
-      {isCompanyModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{editingCompany.id ? 'Edit Company' : 'Add New Company'}</h3>
-              <button onClick={() => setIsCompanyModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form id="companyForm" onSubmit={handleSaveCompany} className="p-6 overflow-y-auto space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative">
-                  {editingCompany.logoUrl ? (
-                    <img src={editingCompany.logoUrl} alt="Preview" className="w-24 h-24 rounded-xl object-cover border-4 border-slate-100 shadow-sm bg-white" />
-                  ) : (
-                    <div className="w-24 h-24 rounded-xl bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm">
-                      <Building2 size={40} className="text-slate-400" />
-                    </div>
-                  )}
-                  <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Company Logo">
-                    <Camera size={16} /><input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} />
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
-                <input required type="text" value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Acme Corp" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Team Access</label>
-                <div className="flex flex-wrap gap-2">
-                  {users.length > 0 ? users.map(user => {
-                    const isSelected = editingCompany.userIds && editingCompany.userIds.includes(user.id);
-                    return (
-                      <button key={user.id} type="button" onClick={() => toggleCompanyUser(user.id)} className={`px-3 py-1.5 flex items-center gap-1.5 rounded-lg text-sm font-medium border transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
-                        {isSelected ? <CheckCircle2 size={14} className="text-blue-500"/> : <Circle size={14} className="text-slate-300"/>}
-                        {user.name.split(' ')[0]}
-                      </button>
-                    )
-                  }) : ( <span className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded border border-dashed border-slate-200">Save your profile first to add team members.</span> )}
-                </div>
-              </div>
-            </form>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
-              <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
-              <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
             </div>
           </div>
         </div>
@@ -3030,7 +3051,7 @@ export default function App() {
                      <div className="font-bold text-slate-800 flex items-center gap-1">{u.name} {u.isAdmin && <Shield size={12} className="text-amber-500"/>}</div>
                      <div className="text-xs text-slate-500">{u.email}</div>
                    </div>
-                   {loggedInUserId === u.id && <CheckCircle2 size={20} className="text-blue-500" />}
+                   {loggedInUserId === u.id && <CheckCircle size={20} className="text-blue-500" />}
                  </button>
                ))}
             </div>
@@ -3083,6 +3104,63 @@ export default function App() {
               {editingProject.id && <button type="button" onClick={() => handleDeleteProject(editingProject.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="projectForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingProject.id ? 'Save Changes' : 'Create Project'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COMPANY MODAL */}
+      {isCompanyModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+              <h3 className="font-bold text-lg text-slate-800">{editingCompany.id ? 'Edit Company' : 'Add New Company'}</h3>
+              <button onClick={() => setIsCompanyModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <form id="companyForm" onSubmit={handleSaveCompany} className="space-y-6">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative">
+                    {editingCompany.logoUrl ? (
+                      <img src={editingCompany.logoUrl} alt="Logo Preview" className="w-24 h-24 rounded-2xl object-cover border border-slate-200 shadow-sm bg-white" />
+                    ) : (
+                      <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm">
+                        <Building2 size={32} className="text-slate-400" />
+                      </div>
+                    )}
+                    <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-lg cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Logo">
+                      <Camera size={16} />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} />
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">Upload Company Logo</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
+                  <input required type="text" value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Acme Corp" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Team Access</label>
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {users.map(user => (
+                      <label key={user.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-md cursor-pointer transition-colors">
+                        <input type="checkbox" checked={editingCompany.userIds.includes(user.id)} onChange={() => toggleCompanyUser(user.id)} className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" disabled={user.isAdmin} />
+                        {user.avatarUrl ? <img src={user.avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover" /> : <UserCircle size={24} className="text-slate-400" />}
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-800">{user.name} {user.isAdmin && <span className="text-[10px] text-amber-500 font-bold ml-1 uppercase tracking-wider">(Admin)</span>}</p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">Admins automatically have access to all companies.</p>
+                </div>
+              </form>
+            </div>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
+              {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+              <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+              <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
             </div>
           </div>
         </div>
