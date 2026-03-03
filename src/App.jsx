@@ -49,17 +49,9 @@ const DynamicIcon = ({ name, className, size }) => {
   return <Icon className={className} size={size} />;
 };
 
-const convertToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
-};
-
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Set Document Title
   useEffect(() => {
@@ -262,6 +254,27 @@ export default function App() {
       await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
     } catch (err) {
       console.error(`Error with ${action}:`, err);
+    }
+  };
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch(`${API_URL}?action=upload_file`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        return data.url;
+      } else {
+        alert('Upload failed: ' + data.error);
+        return null;
+      }
+    } catch (err) {
+      alert('Upload error: Server could not be reached.');
+      return null;
     }
   };
 
@@ -650,35 +663,44 @@ export default function App() {
   const handleCompanyLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const base64 = await convertToBase64(file);
-      setEditingCompany({ ...editingCompany, logoUrl: base64 });
+      setIsUploading(true);
+      const url = await uploadFileToServer(file);
+      if (url) setEditingCompany({ ...editingCompany, logoUrl: url });
+      setIsUploading(false);
     }
   };
 
   const handleProfileImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const base64 = await convertToBase64(file);
-      setProfileForm({ ...profileForm, avatarUrl: base64 });
+      setIsUploading(true);
+      const url = await uploadFileToServer(file);
+      if (url) setProfileForm({ ...profileForm, avatarUrl: url });
+      setIsUploading(false);
     }
   };
   
   const handleTeamMemberImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const base64 = await convertToBase64(file);
-      setEditingTeamMember({ ...editingTeamMember, avatarUrl: base64 });
+      setIsUploading(true);
+      const url = await uploadFileToServer(file);
+      if (url) setEditingTeamMember({ ...editingTeamMember, avatarUrl: url });
+      setIsUploading(false);
     }
   };
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
+    setIsUploading(true);
     const uploadedFiles = [];
     for (const file of files) {
-      const base64 = await convertToBase64(file);
-      uploadedFiles.push({ name: file.name, url: base64 });
+      const url = await uploadFileToServer(file);
+      if (url) uploadedFiles.push({ name: file.name, url: url });
     }
     setCurrentTask({ ...currentTask, files: [...(currentTask.files || []), ...uploadedFiles] });
+    setIsUploading(false);
+    e.target.value = null; 
   };
 
   const removeFile = (indexToRemove) => setCurrentTask({ ...currentTask, files: currentTask.files.filter((_, index) => index !== indexToRemove) });
@@ -2527,19 +2549,25 @@ export default function App() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Attachments</label>
                   <div className="space-y-3">
-                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                    <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Upload className="w-6 h-6 text-slate-400 mb-2" />
-                        <p className="text-sm text-slate-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                        {isUploading ? (
+                          <RefreshCw className="w-6 h-6 text-blue-500 mb-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-6 h-6 text-slate-400 mb-2" />
+                        )}
+                        <p className="text-sm text-slate-500">
+                           {isUploading ? <span className="font-semibold text-blue-600">Uploading to server...</span> : <><span className="font-semibold">Click to upload</span> or drag and drop</>}
+                        </p>
                       </div>
-                      <input type="file" className="hidden" multiple onChange={handleFileUpload} />
+                      <input type="file" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
                     </label>
                     
                     {currentTask.files && currentTask.files.length > 0 && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {currentTask.files.map((file, index) => (
                           <div key={index} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-slate-50 aspect-video flex items-center justify-center">
-                            {file.url.startsWith('data:image') ? (
+                            {file.url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.url.startsWith('data:image') ? (
                               <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
                             ) : (
                               <div className="flex flex-col items-center p-2 text-center">
@@ -2548,7 +2576,7 @@ export default function App() {
                               </div>
                             )}
                             <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                               <a href={file.url} download={file.name} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a>
+                               <a href={file.url} target="_blank" rel="noopener noreferrer" download={file.name} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a>
                                <button type="button" onClick={() => removeFile(index)} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button>
                             </div>
                           </div>
@@ -2562,7 +2590,7 @@ export default function App() {
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
               {currentTask.id && <button type="button" onClick={() => handleDeleteTask(currentTask.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="taskForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{currentTask.id ? 'Save Changes' : 'Create Task'}</button>
+              <button type="submit" form="taskForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" disabled={isUploading}>{currentTask.id ? 'Save Changes' : 'Create Task'}</button>
             </div>
           </div>
         </div>
@@ -2997,7 +3025,7 @@ export default function App() {
                   <div className="flex flex-col items-center gap-3 mb-8">
                     <div className="relative">
                       {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                      <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} /></label>
+                      <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} disabled={isUploading} /></label>
                     </div>
                   </div>
 
@@ -3053,7 +3081,7 @@ export default function App() {
                   </div>
 
                   <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
-                    <button onClick={handleSaveTeamMember} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Member</button>
+                    <button onClick={handleSaveTeamMember} disabled={isUploading} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Member</button>
                   </div>
                 </div>
               ) : ( <div className="flex-1 flex flex-col items-center justify-center text-slate-400"><Users size={64} className="mb-4 opacity-20" /><p>Select a user to edit or create a new one.</p></div> )}
@@ -3158,7 +3186,7 @@ export default function App() {
                     )}
                     <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-lg cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Logo">
                       <Camera size={16} />
-                      <input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} disabled={isUploading} />
                     </label>
                   </div>
                   <p className="text-xs text-slate-500 font-medium">Upload Company Logo</p>
@@ -3188,48 +3216,7 @@ export default function App() {
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
               {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
               <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PROFILE MODAL */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">My Profile Settings</h3>
-              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative">
-                  {profileForm.avatarUrl ? <img src={profileForm.avatarUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} /></label>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                  <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                  <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> Change Password</label>
-                  <input type="text" placeholder="Leave blank to keep current password" value={profileForm.password || ''} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-            </form>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-shrink-0">
-              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 transition-colors"><LogOut size={16}/> Sign Out</button>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
-                <button onClick={handleSaveProfile} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Profile</button>
-              </div>
+              <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" disabled={isUploading}>{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
             </div>
           </div>
         </div>
