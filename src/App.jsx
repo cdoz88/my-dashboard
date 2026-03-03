@@ -1283,8 +1283,12 @@ export default function App() {
               <TagDisplay tags={task.tags} />
               <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
                  <Star size={10}/> {task.weight || 1} pts
-                 {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" title="Has Attachments" />}
               </span>
+              {task.files && task.files.length > 0 && (
+                <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
+                  <Paperclip size={14} />
+                </span>
+              )}
             </div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
@@ -1319,8 +1323,12 @@ export default function App() {
             <TagDisplay tags={task.tags} />
             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
                <Star size={10}/> {task.weight || 1} pts
-               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
             </span>
+            {task.files && task.files.length > 0 && (
+              <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
+                <Paperclip size={14} />
+              </span>
+            )}
             {project && company && (
               <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
                 <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
@@ -1390,8 +1398,12 @@ export default function App() {
               <TagDisplay tags={task.tags} />
               <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
                  <Star size={10}/> {task.weight || 1} pts
-                 {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" title="Has Attachments" />}
               </span>
+              {task.files && task.files.length > 0 && (
+                <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
+                  <Paperclip size={14} />
+                </span>
+              )}
             </div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
@@ -1425,8 +1437,12 @@ export default function App() {
             <TagDisplay tags={task.tags} />
             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
                <Star size={10}/> {task.weight || 1} pts
-               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
             </span>
+            {task.files && task.files.length > 0 && (
+              <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
+                <Paperclip size={14} />
+              </span>
+            )}
             {assignee && (
               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
                 {assignee.avatarUrl ? ( <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> ) : ( <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} /> )}
@@ -1521,8 +1537,12 @@ export default function App() {
                              <TagDisplay tags={task.tags} />
                              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
                                <Star size={10}/> {task.weight || 1}
-                               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
                              </span>
+                             {task.files && task.files.length > 0 && (
+                               <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
+                                 <Paperclip size={14} />
+                               </span>
+                             )}
                           </div>
                           <div className="flex justify-between items-center text-xs text-slate-500">
                              <div className="flex items-center gap-2">
@@ -1568,8 +1588,12 @@ export default function App() {
                             <TagDisplay tags={task.tags} />
                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
                                <Star size={10}/> {task.weight || 1} pts
-                               {task.files && task.files.length > 0 && <Paperclip size={10} className="ml-0.5 text-slate-400" />}
                             </span>
+                            {task.files && task.files.length > 0 && (
+                              <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
+                                <Paperclip size={14} />
+                              </span>
+                            )}
                             {assignee && (
                               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
                                 {assignee.avatarUrl ? ( <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> ) : ( <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} /> )}
@@ -2433,12 +2457,16 @@ export default function App() {
       </div>
 
       {/* MODALS */}
+
       {/* TASK MODAL */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-blue-600">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{currentTask.id ? 'Edit Task' : 'New Task'}</h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <CheckCircle className="text-blue-600" size={20} />
+                {currentTask.id ? 'Edit Task' : 'New Task'}
+              </h3>
               <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6">
