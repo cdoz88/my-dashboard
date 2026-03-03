@@ -281,6 +281,12 @@ export default function App() {
     setIsLoading(false);
   };
 
+  const handleYoutubeFilterChange = (e) => {
+    const val = e.target.value;
+    setYoutubeTimeFilter(val);
+    handleSyncYoutube(val);
+  };
+
   const handleSyncYoutube = async (overrideDays = null) => {
     const daysToSync = typeof overrideDays === 'string' ? overrideDays : youtubeTimeFilter;
     setIsLoading(true);
@@ -292,9 +298,6 @@ export default function App() {
         if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
         alert(errorMsg);
       } else {
-        let msg = `YouTube data synced successfully! Processed ${data.synced} channel(s).`;
-        if (data.errors && data.errors.length > 0) msg += "\n\nSome channels had minor issues:\n" + data.errors.join("\n");
-        alert(msg);
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.youtube_channels) {
@@ -304,6 +307,12 @@ export default function App() {
       }
     } catch (err) { alert("An error occurred during sync. Check your server connection."); }
     setIsLoading(false);
+  };
+
+  const handleSpreakerFilterChange = (e) => {
+    const val = e.target.value;
+    setSpreakerTimeFilter(val);
+    handleSyncSpreaker(val);
   };
 
   const handleSyncSpreaker = async (overrideDays = null) => {
@@ -317,9 +326,6 @@ export default function App() {
         if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
         alert(errorMsg);
       } else {
-        let msg = `Spreaker data synced successfully! Processed ${data.synced} show(s).`;
-        if (data.errors && data.errors.length > 0) msg += "\n\nSome shows had minor issues:\n" + data.errors.join("\n");
-        alert(msg);
         const refresh = await fetch(`${API_URL}?action=get_all`);
         const freshData = await refresh.json();
         if(freshData.spreaker_shows) {
@@ -2616,298 +2622,6 @@ export default function App() {
               )}
               <button type="button" onClick={() => setIsYoutubeModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
               <button type="submit" form="youtubeForm" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">{editingYoutubeChannel.id ? 'Save Changes' : 'Add Channel'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TASK MODAL */}
-      {isTaskModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{currentTask.id ? 'Edit Task' : 'Add New Task'}</h3>
-              <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="taskForm" onSubmit={handleSaveTask} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Task Title</label>
-                  <input required type="text" value={currentTask.title} onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Update landing page copy" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description / Notes</label>
-                  <textarea value={currentTask.description || ''} onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Add details, notes, or links here..." />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
-                    <input required type="date" value={currentTask.dueDate} onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select value={currentTask.status} onChange={(e) => setCurrentTask({...currentTask, status: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="todo">To Do</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="done">Done</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Assigned To</label>
-                    <select required value={currentTask.assigneeId} onChange={(e) => setCurrentTask({...currentTask, assigneeId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
-                      <option value="" disabled>Select teammate</option>
-                      {users.length === 0 && <option value={currentUser?.id}>{currentUser?.name}</option>}
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Weight / Pts</label>
-                    <input required type="number" min="1" value={currentTask.weight || 1} onChange={(e) => setCurrentTask({...currentTask, weight: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Tags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableTags.map(tag => {
-                      const isSelected = (currentTask.tags || []).includes(tag);
-                      return (
-                        <button key={tag} type="button" onClick={() => { const tags = currentTask.tags || []; setCurrentTask({ ...currentTask, tags: isSelected ? tags.filter(t => t !== tag) : [...tags, tag] }); }} className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${isSelected ? (tagStyles[tag] || tagStyles['See Notes']) + ' ring-2 ring-offset-1 ring-slate-300 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}`}>
-                          {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Attachments</label>
-                  <div className="flex items-center gap-3 mb-3">
-                    <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-slate-200">
-                      <Paperclip size={16} /> Attach Files
-                      <input type="file" multiple className="hidden" onChange={handleFileUpload} />
-                    </label>
-                  </div>
-                  {currentTask.files && currentTask.files.length > 0 && (
-                    <ul className="space-y-2">
-                      {currentTask.files.map((file, idx) => (
-                        <li key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-200 text-sm">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <Paperclip size={14} className="text-slate-400 flex-shrink-0" />
-                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">{file.name}</a>
-                          </div>
-                          <button type="button" onClick={() => removeFile(idx)} className="text-slate-400 hover:text-red-500 ml-2"><X size={16} /></button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {currentTask.id && (
-                <button type="button" onClick={() => { handleDeleteTask(currentTask.id); setIsTaskModalOpen(false); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>
-              )}
-              <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="taskForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">{currentTask.id ? 'Save Changes' : 'Create Task'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EXPENSE MODAL */}
-      {isExpenseModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Receipt className="text-emerald-500" size={20} />
-                {currentExpense.id ? 'Edit Expense' : 'Add New Expense'}
-              </h3>
-              <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="expenseForm" onSubmit={handleSaveExpense} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label>
-                  <input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Google Workspace, Canva Pro" />
-                </div>
-
-                {/* AUTO-RENEW TOGGLE */}
-                <div className={`flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 ${currentExpense.cycle === 'one-time' ? 'hidden' : ''}`}>
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Active / Auto-Renew</div>
-                    <div className="text-xs text-slate-500">Include this cost in yearly budget totals</div>
-                  </div>
-                  <button type="button" onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})} className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}>
-                    {currentExpense.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                  </button>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentExpense.autoRenew && currentExpense.cycle !== 'one-time' ? 'opacity-50' : ''}`}>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
-                      <input required type="number" step="0.01" min="0" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800" placeholder="0.00" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentExpense.cycle} onChange={(e) => { const newCycle = e.target.value; setCurrentExpense({...currentExpense, cycle: newCycle, autoRenew: newCycle === 'one-time' ? false : currentExpense.autoRenew}); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                      <option value="monthly">Monthly</option>
-                      <option value="annual">Annually</option>
-                      <option value="one-time">One-Time / Event</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                    <select required value={currentExpense.companyId} onChange={(e) => setCurrentExpense({...currentExpense, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                      <option value="" disabled>Select a company</option>
-                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-                    <select required value={currentExpense.category} onChange={(e) => setCurrentExpense({...currentExpense, category: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                      {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <input type="text" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={currentExpense.cycle === 'one-time' ? 'e.g., 2026-11-20' : 'e.g., 1st of month, Jan 15'} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <textarea value={currentExpense.notes} onChange={(e) => setCurrentExpense({...currentExpense, notes: e.target.value})} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Account info, login details, etc." />
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="expenseForm" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium">{currentExpense.id ? 'Save Changes' : 'Add Expense'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DOMAIN MODAL */}
-      {isDomainModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-teal-500">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Globe className="text-teal-500" size={20} />
-                {currentDomain.id ? 'Edit Domain' : 'Add New Domain'}
-              </h3>
-              <button onClick={() => setIsDomainModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="domainForm" onSubmit={handleSaveDomain} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label>
-                  <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., mywebsite.com" />
-                </div>
-                
-                {/* AUTO-RENEW TOGGLE */}
-                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Auto-Renew</div>
-                    <div className="text-xs text-slate-500">Include this domain in yearly budget totals</div>
-                  </div>
-                  <button type="button" onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})} className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}>
-                    {currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                  </button>
-                </div>
-
-                <div className={`grid grid-cols-2 gap-4 transition-opacity ${!currentDomain.autoRenew ? 'opacity-50' : ''}`}>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
-                      <input required type="number" step="0.01" min="0" value={currentDomain.amount} onChange={(e) => setCurrentDomain({...currentDomain, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium text-slate-800" placeholder="0.00" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select required value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                      <option value="annual">Annually</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                  <select required value={currentDomain.companyId} onChange={(e) => setCurrentDomain({...currentDomain, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
-                    <option value="" disabled>Select a company</option>
-                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Renewal Date <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <input type="text" value={currentDomain.renewalDate} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., Nov 22" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes / Registrar <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                  <textarea value={currentDomain.notes} onChange={(e) => setCurrentDomain({...currentDomain, notes: e.target.value})} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none" placeholder="Registered on GoDaddy, points to Vercel, etc." />
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              <button type="button" onClick={() => setIsDomainModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="domainForm" className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors font-medium">{currentDomain.id ? 'Save Changes' : 'Add Domain'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COMPANY MODAL */}
-      {isCompanyModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{editingCompany.id ? 'Edit Company' : 'Add New Company'}</h3>
-              <button onClick={() => setIsCompanyModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form id="companyForm" onSubmit={handleSaveCompany} className="p-6 overflow-y-auto space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative">
-                  {editingCompany.logoUrl ? (
-                    <img src={editingCompany.logoUrl} alt="Preview" className="w-24 h-24 rounded-xl object-cover border-4 border-slate-100 shadow-sm bg-white" />
-                  ) : (
-                    <div className="w-24 h-24 rounded-xl bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm">
-                      <Building2 size={40} className="text-slate-400" />
-                    </div>
-                  )}
-                  <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Company Logo">
-                    <Camera size={16} /><input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} />
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
-                <input required type="text" value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Acme Corp" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Team Access</label>
-                <div className="flex flex-wrap gap-2">
-                  {users.length > 0 ? users.map(user => {
-                    const isSelected = editingCompany.userIds && editingCompany.userIds.includes(user.id);
-                    return (
-                      <button key={user.id} type="button" onClick={() => toggleCompanyUser(user.id)} className={`px-3 py-1.5 flex items-center gap-1.5 rounded-lg text-sm font-medium border transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
-                        {isSelected ? <CheckCircle2 size={14} className="text-blue-500"/> : <Circle size={14} className="text-slate-300"/>}
-                        {user.name.split(' ')[0]}
-                      </button>
-                    )
-                  }) : ( <span className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded border border-dashed border-slate-200">Save your profile first to add team members.</span> )}
-                </div>
-              </div>
-            </form>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
-              <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
-              <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
             </div>
           </div>
         </div>
