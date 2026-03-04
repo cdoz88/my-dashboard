@@ -7,7 +7,7 @@ import {
   Database, Cloud, FileText, Zap, Compass, MapPin, Coffee, Music, 
   Image as ImageIcon, FileVideo, Shield, Target, Award, Crown, Pencil,
   UserCircle, ImagePlus, Menu, ChevronsUpDown, ChevronUp, ChevronDown,
-  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, CalendarDays, Ticket, Mic, Headphones, Play, Download, Archive
+  Wallet, PieChart, DollarSign, Receipt, Landmark, Upload, RefreshCw, ToggleRight, ToggleLeft, UserCog, LogOut, Key, Youtube, CalendarDays, Ticket, Mic, Headphones, Play, Download, Archive, MessageSquare
 } from 'lucide-react';
 
 // API Configuration
@@ -106,7 +106,8 @@ export default function App() {
 
   // Modal states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], assigneeId: '', tags: [], weight: 1 });
+  const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], comments: [], assigneeId: '', tags: [], weight: 1 });
+  const [newCommentText, setNewCommentText] = useState('');
 
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: '', renewalDate: '', notes: '', autoRenew: true });
@@ -404,8 +405,9 @@ export default function App() {
   };
 
   const openTaskModal = (task = null, projectId = '', status = 'todo') => {
-    if (task) setCurrentTask({ ...task, files: task.files || [], description: task.description || '', tags: task.tags || [], weight: task.weight || 1 });
-    else setCurrentTask({ title: '', description: '', dueDate: '', status, projectId, files: [], assigneeId: currentUser?.id, tags: [], weight: 1 });
+    if (task) setCurrentTask({ ...task, files: task.files || [], comments: task.comments || [], description: task.description || '', tags: task.tags || [], weight: task.weight || 1 });
+    else setCurrentTask({ title: '', description: '', dueDate: '', status, projectId, files: [], comments: [], assigneeId: currentUser?.id, tags: [], weight: 1 });
+    setNewCommentText('');
     setIsTaskModalOpen(true);
   };
 
@@ -428,6 +430,28 @@ export default function App() {
     const updatedTask = { ...task, status: task.status === 'done' ? 'todo' : 'done' };
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
     sendToAPI('save_task', updatedTask);
+  };
+
+  const handleAddComment = () => {
+    if (!newCommentText.trim()) return;
+    const newComment = {
+      id: 'c' + Date.now(),
+      text: newCommentText.trim(),
+      userId: currentUser.id,
+      timestamp: new Date().toISOString()
+    };
+    const updatedTask = {
+      ...currentTask,
+      comments: [...(currentTask.comments || []), newComment]
+    };
+    setCurrentTask(updatedTask);
+    setNewCommentText('');
+    
+    // Automatically save the task when a comment is added
+    if (updatedTask.id) {
+        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+        sendToAPI('save_task', updatedTask);
+    }
   };
 
   const openExpenseModal = (expense = null, companyId = '') => {
@@ -646,6 +670,7 @@ export default function App() {
     setIsSpreakerModalOpen(false);
     sendToAPI('delete_spreaker_show', { id: showId });
   };
+
 
   const openProfileModal = () => {
     if(currentUser) {
@@ -1331,6 +1356,11 @@ export default function App() {
                   <Paperclip size={14} />
                 </span>
               )}
+              {task.comments && task.comments.length > 0 && (
+                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
+                  <MessageSquare size={12} /> {task.comments.length}
+                </span>
+              )}
             </div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
@@ -1369,6 +1399,11 @@ export default function App() {
             {task.files && task.files.length > 0 && (
               <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
                 <Paperclip size={14} />
+              </span>
+            )}
+            {task.comments && task.comments.length > 0 && (
+              <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
+                <MessageSquare size={12} /> {task.comments.length}
               </span>
             )}
             {project && company && (
@@ -1487,6 +1522,11 @@ export default function App() {
                   <Paperclip size={14} />
                 </span>
               )}
+              {task.comments && task.comments.length > 0 && (
+                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
+                  <MessageSquare size={12} /> {task.comments.length}
+                </span>
+              )}
             </div>
           </td>
           <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
@@ -1526,11 +1566,16 @@ export default function App() {
                 <Paperclip size={14} />
               </span>
             )}
-            {assignee && (
-              <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
-                {assignee.avatarUrl ? ( <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> ) : ( <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} /> )}
-                {assignee.name.split(' ')[0]}
+            {task.comments && task.comments.length > 0 && (
+              <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
+                <MessageSquare size={12} /> {task.comments.length}
               </span>
+            )}
+            {project && company && (
+              <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
+                <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
+                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={10} /><span className="truncate max-w-[120px]">{project.name}</span></span>
+              </div>
             )}
             <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
             <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
@@ -1626,6 +1671,11 @@ export default function App() {
                                  <Paperclip size={14} />
                                </span>
                              )}
+                             {task.comments && task.comments.length > 0 && (
+                               <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
+                                 <MessageSquare size={12} /> {task.comments.length}
+                               </span>
+                             )}
                           </div>
                           <div className="flex justify-between items-center text-xs text-slate-500">
                              <div className="flex items-center gap-2">
@@ -1675,6 +1725,11 @@ export default function App() {
                             {task.files && task.files.length > 0 && (
                               <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
                                 <Paperclip size={14} />
+                              </span>
+                            )}
+                            {task.comments && task.comments.length > 0 && (
+                              <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
+                                <MessageSquare size={12} /> {task.comments.length}
                               </span>
                             )}
                             {assignee && (
@@ -2647,6 +2702,65 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                {/* COMMENTS SECTION */}
+                <div className="pt-6 mt-6 border-t border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><MessageSquare size={16} className="text-blue-500"/> Discussion</h4>
+                  
+                  {/* Existing Comments List */}
+                  <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2">
+                    {currentTask.comments && currentTask.comments.length > 0 ? (
+                      currentTask.comments.map((comment) => {
+                        const commentUser = getUser(comment.userId);
+                        return (
+                          <div key={comment.id} className="flex gap-3">
+                            {commentUser?.avatarUrl ? (
+                              <img src={commentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white" />
+                            ) : (
+                              <UserCircle size={32} className="text-slate-400 flex-shrink-0" />
+                            )}
+                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="text-xs font-bold text-slate-700">{commentUser?.name || 'Unknown User'}</span>
+                                <span className="text-[10px] text-slate-400">{new Date(comment.timestamp).toLocaleString()}</span>
+                              </div>
+                              <p className="text-sm text-slate-600 whitespace-pre-wrap">{comment.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-sm text-slate-400 italic text-center p-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">No comments yet. Start the discussion!</div>
+                    )}
+                  </div>
+
+                  {/* Add New Comment */}
+                  <div className="flex gap-3">
+                     {currentUser?.avatarUrl ? (
+                        <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white border border-slate-200" />
+                      ) : (
+                        <UserCircle size={32} className="text-slate-400 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 flex flex-col items-end gap-2">
+                        <textarea
+                          rows="2"
+                          value={newCommentText}
+                          onChange={(e) => setNewCommentText(e.target.value)}
+                          placeholder="Ask a question or post an update..."
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddComment}
+                          disabled={!newCommentText.trim() || !currentTask.id}
+                          className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${!newCommentText.trim() || !currentTask.id ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                        >
+                          {currentTask.id ? 'Post Comment' : 'Save task to comment'}
+                        </button>
+                      </div>
+                  </div>
+                </div>
+
               </form>
             </div>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
@@ -3177,153 +3291,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PROJECT MODAL */}
-      {isProjectModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{editingProject.id ? 'Edit Project' : 'Add New Project'}</h3>
-              <button onClick={() => setIsProjectModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form id="projectForm" onSubmit={handleSaveProject} className="p-6 overflow-y-auto">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Project Name</label>
-                  <input required type="text" value={editingProject.name} onChange={(e) => setEditingProject({...editingProject, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Website Redesign" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                  <select required value={editingProject.companyId} onChange={(e) => setEditingProject({...editingProject, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50">
-                    <option value="" disabled>Select a company</option>
-                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Theme Color</label>
-                  <div className="flex flex-wrap gap-3">
-                    {availableColors.map(color => (
-                      <button key={color} type="button" onClick={() => setEditingProject({...editingProject, color})} style={{ backgroundColor: colorStyles[color].hex }} className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${editingProject.color === color ? 'ring-2 ring-slate-400 ring-offset-2 scale-110' : ''}`} />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Icon</label>
-                  <div className="grid grid-cols-6 gap-2 h-40 overflow-y-auto pr-2">
-                    {availableIcons.map(iconName => (
-                      <button key={iconName} type="button" onClick={() => setEditingProject({...editingProject, icon: iconName})} className={`p-2 rounded-lg flex justify-center items-center transition-colors ${editingProject.icon === iconName ? 'bg-slate-200 shadow-inner' : 'hover:bg-slate-100'}`}>
-                        <DynamicIcon name={iconName} size={20} className={editingProject.icon === iconName ? colorStyles[editingProject.color].text : 'text-slate-600'} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </form>
-            <div className="p-6 mt-2 flex justify-end gap-3 border-t border-slate-100 flex-shrink-0">
-              {editingProject.id && <button type="button" onClick={() => handleArchiveProject(editingProject)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Archive</button>}
-              <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
-              <button type="submit" form="projectForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingProject.id ? 'Save Changes' : 'Create Project'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COMPANY MODAL */}
-      {isCompanyModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">{editingCompany.id ? 'Edit Company' : 'Add New Company'}</h3>
-              <button onClick={() => setIsCompanyModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <form id="companyForm" onSubmit={handleSaveCompany} className="space-y-6">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="relative">
-                    {editingCompany.logoUrl ? (
-                      <img src={editingCompany.logoUrl} alt="Logo Preview" className="w-24 h-24 rounded-2xl object-cover border border-slate-200 shadow-sm bg-white" />
-                    ) : (
-                      <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200 shadow-sm">
-                        <Building2 size={32} className="text-slate-400" />
-                      </div>
-                    )}
-                    <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-lg cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Logo">
-                      <Camera size={16} />
-                      <input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} disabled={isUploading} />
-                    </label>
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium">Upload Company Logo</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
-                  <input required type="text" value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Acme Corp" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Team Access</label>
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
-                    {users.map(user => (
-                      <label key={user.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-md cursor-pointer transition-colors">
-                        <input type="checkbox" checked={editingCompany.userIds.includes(user.id)} onChange={() => toggleCompanyUser(user.id)} className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500" disabled={user.isAdmin} />
-                        {user.avatarUrl ? <img src={user.avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover" /> : <UserCircle size={24} className="text-slate-400" />}
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-800">{user.name} {user.isAdmin && <span className="text-[10px] text-amber-500 font-bold ml-1 uppercase tracking-wider">(Admin)</span>}</p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">Admins automatically have access to all companies.</p>
-                </div>
-              </form>
-            </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-              {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
-              <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-              <button type="submit" form="companyForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium" disabled={isUploading}>{editingCompany.id ? 'Save Changes' : 'Create Company'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PROFILE MODAL */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800">My Profile Settings</h3>
-              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="relative">
-                  {profileForm.avatarUrl ? <img src={profileForm.avatarUrl} alt="Preview" className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isUploading} /></label>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                  <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                  <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" disabled />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> Change Password</label>
-                  <input type="text" placeholder="Leave blank to keep current password" value={profileForm.password || ''} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-            </form>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-shrink-0">
-              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 transition-colors"><LogOut size={16}/> Sign Out</button>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
-                <button onClick={handleSaveProfile} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium" disabled={isUploading}>Save Profile</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
