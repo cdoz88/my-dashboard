@@ -2295,7 +2295,13 @@ export default function App() {
                         <div className="flex items-center gap-2 bg-purple-50 p-3 rounded-lg border border-purple-100 animate-in fade-in slide-in-from-top-2">
                             <span className="text-sm font-medium text-purple-800 flex-shrink-0">Create</span>
                             {editingEvent.projectLeadUnit !== 'now' && <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />}
-                            <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800"><option value="now">Immediately</option><option value="days">Days before event</option><option value="weeks">Weeks before event</option><option value="months">Months before event</option><option value="years">Years before event</option></select>
+                            <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800">
+                                <option value="now">Immediately</option>
+                                <option value="days">Days before event</option>
+                                <option value="weeks">Weeks before event</option>
+                                <option value="months">Months before event</option>
+                                <option value="years">Years before event</option>
+                            </select>
                         </div>
                     )}
                     {editingEvent.projectId && (
