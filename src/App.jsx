@@ -37,7 +37,7 @@ const tagStyles = {
   'Urgent': 'bg-red-100 text-red-700 border-red-200',
   'On Hold': 'bg-orange-100 text-orange-700 border-orange-200',
   'Need Info': 'bg-blue-100 text-blue-700 border-blue-200',
-  'See Comments': 'bg-slate-100 text-slate-700 border-slate-200',
+  'See Notes': 'bg-slate-100 text-slate-700 border-slate-200',
   'Needs Review': 'bg-purple-100 text-purple-700 border-purple-200',
   'Ready': 'bg-emerald-100 text-emerald-700 border-emerald-200'
 };
@@ -71,33 +71,25 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [events, setEvents] = useState([]);
   
-  // YouTube State 
+  // YouTube & Spreaker State
   const [youtubeChannels, setYoutubeChannels] = useState([]);
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
   const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); 
-
-  // Spreaker State
   const [spreakerShows, setSpreakerShows] = useState([]);
   const [activeSpreakerShowId, setActiveSpreakerShowId] = useState(null);
   const [spreakerTimeFilter, setSpreakerTimeFilter] = useState('30');
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
   const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '', apiToken: '' });
 
-  // Projects View State
+  // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
   const [projectDisplayMode, setProjectDisplayMode] = useState('list');
-  
-  // Expenses View State (Formerly Budget)
   const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
   const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
-
-  // Domains View State
   const [activeDomainTab, setActiveDomainTab] = useState('overview');
   const [domainDisplayMode, setDomainDisplayMode] = useState('list'); 
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
-
-  // Events View State
   const [activeEventTab, setActiveEventTab] = useState('overview');
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -108,28 +100,20 @@ export default function App() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], comments: [], assigneeId: '', tags: [], weight: 1, completedAt: null, completedBy: null });
   const [newCommentText, setNewCommentText] = useState('');
-
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: '', renewalDate: '', notes: '', autoRenew: true });
-
   const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
   const [currentDomain, setCurrentDomain] = useState({ id: null, name: '', amount: '', cycle: 'annual', category: 'Domains', companyId: '', renewalDate: '', notes: '', autoRenew: true });
-
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState({ id: null, name: '', logoUrl: '', userIds: [] });
-
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false });
-
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', email: '', password: '', avatarUrl: '' });
-
-  // Team Management & Auth States
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
-  
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '', refreshToken: '' });
 
@@ -154,7 +138,7 @@ export default function App() {
       .then(res => res.json())
       .then(data => {
         if(data.users) {
-           const mappedUsers = data.users.map(u => ({
+           setUsers(data.users.map(u => ({
                ...u,
                isAdmin: u.isAdmin == 1 || u.isAdmin === true,
                canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
@@ -162,39 +146,24 @@ export default function App() {
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
                canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
                canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
-           }));
-           setUsers(mappedUsers);
+           })));
         }
         if(data.companies) setCompanies(data.companies);
         if(data.projects) setProjects(data.projects);
-        if(data.tasks) {
-           const mappedTasks = data.tasks.map(t => ({
-               ...t,
-               tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : []
-           }));
-           setTasks(mappedTasks);
-        }
+        if(data.tasks) setTasks(data.tasks.map(t => ({ ...t, tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [] })));
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
-        
         if(data.youtube_channels) {
             setYoutubeChannels(data.youtube_channels);
-            if(data.youtube_channels.length > 0 && !activeYoutubeChannelId) {
-                setActiveYoutubeChannelId(data.youtube_channels[0].id);
-            }
+            if(data.youtube_channels.length > 0 && !activeYoutubeChannelId) setActiveYoutubeChannelId(data.youtube_channels[0].id);
         }
         if(data.spreaker_shows) {
             setSpreakerShows(data.spreaker_shows);
-            if(data.spreaker_shows.length > 0 && !activeSpreakerShowId) {
-                setActiveSpreakerShowId(data.spreaker_shows[0].id);
-            }
+            if(data.spreaker_shows.length > 0 && !activeSpreakerShowId) setActiveSpreakerShowId(data.spreaker_shows[0].id);
         }
         setIsLoading(false);
       })
-      .catch(err => {
-        console.error("Failed to connect to API:", err);
-        setIsLoading(false);
-      });
+      .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
   useEffect(() => {
@@ -229,9 +198,8 @@ export default function App() {
              if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
                  const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
                  let triggerDate = new Date(eventDateObj);
-                 if (event.projectLeadUnit === 'now') {
-                     triggerDate = new Date(0);
-                 } else {
+                 if (event.projectLeadUnit === 'now') triggerDate = new Date(0);
+                 else {
                      const leadTime = parseInt(event.projectLeadTime);
                      if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
                      if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
@@ -257,32 +225,20 @@ export default function App() {
   }, [events, currentUser]); 
 
   const sendToAPI = async (action, data) => {
-    try {
-      await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-    } catch (err) {
-      console.error(`Error with ${action}:`, err);
-    }
+    try { await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); }
+    catch (err) { console.error(`Error with ${action}:`, err); }
   };
 
   const uploadFileToServer = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await fetch(`${API_URL}?action=upload_file`, {
-        method: 'POST',
-        body: formData
-      });
+      const response = await fetch(`${API_URL}?action=upload_file`, { method: 'POST', body: formData });
       const data = await response.json();
-      if (data.success) {
-        return data.url;
-      } else {
-        alert('Upload failed: ' + data.error);
-        return null;
-      }
-    } catch (err) {
-      alert('Upload error: Server could not be reached.');
+      if (data.success) return data.url;
+      alert('Upload failed: ' + data.error);
       return null;
-    }
+    } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
   const handleSyncGoDaddy = async (companyId) => {
@@ -301,12 +257,7 @@ export default function App() {
     setIsLoading(false);
   };
 
-  const handleYoutubeFilterChange = (e) => {
-    const val = e.target.value;
-    setYoutubeTimeFilter(val);
-    handleSyncYoutube(val);
-  };
-
+  const handleYoutubeFilterChange = (e) => { setYoutubeTimeFilter(e.target.value); handleSyncYoutube(e.target.value); };
   const handleSyncYoutube = async (overrideDays = null) => {
     const daysToSync = typeof overrideDays === 'string' ? overrideDays : youtubeTimeFilter;
     setIsLoading(true);
@@ -329,12 +280,7 @@ export default function App() {
     setIsLoading(false);
   };
 
-  const handleSpreakerFilterChange = (e) => {
-    const val = e.target.value;
-    setSpreakerTimeFilter(val);
-    handleSyncSpreaker(val);
-  };
-
+  const handleSpreakerFilterChange = (e) => { setSpreakerTimeFilter(e.target.value); handleSyncSpreaker(e.target.value); };
   const handleSyncSpreaker = async (overrideDays = null) => {
     const daysToSync = typeof overrideDays === 'string' ? overrideDays : spreakerTimeFilter;
     setIsLoading(true);
@@ -434,32 +380,17 @@ export default function App() {
 
   const handleToggleTaskStatus = (task) => {
     const isNowDone = task.status !== 'done';
-    const updatedTask = { 
-        ...task, 
-        status: isNowDone ? 'done' : 'todo',
-        completedAt: isNowDone ? new Date().toISOString() : null,
-        completedBy: isNowDone ? currentUser.id : null
-    };
+    const updatedTask = { ...task, status: isNowDone ? 'done' : 'todo', completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
     sendToAPI('save_task', updatedTask);
   };
 
   const handleAddComment = () => {
     if (!newCommentText.trim()) return;
-    const newComment = {
-      id: 'c' + Date.now(),
-      text: newCommentText.trim(),
-      userId: currentUser.id,
-      timestamp: new Date().toISOString()
-    };
-    const updatedTask = {
-      ...currentTask,
-      comments: [...(currentTask.comments || []), newComment]
-    };
+    const newComment = { id: 'c' + Date.now(), text: newCommentText.trim(), userId: currentUser.id, timestamp: new Date().toISOString() };
+    const updatedTask = { ...currentTask, comments: [...(currentTask.comments || []), newComment] };
     setCurrentTask(updatedTask);
     setNewCommentText('');
-    
-    // Automatically save the task when a comment is added
     if (updatedTask.id) {
         setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
         sendToAPI('save_task', updatedTask);
@@ -603,9 +534,7 @@ export default function App() {
   };
 
   const handlePermanentDeleteProject = (projectId) => {
-     const projectTasks = tasks.filter(t => t.projectId === projectId);
-     projectTasks.forEach(t => sendToAPI('delete_task', { id: t.id }));
-     
+     tasks.filter(t => t.projectId === projectId).forEach(t => sendToAPI('delete_task', { id: t.id }));
      setTasks(tasks.filter(t => t.projectId !== projectId));
      setProjects(projects.filter(p => p.id !== projectId));
      if (activeTab === projectId) setActiveTab('mytasks');
@@ -621,19 +550,10 @@ export default function App() {
 
   const handleSaveYoutubeChannel = (e) => {
     e.preventDefault();
-    if (!editingYoutubeChannel.name.trim() || !editingYoutubeChannel.refreshToken?.trim()) {
-        alert("Please provide both a Channel Name and a Refresh Token.");
-        return;
-    }
-    const channelData = editingYoutubeChannel.id 
-      ? editingYoutubeChannel 
-      : { ...editingYoutubeChannel, id: 'yt' + Date.now(), views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0', topVideos: '[]' };
-
+    if (!editingYoutubeChannel.name.trim() || !editingYoutubeChannel.refreshToken?.trim()) { alert("Please provide both a Channel Name and a Refresh Token."); return; }
+    const channelData = editingYoutubeChannel.id ? editingYoutubeChannel : { ...editingYoutubeChannel, id: 'yt' + Date.now(), views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0', topVideos: '[]' };
     if (editingYoutubeChannel.id) setYoutubeChannels(youtubeChannels.map(c => c.id === channelData.id ? channelData : c));
-    else {
-      setYoutubeChannels([...youtubeChannels, channelData]);
-      setActiveYoutubeChannelId(channelData.id);
-    }
+    else { setYoutubeChannels([...youtubeChannels, channelData]); setActiveYoutubeChannelId(channelData.id); }
     setIsYoutubeModalOpen(false);
     sendToAPI('save_youtube_channel', channelData);
   };
@@ -656,19 +576,10 @@ export default function App() {
 
   const handleSaveSpreakerShow = (e) => {
     e.preventDefault();
-    if (!editingSpreakerShow.name.trim() || !editingSpreakerShow.apiToken?.trim()) {
-        alert("Please provide both a Show Name and a Developer Token.");
-        return;
-    }
-    const showData = editingSpreakerShow.id 
-      ? editingSpreakerShow 
-      : { ...editingSpreakerShow, id: 'sp' + Date.now(), plays: '0', downloads: '0', topGeo: 'N/A', topSource: 'N/A' };
-
+    if (!editingSpreakerShow.name.trim() || !editingSpreakerShow.apiToken?.trim()) { alert("Please provide both a Show Name and a Developer Token."); return; }
+    const showData = editingSpreakerShow.id ? editingSpreakerShow : { ...editingSpreakerShow, id: 'sp' + Date.now(), plays: '0', downloads: '0', topGeo: 'N/A', topSource: 'N/A' };
     if (editingSpreakerShow.id) setSpreakerShows(spreakerShows.map(c => c.id === showData.id ? showData : c));
-    else {
-      setSpreakerShows([...spreakerShows, showData]);
-      setActiveSpreakerShowId(showData.id);
-    }
+    else { setSpreakerShows([...spreakerShows, showData]); setActiveSpreakerShowId(showData.id); }
     setIsSpreakerModalOpen(false);
     sendToAPI('save_spreaker_show', showData);
   };
@@ -682,7 +593,6 @@ export default function App() {
     setIsSpreakerModalOpen(false);
     sendToAPI('delete_spreaker_show', { id: showId });
   };
-
 
   const openProfileModal = () => {
     if(currentUser) {
@@ -715,49 +625,25 @@ export default function App() {
   };
 
   const handleCompanyLogoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setIsUploading(true);
-      const url = await uploadFileToServer(file);
-      if (url) setEditingCompany({ ...editingCompany, logoUrl: url });
-      setIsUploading(false);
-    }
+    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingCompany({ ...editingCompany, logoUrl: url }); setIsUploading(false); }
   };
-
   const handleProfileImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setIsUploading(true);
-      const url = await uploadFileToServer(file);
-      if (url) setProfileForm({ ...profileForm, avatarUrl: url });
-      setIsUploading(false);
-    }
+    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setProfileForm({ ...profileForm, avatarUrl: url }); setIsUploading(false); }
   };
-  
   const handleTeamMemberImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setIsUploading(true);
-      const url = await uploadFileToServer(file);
-      if (url) setEditingTeamMember({ ...editingTeamMember, avatarUrl: url });
-      setIsUploading(false);
-    }
+    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingTeamMember({ ...editingTeamMember, avatarUrl: url }); setIsUploading(false); }
   };
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     setIsUploading(true);
     const uploadedFiles = [];
-    for (const file of files) {
-      const url = await uploadFileToServer(file);
-      if (url) uploadedFiles.push({ name: file.name, url: url });
-    }
+    for (const file of files) { const url = await uploadFileToServer(file); if (url) uploadedFiles.push({ name: file.name, url: url }); }
     setCurrentTask({ ...currentTask, files: [...(currentTask.files || []), ...uploadedFiles] });
     setIsUploading(false);
     e.target.value = null; 
   };
-
-  const removeFile = (indexToRemove) => setCurrentTask({ ...currentTask, files: currentTask.files.filter((_, index) => index !== indexToRemove) });
+  const removeFile = (indexToRemove) => setCurrentTask({ ...currentTask, files: currentTask.files.filter((_, i) => i !== indexToRemove) });
 
   const getCompany = (id) => companies.find(c => c.id === id);
   const getProject = (id) => projects.find(p => p.id === id);
@@ -779,10 +665,7 @@ export default function App() {
   const formatExpenseDate = (dateStr, cycle) => {
     if (cycle !== 'one-time') return dateStr || '--';
     if (!dateStr) return '--';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        const d = new Date(`${dateStr}T12:00:00`);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return dateStr;
   };
 
@@ -791,8 +674,7 @@ export default function App() {
     let [hours, minutes] = time24.split(':');
     hours = parseInt(hours, 10);
     const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${hours}:${minutes} ${ampm}`;
+    return `${hours % 12 || 12}:${minutes} ${ampm}`;
   };
 
   const calculateProjectProgress = (projectId) => {
@@ -803,9 +685,7 @@ export default function App() {
     return Math.round((completedWeight / totalWeight) * 100);
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
-  };
+  const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
   const parseNextDate = (cycle, dateStr) => {
     if (!dateStr) return new Date(9999, 11, 31);
@@ -813,8 +693,7 @@ export default function App() {
     if (cycle === 'monthly') {
       const match = dateStr.match(/(\d+)/);
       if (match) {
-        let day = parseInt(match[1]);
-        let nextDate = new Date(today.getFullYear(), today.getMonth(), day);
+        let nextDate = new Date(today.getFullYear(), today.getMonth(), parseInt(match[1]));
         if (nextDate < today) nextDate.setMonth(nextDate.getMonth() + 1);
         return nextDate;
       }
@@ -835,25 +714,15 @@ export default function App() {
     if (!tags || tags.length === 0) return null;
     return (
       <div className={`flex flex-wrap gap-1 ${className}`}>
-        {tags.map(tag => (
-          <span key={tag} className={`px-1.5 py-0.5 text-[10px] font-semibold rounded border ${tagStyles[tag] || tagStyles['See Comments']}`}>
-            {tag}
-          </span>
-        ))}
+        {tags.map(tag => <span key={tag} className={`px-1.5 py-0.5 text-[10px] font-semibold rounded border ${tagStyles[tag] || tagStyles['See Notes']}`}>{tag}</span>)}
       </div>
     );
   };
 
   const CompanyLogo = ({ company, sizeClass = "w-5 h-5", textClass = "text-[10px]" }) => {
     if (!company) return null;
-    if (company.logoUrl) {
-      return <img src={company.logoUrl} alt={company.name} className={`${sizeClass} rounded object-cover flex-shrink-0 shadow-sm border border-slate-200 bg-white`} />;
-    }
-    return (
-      <div className={`${sizeClass} rounded bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center font-bold ${textClass} flex-shrink-0 shadow-sm`}>
-        {company.name.charAt(0).toUpperCase()}
-      </div>
-    );
+    if (company.logoUrl) return <img src={company.logoUrl} alt={company.name} className={`${sizeClass} rounded object-cover flex-shrink-0 shadow-sm border border-slate-200 bg-white`} />;
+    return <div className={`${sizeClass} rounded bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center font-bold ${textClass} flex-shrink-0 shadow-sm`}>{company.name.charAt(0).toUpperCase()}</div>;
   };
 
   const handleDragStart = (e, taskId) => e.dataTransfer.setData('taskId', taskId);
@@ -861,12 +730,7 @@ export default function App() {
      const taskId = e.dataTransfer.getData('taskId');
      const task = tasks.find(t => t.id === taskId);
      if(task && task.status !== newStatus) {
-        const updatedTask = { 
-            ...task, 
-            status: newStatus,
-            completedAt: newStatus === 'done' ? new Date().toISOString() : null,
-            completedBy: newStatus === 'done' ? currentUser.id : null
-        };
+        const updatedTask = { ...task, status: newStatus, completedAt: newStatus === 'done' ? new Date().toISOString() : null, completedBy: newStatus === 'done' ? currentUser.id : null };
         setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
         sendToAPI('save_task', updatedTask);
      }
@@ -882,6 +746,91 @@ export default function App() {
   };
 
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
+
+  // --- REUSABLE TASK COMPONENTS ---
+  const TaskDesktopRow = ({ task, showProject = true }) => {
+    const project = getProject(task.projectId);
+    const company = project ? getCompany(project.companyId) : null;
+    const assignee = getUser(task.assigneeId);
+    const taskIsOverdue = isOverdue(task.dueDate, task.status);
+    
+    return (
+      <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
+        <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
+        <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
+        <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
+          <div>{task.title}</div>
+          <div className="flex flex-wrap items-center gap-2 mt-1.5">
+            <TagDisplay tags={task.tags} />
+            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span>
+            {task.files && task.files.length > 0 && <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments"><Paperclip size={14} /></span>}
+            {task.comments && task.comments.length > 0 && <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments"><MessageSquare size={12} /> {task.comments.length}</span>}
+          </div>
+        </td>
+        <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
+          {showProject ? (
+            project && company && (
+              <div className={`flex items-center gap-2 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
+                <CompanyLogo company={company} sizeClass="w-6 h-6" textClass="text-[10px]" />
+                <span className={`flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={14} />{project.name}</span>
+              </div>
+            )
+          ) : (
+            assignee && (
+              <span className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-60 grayscale' : ''}`}>
+                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className="w-5 h-5 rounded-full object-cover" /> : <UserCircle size={16} className="text-slate-400" />}
+                {assignee.name.split(' ')[0]}
+              </span>
+            )
+          )}
+        </td>
+        <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
+          <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
+          <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"><Trash2 size={16} /></button>
+        </td>
+      </tr>
+    );
+  };
+
+  const TaskMobileCard = ({ task, showProject = true }) => {
+    const project = getProject(task.projectId);
+    const company = project ? getCompany(project.companyId) : null;
+    const assignee = getUser(task.assigneeId);
+    const taskIsOverdue = isOverdue(task.dueDate, task.status);
+
+    return (
+      <div className="p-4 hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-b-0">
+        <div className="flex items-start gap-2.5 mb-2">
+          <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
+          <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
+          <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
+        </div>
+        <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <TagDisplay tags={task.tags} />
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
+          {task.files && task.files.length > 0 && <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments"><Paperclip size={14} /></span>}
+          {task.comments && task.comments.length > 0 && <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments"><MessageSquare size={12} /> {task.comments.length}</span>}
+          {showProject ? (
+            project && company && (
+              <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
+                <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
+                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={10} /><span className="truncate max-w-[120px]">{project.name}</span></span>
+              </div>
+            )
+          ) : (
+            assignee && (
+              <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
+                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> : <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />}
+                {assignee.name.split(' ')[0]}
+              </span>
+            )
+          )}
+          <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
+          <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+        </div>
+      </div>
+    );
+  };
 
   const AuthScreen = () => {
     const [email, setEmail] = useState('');
@@ -960,61 +909,21 @@ export default function App() {
     return (
       <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : 'bg-teal-500'} ${currentApp === 'spreaker' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
         <div className="relative">
-          <button 
-            onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)}
-            className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : 'hover:bg-teal-600'}`}
-          >
-            {currentApp === 'projects' ? (
-              <LayoutDashboard size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
-            ) : currentApp === 'budget' ? (
-              <Wallet size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
-            ) : currentApp === 'youtube' ? (
-              <Youtube size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
-            ) : currentApp === 'events' ? (
-              <CalendarDays size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
-            ) : currentApp === 'spreaker' ? (
-              <Mic size={24} className="text-slate-900/70" />
-            ) : (
-              <Globe size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />
-            )}
+          <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : 'hover:bg-teal-600'}`}>
+            {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : <Globe size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />}
             <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp}</span>
             <ChevronsUpDown size={18} className={`${currentApp === 'spreaker' ? 'text-slate-900/60' : 'text-white/60'} ml-1`} />
           </button>
-
           {isAppSwitcherOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsAppSwitcherOpen(false)} />
               <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 py-1">
-                {(currentUser.isAdmin || currentUser.canViewProjects) && (
-                  <button onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    <div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><LayoutDashboard size={18} /></div>Projects
-                  </button>
-                )}
-                {(currentUser.isAdmin || currentUser.canViewEvents) && (
-                  <button onClick={() => { setCurrentApp('events'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'events' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    <div className={`p-1.5 rounded-md ${currentApp === 'events' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}><CalendarDays size={18} /></div>Events
-                  </button>
-                )}
-                {(currentUser.isAdmin || currentUser.canViewBudget) && (
-                  <button onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    <div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Wallet size={18} /></div>Expenses
-                  </button>
-                )}
-                {(currentUser.isAdmin || currentUser.canViewDomains) && (
-                  <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    <div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains
-                  </button>
-                )}
-                {(currentUser.isAdmin || currentUser.canViewProjects) && ( 
-                  <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    <div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube
-                  </button>
-                )}
-                {(currentUser.isAdmin || currentUser.canViewSpreaker) && ( 
-                  <button onClick={() => { setCurrentApp('spreaker'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'spreaker' ? 'bg-[#ffc005]/10 text-[#d9a304]' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    <div className={`p-1.5 rounded-md ${currentApp === 'spreaker' ? 'bg-[#ffc005]/20 text-[#d9a304]' : 'bg-slate-100 text-slate-500'}`}><Mic size={18} /></div>Spreaker
-                  </button>
-                )}
+                {(currentUser.isAdmin || currentUser.canViewProjects) && <button onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><LayoutDashboard size={18} /></div>Projects</button>}
+                {(currentUser.isAdmin || currentUser.canViewEvents) && <button onClick={() => { setCurrentApp('events'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'events' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'events' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}><CalendarDays size={18} /></div>Events</button>}
+                {(currentUser.isAdmin || currentUser.canViewBudget) && <button onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Wallet size={18} /></div>Expenses</button>}
+                {(currentUser.isAdmin || currentUser.canViewDomains) && <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains</button>}
+                {(currentUser.isAdmin || currentUser.canViewProjects) && <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube</button>}
+                {(currentUser.isAdmin || currentUser.canViewSpreaker) && <button onClick={() => { setCurrentApp('spreaker'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'spreaker' ? 'bg-[#ffc005]/10 text-[#d9a304]' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'spreaker' ? 'bg-[#ffc005]/20 text-[#d9a304]' : 'bg-slate-100 text-slate-500'}`}><Mic size={18} /></div>Spreaker</button>}
               </div>
             </>
           )}
@@ -1352,95 +1261,11 @@ export default function App() {
     const activeTasks = myTasks.filter(t => t.status !== 'done').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
     const completedTasks = myTasks.filter(t => t.status === 'done').sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
 
-    const renderDesktopRow = (task) => {
-      const project = getProject(task.projectId);
-      const company = project ? getCompany(project.companyId) : null;
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-      
-      return (
-        <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
-          <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
-          <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
-            <div>{task.title}</div>
-            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-              <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
-                 <Star size={10}/> {task.weight || 1} pts
-              </span>
-              {task.files && task.files.length > 0 && (
-                <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
-                  <Paperclip size={14} />
-                </span>
-              )}
-              {task.comments && task.comments.length > 0 && (
-                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
-                  <MessageSquare size={12} /> {task.comments.length}
-                </span>
-              )}
-            </div>
-          </td>
-          <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
-            {project && company && (
-              <div className={`flex items-center gap-2 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
-                <CompanyLogo company={company} sizeClass="w-6 h-6" textClass="text-[10px]" />
-                <span className={`flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-md border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={14} />{project.name}</span>
-              </div>
-            )}
-          </td>
-          <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-            <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"><Trash2 size={16} /></button>
-          </td>
-        </tr>
-      );
-    };
-
-    const renderMobileCard = (task) => {
-      const project = getProject(task.projectId);
-      const company = project ? getCompany(project.companyId) : null;
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-      
-      return (
-        <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors group">
-          <div className="flex items-start gap-2.5 mb-2">
-            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
-            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-            <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
-          </div>
-          <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-               <Star size={10}/> {task.weight || 1} pts
-            </span>
-            {task.files && task.files.length > 0 && (
-              <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
-                <Paperclip size={14} />
-              </span>
-            )}
-            {task.comments && task.comments.length > 0 && (
-              <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
-                <MessageSquare size={12} /> {task.comments.length}
-              </span>
-            )}
-            {project && company && (
-              <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
-                <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
-                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={10} /><span className="truncate max-w-[120px]">{project.name}</span></span>
-              </div>
-            )}
-            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-          </div>
-        </div>
-      );
-    };
-
     return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full">
         <h2 className="text-2xl font-bold text-slate-800 mb-6">My Tasks</h2>
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-          <div className="md:hidden flex flex-col divide-y divide-slate-100">{activeTasks.length > 0 ? activeTasks.map(renderMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks assigned to you.</div>}</div>
+          <div className="md:hidden flex flex-col divide-y divide-slate-100">{activeTasks.length > 0 ? activeTasks.map(t => <TaskMobileCard key={t.id} task={t} />) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks assigned to you.</div>}</div>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
@@ -1448,7 +1273,7 @@ export default function App() {
                   <th className="p-4 w-12 pr-1"></th><th className="py-4 px-2 w-8"></th><th className="p-4">Task</th><th className="p-4">Project</th><th className="p-4">Due Date</th>
                 </tr>
               </thead>
-              <tbody>{activeTasks.length > 0 ? activeTasks.map(renderDesktopRow) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks assigned to you.</td></tr>)}</tbody>
+              <tbody>{activeTasks.length > 0 ? activeTasks.map(t => <TaskDesktopRow key={t.id} task={t} />) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks assigned to you.</td></tr>)}</tbody>
             </table>
           </div>
         </div>
@@ -1459,9 +1284,9 @@ export default function App() {
               <span className="text-slate-400 text-sm">{completedTasks.length} tasks</span>
             </div>
             <div className="bg-white/60 rounded-xl shadow-sm border border-slate-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-               <div className="md:hidden flex flex-col divide-y divide-slate-100">{completedTasks.map(renderMobileCard)}</div>
+               <div className="md:hidden flex flex-col divide-y divide-slate-100">{completedTasks.map(t => <TaskMobileCard key={t.id} task={t} />)}</div>
                <div className="hidden md:block overflow-x-auto">
-                 <table className="w-full text-left border-collapse min-w-[600px]"><tbody>{completedTasks.map(renderDesktopRow)}</tbody></table>
+                 <table className="w-full text-left border-collapse min-w-[600px]"><tbody>{completedTasks.map(t => <TaskDesktopRow key={t.id} task={t} />)}</tbody></table>
                </div>
             </div>
           </div>
@@ -1520,87 +1345,6 @@ export default function App() {
     const currentCompany = getCompany(currentProject?.companyId);
     const progress = calculateProjectProgress(projectId);
 
-    const renderProjectDesktopRow = (task) => {
-      const assignee = getUser(task.assigneeId);
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-      return (
-        <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50 group">
-          <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</td>
-          <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
-          <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
-            <div>{task.title}</div>
-            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-              <TagDisplay tags={task.tags} />
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points">
-                 <Star size={10}/> {task.weight || 1} pts
-              </span>
-              {task.files && task.files.length > 0 && (
-                <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
-                  <Paperclip size={14} />
-                </span>
-              )}
-              {task.comments && task.comments.length > 0 && (
-                <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
-                  <MessageSquare size={12} /> {task.comments.length}
-                </span>
-              )}
-            </div>
-          </td>
-          <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
-            {assignee && (
-              <span className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-60 grayscale' : ''}`}>
-                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className="w-5 h-5 rounded-full object-cover" /> : <UserCircle size={16} className="text-slate-400" />}
-                {assignee.name.split(' ')[0]}
-              </span>
-            )}
-          </td>
-          <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
-            <span>{formatDate(task.dueDate)}</span>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"><Trash2 size={16} /></button>
-          </td>
-        </tr>
-      );
-    };
-
-    const renderProjectMobileCard = (task) => {
-      const assignee = getUser(task.assigneeId);
-      const taskIsOverdue = isOverdue(task.dueDate, task.status);
-
-      return (
-        <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors group">
-          <div className="flex items-start gap-2.5 mb-2">
-            <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>{task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}</button>
-            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-            <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
-          </div>
-          <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <TagDisplay tags={task.tags} />
-            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-               <Star size={10}/> {task.weight || 1} pts
-            </span>
-            {task.files && task.files.length > 0 && (
-              <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
-                <Paperclip size={14} />
-              </span>
-            )}
-            {task.comments && task.comments.length > 0 && (
-              <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
-                <MessageSquare size={12} /> {task.comments.length}
-              </span>
-            )}
-            {project && company && (
-              <div className={`flex items-center gap-1.5 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
-                <CompanyLogo company={company} sizeClass="w-5 h-5" textClass="text-[8px]" />
-                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${colorStyles[project.color]?.bg} ${colorStyles[project.color]?.border} ${colorStyles[project.color]?.text}`}><DynamicIcon name={project.icon} size={10} /><span className="truncate max-w-[120px]">{project.name}</span></span>
-              </div>
-            )}
-            <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
-            <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-          </div>
-        </div>
-      );
-    };
-
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-6 sm:mb-8 gap-4">
@@ -1630,7 +1374,7 @@ export default function App() {
             <div className="h-full overflow-y-auto pr-1 pb-8">
                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
                  <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                    {activeProjectTasks.length > 0 ? activeProjectTasks.map(renderProjectMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks in this project.</div>}
+                    {activeProjectTasks.length > 0 ? activeProjectTasks.map(t => <TaskMobileCard key={t.id} task={t} showProject={false} />) : <div className="p-8 text-center text-slate-500 text-sm">No active tasks in this project.</div>}
                  </div>
                  <div className="hidden md:block overflow-x-auto">
                    <table className="w-full text-left min-w-[600px]">
@@ -1640,7 +1384,7 @@ export default function App() {
                        </tr>
                      </thead>
                      <tbody>
-                       {activeProjectTasks.length > 0 ? activeProjectTasks.map(renderProjectDesktopRow) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks in this project.</td></tr>)}
+                       {activeProjectTasks.length > 0 ? activeProjectTasks.map(t => <TaskDesktopRow key={t.id} task={t} showProject={false} />) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks in this project.</td></tr>)}
                      </tbody>
                    </table>
                  </div>
@@ -1653,9 +1397,9 @@ export default function App() {
                       <span className="text-slate-400 text-sm">{completedProjectTasks.length} tasks</span>
                     </div>
                     <div className="bg-white/60 rounded-xl shadow-sm border border-slate-200 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-                      <div className="md:hidden flex flex-col divide-y divide-slate-100">{completedProjectTasks.map(renderProjectMobileCard)}</div>
+                      <div className="md:hidden flex flex-col divide-y divide-slate-100">{completedProjectTasks.map(t => <TaskMobileCard key={t.id} task={t} showProject={false} />)}</div>
                       <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left min-w-[600px]"><tbody>{completedProjectTasks.map(renderProjectDesktopRow)}</tbody></table>
+                        <table className="w-full text-left min-w-[600px]"><tbody>{completedProjectTasks.map(t => <TaskDesktopRow key={t.id} task={t} showProject={false} />)}</tbody></table>
                       </div>
                     </div>
                   </div>
@@ -1680,19 +1424,9 @@ export default function App() {
                           <p className={`font-medium text-sm mb-2 cursor-pointer group-hover:text-blue-600 transition-colors ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`} onClick={() => openTaskModal(task)}>{task.title}</p>
                           <div className="flex flex-wrap items-center gap-2 mb-3">
                              <TagDisplay tags={task.tags} />
-                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-                               <Star size={10}/> {task.weight || 1}
-                             </span>
-                             {task.files && task.files.length > 0 && (
-                               <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
-                                 <Paperclip size={14} />
-                               </span>
-                             )}
-                             {task.comments && task.comments.length > 0 && (
-                               <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
-                                 <MessageSquare size={12} /> {task.comments.length}
-                               </span>
-                             )}
+                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1}</span>
+                             {task.files && task.files.length > 0 && <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments"><Paperclip size={14} /></span>}
+                             {task.comments && task.comments.length > 0 && <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments"><MessageSquare size={12} /> {task.comments.length}</span>}
                           </div>
                           <div className="flex justify-between items-center text-xs text-slate-500">
                              <div className="flex items-center gap-2">
@@ -1736,22 +1470,12 @@ export default function App() {
                           
                           <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
                             <TagDisplay tags={task.tags} />
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200">
-                               <Star size={10}/> {task.weight || 1} pts
-                            </span>
-                            {task.files && task.files.length > 0 && (
-                              <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments">
-                                <Paperclip size={14} />
-                              </span>
-                            )}
-                            {task.comments && task.comments.length > 0 && (
-                              <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments">
-                                <MessageSquare size={12} /> {task.comments.length}
-                              </span>
-                            )}
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200"><Star size={10}/> {task.weight || 1} pts</span>
+                            {task.files && task.files.length > 0 && <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments"><Paperclip size={14} /></span>}
+                            {task.comments && task.comments.length > 0 && <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments"><MessageSquare size={12} /> {task.comments.length}</span>}
                             {assignee && (
                               <span className={`flex items-center gap-1.5 text-xs font-medium ${task.status === 'done' ? 'text-slate-400' : 'text-slate-600'}`}>
-                                {assignee.avatarUrl ? ( <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> ) : ( <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} /> )}
+                                {assignee.avatarUrl ? <img src={assignee.avatarUrl} alt="Avatar" className={`w-4 h-4 rounded-full object-cover ${task.status === 'done' ? 'grayscale opacity-60' : ''}`} /> : <UserCircle size={14} className={task.status === 'done' ? 'text-slate-300' : 'text-slate-400'} />}
                                 {assignee.name.split(' ')[0]}
                               </span>
                             )}
@@ -1846,24 +1570,15 @@ export default function App() {
   };
 
   const BudgetDashboard = () => {
-    const viewExpenses = activeBudgetTab === 'overview' 
-      ? expenses 
-      : expenses.filter(e => e.companyId === activeBudgetTab);
-
+    const viewExpenses = activeBudgetTab === 'overview' ? expenses : expenses.filter(e => e.companyId === activeBudgetTab);
     const activeExpenses = viewExpenses.filter(e => e.autoRenew !== false && e.autoRenew !== 0 && e.autoRenew !== '0');
-
     const monthlyTotal = activeExpenses.filter(e => e.cycle === 'monthly').reduce((sum, e) => sum + parseFloat(e.amount), 0);
     const annualTotal = activeExpenses.filter(e => e.cycle === 'annual').reduce((sum, e) => sum + parseFloat(e.amount), 0);
     const oneTimeTotal = activeExpenses.filter(e => e.cycle === 'one-time').reduce((sum, e) => sum + parseFloat(e.amount), 0);
     const trueAnnualCommitment = (monthlyTotal * 12) + annualTotal;
-
     const currentCompany = activeBudgetTab === 'overview' ? null : getCompany(activeBudgetTab);
 
-    const handleExpenseSort = (key) => {
-      let direction = 'asc';
-      if (expenseSortConfig.key === key && expenseSortConfig.direction === 'asc') direction = 'desc';
-      setExpenseSortConfig({ key, direction });
-    };
+    const handleExpenseSort = (key) => setExpenseSortConfig({ key, direction: expenseSortConfig.key === key && expenseSortConfig.direction === 'asc' ? 'desc' : 'asc' });
 
     const SortIcon = ({ columnKey }) => {
       if (expenseSortConfig.key !== columnKey) return <ChevronsUpDown size={14} className="opacity-30 ml-1 inline" />;
@@ -1871,8 +1586,7 @@ export default function App() {
     };
 
     const sortedExpenses = [...viewExpenses].sort((a, b) => {
-      let aValue = a[expenseSortConfig.key];
-      let bValue = b[expenseSortConfig.key];
+      let aValue = a[expenseSortConfig.key], bValue = b[expenseSortConfig.key];
       if (expenseSortConfig.key === 'amount') { aValue = parseFloat(aValue || 0); bValue = parseFloat(bValue || 0); } 
       else if (expenseSortConfig.key === 'companyId') { aValue = getCompany(a.companyId)?.name || ''; bValue = getCompany(b.companyId)?.name || ''; } 
       else if (expenseSortConfig.key === 'renewalDate') { aValue = parseNextDate(a.cycle, a.renewalDate).getTime(); bValue = parseNextDate(b.cycle, b.renewalDate).getTime(); }
@@ -1882,71 +1596,6 @@ export default function App() {
     });
 
     const timelineExpenses = [...viewExpenses].map(e => ({ ...e, nextDateObj: parseNextDate(e.cycle, e.renewalDate) })).sort((a, b) => a.nextDateObj - b.nextDateObj);
-
-    const renderExpenseDesktopRow = (expense) => {
-      const company = getCompany(expense.companyId);
-      const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
-
-      return (
-        <tr key={expense.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-60' : ''}`}>
-          <td className="p-4 font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors flex items-center gap-2" onClick={() => openExpenseModal(expense)}>
-            {expense.category === 'Domains' ? <Globe size={16} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-            <span className={!isAutoRenewOn && expense.cycle !== 'one-time' ? 'line-through' : ''}>{expense.name}</span>
-          </td>
-          {activeBudgetTab === 'overview' && (
-            <td className="p-4">
-              <div className="flex items-center gap-2" title={company?.name}>
-                <CompanyLogo company={company} sizeClass="w-6 h-6" />
-                <span className="text-sm text-slate-600">{company?.name}</span>
-              </div>
-            </td>
-          )}
-          <td className="p-4"><span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">{expense.category}</span></td>
-          <td className="p-4 font-medium text-slate-700">{formatCurrency(expense.amount)}</td>
-          <td className="p-4">
-             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
-                {expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time'}
-             </span>
-          </td>
-          <td className="p-4 text-sm text-slate-500">{isAutoRenewOn || expense.cycle === 'one-time' ? formatExpenseDate(expense.renewalDate, expense.cycle) : <span className="text-red-500 font-medium">Canceled</span>}</td>
-          <td className="p-4 text-right"><button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
-        </tr>
-      );
-    };
-
-    const renderExpenseMobileCard = (expense) => {
-      const company = getCompany(expense.companyId);
-      const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
-
-      return (
-        <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-60' : ''}`}>
-          <div className="flex justify-between items-start mb-2">
-            <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
-              {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
-              {expense.name}
-            </div>
-            <div className="font-bold text-slate-800 flex-shrink-0">{formatCurrency(expense.amount)}</div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-600'}`}>
-              {expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time'}
-            </span>
-            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{expense.category}</span>
-            {!isAutoRenewOn && expense.cycle !== 'one-time' && <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>}
-            {activeBudgetTab === 'overview' && company && (
-              <div className="flex items-center gap-1 ml-auto">
-                <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                <span className="text-[10px] text-slate-500">{company.name}</span>
-              </div>
-            )}
-            <button onClick={() => handleDeleteExpense(expense.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-          </div>
-          {(isAutoRenewOn || expense.cycle === 'one-time') && expense.renewalDate && (
-             <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1"><Clock size={10} /> {expense.cycle === 'one-time' ? 'Date:' : 'Renews:'} {formatExpenseDate(expense.renewalDate, expense.cycle)}</div>
-          )}
-        </div>
-      );
-    };
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
@@ -1983,7 +1632,40 @@ export default function App() {
                  <h3 className="font-bold text-slate-700">All Expenses & Domains</h3>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <div className="md:hidden flex flex-col">{sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseMobileCard) : <div className="p-8 text-center text-slate-500 text-sm">No expenses recorded yet.</div>}</div>
+                <div className="md:hidden flex flex-col">
+                  {sortedExpenses.length > 0 ? sortedExpenses.map(expense => {
+                    const company = getCompany(expense.companyId);
+                    const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
+                    const cycleColor = expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-600';
+                    const cycleLabel = expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time';
+                    return (
+                      <div key={expense.id} className={`p-4 hover:bg-slate-50 transition-colors group relative border-b border-slate-100 last:border-b-0 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-60' : ''}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <div className={`font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors pr-8 flex items-center gap-1.5 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'line-through' : ''}`} onClick={() => openExpenseModal(expense)}>
+                            {expense.category === 'Domains' ? <Globe size={14} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
+                            {expense.name}
+                          </div>
+                          <div className="font-bold text-slate-800 flex-shrink-0">{formatCurrency(expense.amount)}</div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cycleColor}`}>{cycleLabel}</span>
+                          <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{expense.category}</span>
+                          {!isAutoRenewOn && expense.cycle !== 'one-time' && <span className="text-[10px] font-semibold bg-red-50 text-red-600 px-1.5 py-0.5 rounded">Canceled</span>}
+                          {activeBudgetTab === 'overview' && company && (
+                            <div className="flex items-center gap-1 ml-auto">
+                              <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
+                              <span className="text-[10px] text-slate-500">{company.name}</span>
+                            </div>
+                          )}
+                          <button onClick={() => handleDeleteExpense(expense.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                        </div>
+                        {(isAutoRenewOn || expense.cycle === 'one-time') && expense.renewalDate && (
+                           <div className="text-[10px] text-slate-400 mt-2 flex items-center gap-1"><Clock size={10} /> {expense.cycle === 'one-time' ? 'Date:' : 'Renews:'} {formatExpenseDate(expense.renewalDate, expense.cycle)}</div>
+                        )}
+                      </div>
+                    );
+                  }) : <div className="p-8 text-center text-slate-500 text-sm">No expenses recorded yet.</div>}
+                </div>
                 <div className="hidden md:block">
                   <table className="w-full text-left min-w-[800px]">
                     <thead className="sticky top-0 bg-slate-50 z-10">
@@ -1997,7 +1679,35 @@ export default function App() {
                         <th className="p-4 w-12 bg-slate-50"></th>
                       </tr>
                     </thead>
-                    <tbody>{sortedExpenses.length > 0 ? sortedExpenses.map(renderExpenseDesktopRow) : (<tr><td colSpan={activeBudgetTab === 'overview' ? 7 : 6} className="p-8 text-center text-slate-500">No expenses recorded yet.</td></tr>)}</tbody>
+                    <tbody>
+                      {sortedExpenses.length > 0 ? sortedExpenses.map(expense => {
+                        const company = getCompany(expense.companyId);
+                        const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
+                        const cycleColor = expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600 border border-blue-100' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-slate-100 text-slate-600 border border-slate-200';
+                        const cycleLabel = expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time';
+                        return (
+                          <tr key={expense.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-60' : ''}`}>
+                            <td className="p-4 font-medium text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors flex items-center gap-2" onClick={() => openExpenseModal(expense)}>
+                              {expense.category === 'Domains' ? <Globe size={16} className={isAutoRenewOn ? 'text-teal-500' : 'text-slate-400'} /> : null}
+                              <span className={!isAutoRenewOn && expense.cycle !== 'one-time' ? 'line-through' : ''}>{expense.name}</span>
+                            </td>
+                            {activeBudgetTab === 'overview' && (
+                              <td className="p-4">
+                                <div className="flex items-center gap-2" title={company?.name}>
+                                  <CompanyLogo company={company} sizeClass="w-6 h-6" />
+                                  <span className="text-sm text-slate-600">{company?.name}</span>
+                                </div>
+                              </td>
+                            )}
+                            <td className="p-4"><span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded">{expense.category}</span></td>
+                            <td className="p-4 font-medium text-slate-700">{formatCurrency(expense.amount)}</td>
+                            <td className="p-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${cycleColor}`}>{cycleLabel}</span></td>
+                            <td className="p-4 text-sm text-slate-500">{isAutoRenewOn || expense.cycle === 'one-time' ? formatExpenseDate(expense.renewalDate, expense.cycle) : <span className="text-red-500 font-medium">Canceled</span>}</td>
+                            <td className="p-4 text-right"><button onClick={() => handleDeleteExpense(expense.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
+                          </tr>
+                        );
+                      }) : (<tr><td colSpan={activeBudgetTab === 'overview' ? 7 : 6} className="p-8 text-center text-slate-500">No expenses recorded yet.</td></tr>)}
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -2013,6 +1723,8 @@ export default function App() {
                     const isFarFuture = expense.nextDateObj.getFullYear() === 9999;
                     const displayDate = isFarFuture ? "Date Unknown" : expense.nextDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
                     const isAutoRenewOn = expense.autoRenew !== false && expense.autoRenew !== 0 && expense.autoRenew !== '0';
+                    const cycleColor = expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600' : 'bg-slate-200 text-slate-600';
+                    const cycleLabel = expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time';
 
                     return (
                       <div key={expense.id} className={`relative pl-8 ${!isAutoRenewOn && expense.cycle !== 'one-time' ? 'opacity-50' : ''}`}>
@@ -2034,7 +1746,7 @@ export default function App() {
                           </div>
                           <div className="text-right">
                              <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(expense.amount)}</div>
-                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${expense.cycle === 'monthly' ? 'bg-blue-50 text-blue-600' : expense.cycle === 'annual' ? 'bg-purple-50 text-purple-600' : 'bg-slate-200 text-slate-600'}`}>{expense.cycle === 'monthly' ? 'Monthly' : expense.cycle === 'annual' ? 'Annual' : 'One-Time'}</span>
+                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cycleColor}`}>{cycleLabel}</span>
                           </div>
                         </div>
                       </div>
@@ -2060,11 +1772,7 @@ export default function App() {
 
     const currentCompany = activeDomainTab === 'overview' ? null : getCompany(activeDomainTab);
 
-    const handleSort = (key) => {
-      let direction = 'asc';
-      if (domainSortConfig.key === key && domainSortConfig.direction === 'asc') direction = 'desc';
-      setDomainSortConfig({ key, direction });
-    };
+    const handleSort = (key) => setDomainSortConfig({ key, direction: domainSortConfig.key === key && domainSortConfig.direction === 'asc' ? 'desc' : 'asc' });
 
     const SortIcon = ({ columnKey }) => {
       if (domainSortConfig.key !== columnKey) return <ChevronsUpDown size={14} className="opacity-30 ml-1 inline" />;
@@ -2072,8 +1780,7 @@ export default function App() {
     };
 
     const sortedDomains = [...viewDomains].sort((a, b) => {
-      let aValue = a[domainSortConfig.key];
-      let bValue = b[domainSortConfig.key];
+      let aValue = a[domainSortConfig.key], bValue = b[domainSortConfig.key];
       if (domainSortConfig.key === 'amount') { aValue = parseFloat(aValue || 0); bValue = parseFloat(bValue || 0); } 
       else if (domainSortConfig.key === 'companyId') { aValue = getCompany(a.companyId)?.name || ''; bValue = getCompany(b.companyId)?.name || ''; } 
       else if (domainSortConfig.key === 'renewalDate') { aValue = parseNextDate(a.cycle, a.renewalDate).getTime(); bValue = parseNextDate(b.cycle, b.renewalDate).getTime(); }
@@ -2083,23 +1790,6 @@ export default function App() {
     });
 
     const timelineDomains = [...viewDomains].map(e => ({ ...e, nextDateObj: parseNextDate(e.cycle, e.renewalDate) })).sort((a, b) => a.nextDateObj - b.nextDateObj);
-
-    const renderDomainRow = (domain) => {
-      const company = getCompany(domain.companyId);
-      const isAutoRenewOn = domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0';
-      return (
-        <tr key={domain.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
-          <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-teal-600 transition-colors flex items-center gap-2" onClick={() => openDomainModal(domain)}><Globe size={16} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} /><span className={!isAutoRenewOn ? 'line-through' : ''}>{domain.name}</span></td>
-          {activeDomainTab === 'overview' && (
-            <td className="p-4"><div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div></td>
-          )}
-          <td className="p-4 font-medium text-slate-700">{formatCurrency(domain.amount)} <span className="text-xs text-slate-400 font-normal">/{domain.cycle === 'monthly' ? 'mo' : 'yr'}</span></td>
-          <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${isAutoRenewOn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>{isAutoRenewOn ? 'ON' : 'OFF'}</span></td>
-          <td className="p-4 text-sm font-medium text-slate-600">{isAutoRenewOn ? (domain.renewalDate || '--') : <span className="text-slate-400 font-normal">Manual/Off</span>}</td>
-          <td className="p-4 text-right"><button onClick={() => handleDeleteExpense(domain.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
-        </tr>
-      );
-    };
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
@@ -2136,7 +1826,22 @@ export default function App() {
                         <th className="p-4 w-12 bg-slate-50"></th>
                       </tr>
                     </thead>
-                    <tbody>{sortedDomains.length > 0 ? sortedDomains.map(renderDomainRow) : (<tr><td colSpan={activeDomainTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>)}</tbody>
+                    <tbody>
+                      {sortedDomains.length > 0 ? sortedDomains.map(domain => {
+                        const company = getCompany(domain.companyId);
+                        const isAutoRenewOn = domain.autoRenew !== false && domain.autoRenew !== 0 && domain.autoRenew !== '0';
+                        return (
+                          <tr key={domain.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${!isAutoRenewOn ? 'opacity-60' : ''}`}>
+                            <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-teal-600 transition-colors flex items-center gap-2" onClick={() => openDomainModal(domain)}><Globe size={16} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} /><span className={!isAutoRenewOn ? 'line-through' : ''}>{domain.name}</span></td>
+                            {activeDomainTab === 'overview' && <td className="p-4"><div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div></td>}
+                            <td className="p-4 font-medium text-slate-700">{formatCurrency(domain.amount)} <span className="text-xs text-slate-400 font-normal">/{domain.cycle === 'monthly' ? 'mo' : 'yr'}</span></td>
+                            <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${isAutoRenewOn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>{isAutoRenewOn ? 'ON' : 'OFF'}</span></td>
+                            <td className="p-4 text-sm font-medium text-slate-600">{isAutoRenewOn ? (domain.renewalDate || '--') : <span className="text-slate-400 font-normal">Manual/Off</span>}</td>
+                            <td className="p-4 text-right"><button onClick={() => handleDeleteExpense(domain.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
+                          </tr>
+                        );
+                      }) : (<tr><td colSpan={activeDomainTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No domains registered yet.</td></tr>)}
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -2160,9 +1865,7 @@ export default function App() {
                             <div className={`text-sm font-bold mb-1 ${isAutoRenewOn ? 'text-teal-600' : 'text-slate-500'}`}>{isAutoRenewOn ? displayDate : 'CANCELED'}</div>
                             <div className={`font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 ${isAutoRenewOn ? 'hover:text-teal-600' : 'line-through'}`} onClick={() => openDomainModal(domain)}><Globe size={14} className={isAutoRenewOn ? "text-teal-500" : "text-slate-400"} /> {domain.name}</div>
                             <div className="flex items-center gap-2">
-                              {activeDomainTab === 'overview' && company && (
-                                <div className="flex items-center gap-1"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500 font-medium">{company.name}</span></div>
-                              )}
+                              {activeDomainTab === 'overview' && company && <div className="flex items-center gap-1"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500 font-medium">{company.name}</span></div>}
                               {!isAutoRenewOn && <span className="text-[10px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold">Auto-Renew OFF</span>}
                               {domain.notes && <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={domain.notes}>{domain.notes}</span>}
                             </div>
@@ -2174,7 +1877,7 @@ export default function App() {
                         </div>
                       </div>
                     )
-                  }) : ( <div className="p-8 text-slate-500 text-sm">No forecasted domain renewals.</div> )}
+                  }) : <div className="p-8 text-slate-500 text-sm">No forecasted domain renewals.</div>}
                </div>
             </div>
           )}
@@ -2184,49 +1887,15 @@ export default function App() {
   };
 
   const EventsDashboard = () => {
-    const viewEvents = activeEventTab === 'overview' 
-      ? events 
-      : events.filter(e => e.companyId === activeEventTab);
-
+    const viewEvents = activeEventTab === 'overview' ? events : events.filter(e => e.companyId === activeEventTab);
     const upcomingEvents = viewEvents.filter(e => new Date(`${e.eventDate}T12:00:00`) >= new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(a.eventDate) - new Date(b.eventDate));
     const pastEvents = viewEvents.filter(e => new Date(`${e.eventDate}T12:00:00`) < new Date(new Date().setHours(0,0,0,0))).sort((a,b) => new Date(b.eventDate) - new Date(a.eventDate));
-
     const currentCompany = activeEventTab === 'overview' ? null : getCompany(activeEventTab);
-
-    const renderEventRow = (ev) => {
-        const company = getCompany(ev.companyId);
-        const evDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-        
-        return (
-            <tr key={ev.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-              <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-purple-600 transition-colors flex items-center gap-2" onClick={() => openEventModal(ev)}>
-                <CalendarDays size={16} className="text-purple-500" />{ev.title}
-              </td>
-              {activeEventTab === 'overview' && (
-                <td className="p-4"><div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div></td>
-              )}
-              <td className="p-4 text-sm font-medium text-slate-700">{evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{formatTime12Hour(ev.eventTime)}</span>}</td>
-              <td className="p-4 font-medium text-slate-700">
-                {ev.cost > 0 ? formatCurrency(ev.cost) : <span className="text-slate-400 text-sm font-normal">--</span>}
-                {ev.installments && ev.installments.length > 0 && <span className="text-xs text-slate-400 font-normal ml-1 border bg-slate-50 px-1 rounded">Mult</span>}
-              </td>
-              <td className="p-4">
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${ev.autoProject == 1 ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
-                  {ev.autoProject == 1 ? (ev.projectLeadUnit === 'now' ? 'YES (Immediate)' : `YES (${ev.projectLeadTime}${ev.projectLeadUnit.charAt(0)})`) : 'NO'}
-                </span>
-              </td>
-              <td className="p-4 text-right"><button onClick={() => handleDeleteEvent(ev.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
-            </tr>
-        );
-    };
 
     return (
         <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50">
           <div className="mb-6 sm:mb-8 flex-shrink-0">
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-               <CalendarDays className="text-purple-600" size={28} />
-               {activeEventTab === 'overview' ? 'Events' : `${currentCompany?.name} Events`}
-            </h2>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="text-purple-600" size={28} />{activeEventTab === 'overview' ? 'Events' : `${currentCompany?.name} Events`}</h2>
             <p className="text-slate-500 text-sm mt-1">Plan for your major events.</p>
           </div>
   
@@ -2250,9 +1919,35 @@ export default function App() {
                       </thead>
                       <tbody>
                         {upcomingEvents.length > 0 && <tr><td colSpan={activeEventTab === 'overview' ? 6 : 5} className="bg-purple-50 text-purple-800 text-xs font-bold uppercase tracking-wider p-2 px-4">Upcoming</td></tr>}
-                        {upcomingEvents.map(renderEventRow)}
+                        {upcomingEvents.map(ev => {
+                            const company = getCompany(ev.companyId);
+                            const evDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                            return (
+                                <tr key={ev.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
+                                  <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-purple-600 transition-colors flex items-center gap-2" onClick={() => openEventModal(ev)}><CalendarDays size={16} className="text-purple-500" />{ev.title}</td>
+                                  {activeEventTab === 'overview' && <td className="p-4"><div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div></td>}
+                                  <td className="p-4 text-sm font-medium text-slate-700">{evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{formatTime12Hour(ev.eventTime)}</span>}</td>
+                                  <td className="p-4 font-medium text-slate-700">{ev.cost > 0 ? formatCurrency(ev.cost) : <span className="text-slate-400 text-sm font-normal">--</span>}{ev.installments && ev.installments.length > 0 && <span className="text-xs text-slate-400 font-normal ml-1 border bg-slate-50 px-1 rounded">Mult</span>}</td>
+                                  <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${ev.autoProject == 1 ? 'bg-purple-50 text-purple-600 border-purple-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{ev.autoProject == 1 ? (ev.projectLeadUnit === 'now' ? 'YES (Immediate)' : `YES (${ev.projectLeadTime}${ev.projectLeadUnit.charAt(0)})`) : 'NO'}</span></td>
+                                  <td className="p-4 text-right"><button onClick={() => handleDeleteEvent(ev.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
+                                </tr>
+                            );
+                        })}
                         {pastEvents.length > 0 && <tr><td colSpan={activeEventTab === 'overview' ? 6 : 5} className="bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider p-2 px-4 border-t border-slate-200">Past Events</td></tr>}
-                        {pastEvents.map(renderEventRow)}
+                        {pastEvents.map(ev => {
+                            const company = getCompany(ev.companyId);
+                            const evDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                            return (
+                                <tr key={ev.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors group opacity-60">
+                                  <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-purple-600 transition-colors flex items-center gap-2" onClick={() => openEventModal(ev)}><CalendarDays size={16} className="text-purple-500" />{ev.title}</td>
+                                  {activeEventTab === 'overview' && <td className="p-4"><div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div></td>}
+                                  <td className="p-4 text-sm font-medium text-slate-700">{evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{formatTime12Hour(ev.eventTime)}</span>}</td>
+                                  <td className="p-4 font-medium text-slate-700">{ev.cost > 0 ? formatCurrency(ev.cost) : <span className="text-slate-400 text-sm font-normal">--</span>}</td>
+                                  <td className="p-4"><span className={`text-[10px] font-bold px-2 py-1 rounded-full border bg-slate-50 text-slate-500 border-slate-200`}>N/A</span></td>
+                                  <td className="p-4 text-right"><button onClick={() => handleDeleteEvent(ev.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button></td>
+                                </tr>
+                            );
+                        })}
                         {viewEvents.length === 0 && <tr><td colSpan={activeEventTab === 'overview' ? 6 : 5} className="p-8 text-center text-slate-500">No events recorded yet.</td></tr>}
                       </tbody>
                     </table>
@@ -2267,45 +1962,30 @@ export default function App() {
                     {upcomingEvents.length > 0 ? upcomingEvents.map(ev => {
                       const company = getCompany(ev.companyId);
                       const displayDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-  
                       return (
                         <div key={ev.id} className="relative pl-8">
                           <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white bg-purple-500"></div>
                           <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                             <div>
-                              <div className="text-sm font-bold mb-1 text-purple-600">
-                                  {displayDate} {ev.eventTime && <span className="text-slate-400 font-normal ml-1">@ {formatTime12Hour(ev.eventTime)}</span>}
-                              </div>
+                              <div className="text-sm font-bold mb-1 text-purple-600">{displayDate} {ev.eventTime && <span className="text-slate-400 font-normal ml-1">@ {formatTime12Hour(ev.eventTime)}</span>}</div>
                               <div className="font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 hover:text-purple-600" onClick={() => openEventModal(ev)}>{ev.title}</div>
                               <div className="flex items-center gap-2">
-                                {activeEventTab === 'overview' && company && (
-                                  <div className="flex items-center gap-1">
-                                    <CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" />
-                                    <span className="text-[10px] text-slate-500 font-medium">{company.name}</span>
-                                    <span className="text-slate-300 px-1">•</span>
-                                  </div>
-                                )}
-                                {ev.autoProject == 1 && (
-                                  <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                                    Prep Project: {ev.projectLeadUnit === 'now' ? 'Created Immediately' : `${ev.projectLeadTime} ${ev.projectLeadUnit} before`}
-                                  </span>
-                                )}
+                                {activeEventTab === 'overview' && company && <div className="flex items-center gap-1"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500 font-medium">{company.name}</span><span className="text-slate-300 px-1">•</span></div>}
+                                {ev.autoProject == 1 && <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Prep Project: {ev.projectLeadUnit === 'now' ? 'Created Immediately' : `${ev.projectLeadTime} ${ev.projectLeadUnit} before`}</span>}
                               </div>
                             </div>
                             <div className="text-right">
                                {ev.cost > 0 ? (
                                    <>
                                       <div className="font-bold text-slate-800 text-lg mb-1">{formatCurrency(ev.cost)}</div>
-                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
-                                        {ev.installments && ev.installments.length > 0 ? 'Multi-Payment' : 'Added to Expenses'}
-                                      </span>
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">{ev.installments && ev.installments.length > 0 ? 'Multi-Payment' : 'Added to Expenses'}</span>
                                    </>
-                               ) : ( <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400">No Cost</span> )}
+                               ) : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400">No Cost</span>}
                             </div>
                           </div>
                         </div>
                       )
-                    }) : ( <div className="p-8 text-slate-500 text-sm">No upcoming events planned. Click the + Event button above!</div> )}
+                    }) : <div className="p-8 text-slate-500 text-sm">No upcoming events planned. Click the + Event button above!</div>}
                  </div>
 
                  {pastEvents.length > 0 && (
@@ -2321,7 +2001,7 @@ export default function App() {
                                     <div className="p-3 rounded-lg border bg-white border-slate-200 group flex items-start justify-between">
                                     <div>
                                         <div className="font-medium text-slate-600 cursor-pointer flex items-center gap-1.5" onClick={() => openEventModal(ev)}>{ev.title}</div>
-                                        {activeEventTab === 'overview' ? ( <div className="text-xs text-slate-400 mt-1">{displayDate} • {company?.name}</div> ) : ( <div className="text-xs text-slate-400 mt-1">{displayDate}</div> )}
+                                        {activeEventTab === 'overview' ? <div className="text-xs text-slate-400 mt-1">{displayDate} • {company?.name}</div> : <div className="text-xs text-slate-400 mt-1">{displayDate}</div>}
                                     </div>
                                     </div>
                                 </div>
@@ -2335,319 +2015,154 @@ export default function App() {
           </div>
         </div>
       );
-  }
+  };
 
   const SpreakerDashboard = () => {
     const activeShow = spreakerShows.find(c => c.id === activeSpreakerShowId);
-
-    if (!activeShow) {
-      return (
-        <div className="p-4 sm:p-8 h-full flex flex-col items-center justify-center bg-slate-50/50">
-          <Mic size={64} className="text-slate-300 mb-4" />
-          <h2 className="text-xl font-bold text-slate-500">No Spreaker Podcasts Found</h2>
-          <p className="text-slate-400 mt-2 text-center max-w-md">Select a show from the sidebar or add a new one to start tracking your podcast analytics.</p>
-        </div>
-      );
-    }
-
-    const getSpreakerTimeLabel = () => {
-      switch(spreakerTimeFilter) {
-          case '1': return 'Today';
-          case '2': return 'Yesterday';
-          case '7': return 'Last 7 Days';
-          case '30': return 'Last 30 Days';
-          case '365': return 'Last 12 Months';
-          default: return 'All Time';
-      }
-    };
-    
-    const spLabel = getSpreakerTimeLabel();
+    if (!activeShow) return <div className="p-4 sm:p-8 h-full flex flex-col items-center justify-center bg-slate-50/50"><Mic size={64} className="text-slate-300 mb-4" /><h2 className="text-xl font-bold text-slate-500">No Spreaker Podcasts Found</h2><p className="text-slate-400 mt-2 text-center max-w-md">Select a show from the sidebar or add a new one to start tracking your podcast analytics.</p></div>;
+    const spLabel = spreakerTimeFilter === '1' ? 'Today' : spreakerTimeFilter === '2' ? 'Yesterday' : spreakerTimeFilter === '7' ? 'Last 7 Days' : spreakerTimeFilter === '30' ? 'Last 30 Days' : spreakerTimeFilter === '365' ? 'Last 12 Months' : 'All Time';
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-               <Mic className="text-[#ffc005]" size={28} />
-               {activeShow.name} Dashboard
-            </h2>
-            <p className="text-slate-500 text-sm mt-1">Overview of your podcast performance and reach.</p>
-          </div>
+          <div><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Mic className="text-[#ffc005]" size={28} />{activeShow.name} Dashboard</h2><p className="text-slate-500 text-sm mt-1">Overview of your podcast performance and reach.</p></div>
         </div>
 
-        {/* 4 MAIN STAT CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#ffc005]">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Play size={16} className="text-[#ffc005]" /> Total Plays {spLabel !== 'All Time' && `(${spLabel})`}
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{activeShow.plays || '0'}</div>
-          </div>
-          
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Download size={16} className="text-blue-500" /> Downloads {spLabel !== 'All Time' && `(${spLabel})`}
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{activeShow.downloads || '0'}</div>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <MapPin size={16} className="text-red-500" /> Top Location {spLabel !== 'All Time' && `(${spLabel})`}
-            </div>
-            <div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topGeo || 'N/A'}>{activeShow.topGeo || 'N/A'}</div>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2">
-               <Compass size={16} className="text-emerald-500" /> Top Source {spLabel !== 'All Time' && `(${spLabel})`}
-            </div>
-            <div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topSource || 'N/A'}>{activeShow.topSource || 'N/A'}</div>
-          </div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-[#ffc005]"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Play size={16} className="text-[#ffc005]" /> Total Plays {spLabel !== 'All Time' && `(${spLabel})`}</div><div className="text-3xl font-bold text-slate-800">{activeShow.plays || '0'}</div></div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Download size={16} className="text-blue-500" /> Downloads {spLabel !== 'All Time' && `(${spLabel})`}</div><div className="text-3xl font-bold text-slate-800">{activeShow.downloads || '0'}</div></div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><MapPin size={16} className="text-red-500" /> Top Location {spLabel !== 'All Time' && `(${spLabel})`}</div><div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topGeo || 'N/A'}>{activeShow.topGeo || 'N/A'}</div></div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Compass size={16} className="text-emerald-500" /> Top Source {spLabel !== 'All Time' && `(${spLabel})`}</div><div className="text-3xl font-bold text-slate-800 truncate" title={activeShow.topSource || 'N/A'}>{activeShow.topSource || 'N/A'}</div></div>
         </div>
-
       </div>
     );
   };
 
-  // --- STOP UNAUTHORIZED ACCESS ---
-  if (isLoading) {
+  const YoutubeDashboard = () => {
+    const activeChannel = youtubeChannels.find(c => c.id === activeYoutubeChannelId);
+    if (!activeChannel) return <div className="p-4 sm:p-8 h-full flex flex-col items-center justify-center bg-slate-50/50"><Youtube size={64} className="text-slate-300 mb-4" /><h2 className="text-xl font-bold text-slate-500">No YouTube Channel Selected</h2><p className="text-slate-400 mt-2 text-center max-w-md">Select a channel from the sidebar or add a new one to see your stats.</p></div>;
+
+    let topVideos = [];
+    try { if (activeChannel.topVideos) topVideos = JSON.parse(activeChannel.topVideos); } catch(e) {}
+
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 flex-shrink-0">
+          <div><h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Youtube className="text-red-600" size={28} />{activeChannel.name} Dashboard</h2><p className="text-slate-500 text-sm mt-1">Overview of channel performance and estimated revenue.</p></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 flex-shrink-0">
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Play size={16} className="text-blue-500" /> Views {youtubeTimeFilter === 'lifetime' ? '(Lifetime)' : `(${youtubeTimeFilter} days)`}</div><div className="text-3xl font-bold text-slate-800">{activeChannel.views}</div></div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Users size={16} className="text-emerald-500" /> Subscribers</div><div className="text-3xl font-bold text-slate-800">{activeChannel.subs}</div></div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-purple-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><Clock size={16} className="text-purple-500" /> Watch Time (hrs)</div><div className="text-3xl font-bold text-slate-800">{activeChannel.watchTime}</div></div>
+          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-amber-500"><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-2"><DollarSign size={16} className="text-amber-500" /> Est. Revenue</div><div className="text-3xl font-bold text-slate-800">{activeChannel.revenue}</div></div>
+        </div>
+
+        <h3 className="text-lg font-bold text-slate-800 mb-4 flex-shrink-0">Realtime (48 hours)</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between"><div><p className="text-sm font-medium text-slate-500 mb-1">Views</p><p className="text-2xl font-bold text-slate-800">{activeChannel.realtimeViews}</p></div><div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center"><Zap size={24} className="text-red-500" /></div></div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between"><div><p className="text-sm font-medium text-slate-500 mb-1">Subscribers</p><p className="text-2xl font-bold text-slate-800">{activeChannel.realtimeSubs}</p></div><div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center"><UserCircle size={24} className="text-red-500" /></div></div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-shrink-0 mb-8">
+           <div className="p-5 border-b border-slate-100 bg-slate-50"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Play size={18} className="text-red-600" /> Top content in this period</h3></div>
+           {topVideos.length > 0 ? (
+             <div className="overflow-x-auto">
+               <table className="w-full text-left min-w-[600px]">
+                  <thead><tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-white"><th className="p-4 w-12 text-center">#</th><th className="p-4">Content</th><th className="p-4 text-right">Avg. view duration</th><th className="p-4 text-right">Views</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                     {topVideos.map((video, idx) => (
+                        <tr key={video.id} className="hover:bg-slate-50 transition-colors group">
+                           <td className="p-4 text-center text-slate-400 font-medium">{idx + 1}</td>
+                           <td className="p-4">
+                              <div className="flex items-center gap-4">
+                                 {video.thumbnail ? <img src={video.thumbnail} alt={video.title} className="w-[120px] h-[68px] object-cover rounded-md shadow-sm border border-slate-200" /> : <div className="w-[120px] h-[68px] bg-slate-100 rounded-md border border-slate-200 flex items-center justify-center"><Play size={24} className="text-slate-300" /></div>}
+                                 <div className="flex flex-col justify-center">
+                                    <p className="text-sm font-bold text-slate-800 line-clamp-2 max-w-md group-hover:text-blue-600 transition-colors leading-snug">{video.title}</p>
+                                    <p className="text-xs text-slate-500 mt-1 font-medium">{video.publishedAt ? new Date(video.publishedAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : ''}</p>
+                                 </div>
+                              </div>
+                           </td>
+                           <td className="p-4 text-right text-sm text-slate-600 font-medium">{formatAVD(video.minutes, video.views)}</td>
+                           <td className="p-4 text-right text-sm text-slate-800 font-bold">{Number(video.views || 0).toLocaleString()}</td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+             </div>
+           ) : <div className="p-12 text-center flex flex-col items-center"><Youtube size={32} className="text-slate-300 mb-3" /><p className="text-slate-500 font-medium">Video list will populate here when real data is connected.</p><p className="text-xs text-slate-400 mt-1">Make sure you hit the Sync button in the top right.</p></div>}
+        </div>
       </div>
     );
-  }
+  };
 
-  if (!currentUser) {
-    return <AuthScreen />;
-  }
+  if (isLoading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  if (!currentUser) return <AuthScreen />;
 
-  // --- MAIN APP RENDER ---
   return (
     <>
       <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden flex-col lg:flex-row">
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
-        )}
+        {isMobileMenuOpen && <div className="fixed inset-0 bg-slate-900/50 z-30 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
         <div className={`fixed inset-y-0 left-0 z-40 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-200 ease-in-out pb-16 lg:pb-0`}>
           <Sidebar />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
           <TopBar />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
-            {currentApp === 'projects' ? (
-              activeTab === 'mytasks' ? <DashboardView /> : 
-              activeTab === 'capacity' ? <TeamCapacityView /> : 
-              activeTab === 'archived' ? <ArchivedProjectsView /> :
-              <ProjectView projectId={activeTab} />
-            ) : currentApp === 'budget' ? (
-              <BudgetDashboard />
-            ) : currentApp === 'domains' ? (
-              <DomainsDashboard />
-            ) : currentApp === 'events' ? (
-              <EventsDashboard />
-            ) : currentApp === 'spreaker' ? (
-              <SpreakerDashboard />
-            ) : (
-              <YoutubeDashboard />
-            )}
+            {currentApp === 'projects' ? (activeTab === 'mytasks' ? <DashboardView /> : activeTab === 'capacity' ? <TeamCapacityView /> : activeTab === 'archived' ? <ArchivedProjectsView /> : <ProjectView projectId={activeTab} />) : currentApp === 'budget' ? <BudgetDashboard /> : currentApp === 'domains' ? <DomainsDashboard /> : currentApp === 'events' ? <EventsDashboard /> : currentApp === 'spreaker' ? <SpreakerDashboard /> : <YoutubeDashboard />}
           </main>
           <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
-             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 -ml-2 transition-colors flex flex-col items-center gap-1 ${isMobileMenuOpen ? 'text-white' : 'hover:text-white'}`}>
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                <span className="text-[10px] font-medium tracking-wide">{isMobileMenuOpen ? 'Close' : 'Menu'}</span>
-             </button>
-             <button onClick={openProfileModal} className="p-1 -mr-1 hover:text-white transition-colors flex flex-col items-center gap-1">
-                {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} className="w-7 h-7 rounded-full border border-slate-600 object-cover" alt="Profile" /> : <UserCircle size={28} />}
-                <span className="text-[10px] font-medium tracking-wide">Profile</span>
-             </button>
+             <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 -ml-2 transition-colors flex flex-col items-center gap-1 ${isMobileMenuOpen ? 'text-white' : 'hover:text-white'}`}>{isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}<span className="text-[10px] font-medium tracking-wide">{isMobileMenuOpen ? 'Close' : 'Menu'}</span></button>
+             <button onClick={openProfileModal} className="p-1 -mr-1 hover:text-white transition-colors flex flex-col items-center gap-1">{currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} className="w-7 h-7 rounded-full border border-slate-600 object-cover" alt="Profile" /> : <UserCircle size={28} />}<span className="text-[10px] font-medium tracking-wide">Profile</span></button>
           </div>
         </div>
       </div>
 
-      {/* MODALS */}
-
-      {/* TASK MODAL */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-blue-600">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <CheckCircle className="text-blue-600" size={20} />
-                {currentTask.id ? 'Edit Task' : 'New Task'}
-              </h3>
-              <button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-            </div>
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0"><h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><CheckCircle className="text-blue-600" size={20} />{currentTask.id ? 'Edit Task' : 'New Task'}</h3><button onClick={() => setIsTaskModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button></div>
             <div className="overflow-y-auto flex-1 p-6">
               <form id="taskForm" onSubmit={handleSaveTask} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Task Title</label>
-                  <input required type="text" value={currentTask.title} onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="What needs to be done?" />
-                </div>
-                
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Task Title</label><input required type="text" value={currentTask.title} onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="What needs to be done?" /></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
-                    <select value={currentTask.assigneeId} onChange={(e) => setCurrentTask({...currentTask, assigneeId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                      <option value="">Unassigned</option>
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
-                    <input type="date" value={currentTask.dueDate} onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Assignee</label><select value={currentTask.assigneeId} onChange={(e) => setCurrentTask({...currentTask, assigneeId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"><option value="">Unassigned</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label><input type="date" value={currentTask.dueDate} onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select value={currentTask.status} onChange={(e) => setCurrentTask({...currentTask, status: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                      <option value="todo">To Do</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="done">Done</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Points (Weight)</label>
-                    <input type="number" min="1" max="100" value={currentTask.weight} onChange={(e) => setCurrentTask({...currentTask, weight: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Status</label><select value={currentTask.status} onChange={(e) => setCurrentTask({...currentTask, status: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"><option value="todo">To Do</option><option value="in-progress">In Progress</option><option value="done">Done</option></select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Points (Weight)</label><input type="number" min="1" max="100" value={currentTask.weight} onChange={(e) => setCurrentTask({...currentTask, weight: parseInt(e.target.value) || 1})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Tags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableTags.map(tag => (
-                      <button key={tag} type="button" onClick={() => {
-                        const newTags = currentTask.tags.includes(tag) ? currentTask.tags.filter(t => t !== tag) : [...currentTask.tags, tag];
-                        setCurrentTask({...currentTask, tags: newTags});
-                      }} className={`px-2 py-1 rounded border text-xs font-semibold transition-colors ${currentTask.tags.includes(tag) ? tagStyles[tag] : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
+                  <div className="flex flex-wrap gap-2">{availableTags.map(tag => (<button key={tag} type="button" onClick={() => setCurrentTask({...currentTask, tags: currentTask.tags.includes(tag) ? currentTask.tags.filter(t => t !== tag) : [...currentTask.tags, tag]})} className={`px-2 py-1 rounded border text-xs font-semibold transition-colors ${currentTask.tags.includes(tag) ? tagStyles[tag] : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{tag}</button>))}</div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                  <textarea rows="4" value={currentTask.description} onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add more details about this task..." />
-                </div>
-
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Description</label><textarea rows="4" value={currentTask.description} onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add more details about this task..." /></div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Attachments</label>
                   <div className="space-y-3">
-                    <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {isUploading ? (
-                          <RefreshCw className="w-6 h-6 text-blue-500 mb-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-6 h-6 text-slate-400 mb-2" />
-                        )}
-                        <p className="text-sm text-slate-500">
-                           {isUploading ? <span className="font-semibold text-blue-600">Uploading to server...</span> : <><span className="font-semibold">Click to upload</span> or drag and drop</>}
-                        </p>
-                      </div>
-                      <input type="file" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} />
-                    </label>
-                    
+                    <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}><div className="flex flex-col items-center justify-center pt-5 pb-6">{isUploading ? <RefreshCw className="w-6 h-6 text-blue-500 mb-2 animate-spin" /> : <Upload className="w-6 h-6 text-slate-400 mb-2" />}<p className="text-sm text-slate-500">{isUploading ? <span className="font-semibold text-blue-600">Uploading to server...</span> : <><span className="font-semibold">Click to upload</span> or drag and drop</>}</p></div><input type="file" className="hidden" multiple onChange={handleFileUpload} disabled={isUploading} /></label>
                     {currentTask.files && currentTask.files.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {currentTask.files.map((file, index) => (
-                          <div key={index} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-slate-50 aspect-video flex items-center justify-center">
-                            {file.url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.url.startsWith('data:image') ? (
-                              <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="flex flex-col items-center p-2 text-center">
-                                <FileText size={24} className="text-slate-400 mb-1" />
-                                <span className="text-[10px] text-slate-500 truncate w-full">{file.name}</span>
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                               <a href={file.url} target="_blank" rel="noopener noreferrer" download={file.name} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a>
-                               <button type="button" onClick={() => removeFile(index)} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{currentTask.files.map((file, index) => (<div key={index} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-slate-50 aspect-video flex items-center justify-center">{file.url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.url.startsWith('data:image') ? <img src={file.url} alt={file.name} className="w-full h-full object-cover" /> : <div className="flex flex-col items-center p-2 text-center"><FileText size={24} className="text-slate-400 mb-1" /><span className="text-[10px] text-slate-500 truncate w-full">{file.name}</span></div>}<div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2"><a href={file.url} target="_blank" rel="noopener noreferrer" download={file.name} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a><button type="button" onClick={() => removeFile(index)} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button></div></div>))}</div>
                     )}
                   </div>
                 </div>
-
-                {/* COMPLETED TASK BANNER */}
                 {currentTask.status === 'done' && currentTask.completedAt && (
-                   <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
-                      <CheckCircle className="text-emerald-500 flex-shrink-0 mt-0.5" size={20} />
-                      <div>
-                         <h4 className="font-bold text-emerald-800 text-sm">Task Completed</h4>
-                         <p className="text-emerald-600 text-xs mt-1">
-                            Marked complete on {new Date(currentTask.completedAt).toLocaleString()}
-                            {currentTask.completedBy && users.find(u => u.id === currentTask.completedBy) && (
-                               <> by <span className="font-semibold">{users.find(u => u.id === currentTask.completedBy).name}</span></>
-                            )}
-                         </p>
-                      </div>
-                   </div>
+                   <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3"><CheckCircle className="text-emerald-500 flex-shrink-0 mt-0.5" size={20} /><div><h4 className="font-bold text-emerald-800 text-sm">Task Completed</h4><p className="text-emerald-600 text-xs mt-1">Marked complete on {new Date(currentTask.completedAt).toLocaleString()} {currentTask.completedBy && users.find(u => u.id === currentTask.completedBy) && <> by <span className="font-semibold">{users.find(u => u.id === currentTask.completedBy).name}</span></>}</p></div></div>
                 )}
-
-                {/* COMMENTS SECTION */}
                 <div className="pt-6 mt-6 border-t border-slate-100">
-                  <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><MessageSquare size={16} className="text-blue-500"/> Comments</h4>
-                  
-                  {/* Existing Comments List */}
+                  <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><MessageSquare size={16} className="text-blue-500"/> Discussion</h4>
                   <div className="space-y-4 mb-4 max-h-60 overflow-y-auto pr-2">
-                    {currentTask.comments && currentTask.comments.length > 0 ? (
-                      currentTask.comments.map((comment) => {
+                    {currentTask.comments && currentTask.comments.length > 0 ? currentTask.comments.map((comment) => {
                         const commentUser = getUser(comment.userId);
-                        return (
-                          <div key={comment.id} className="flex gap-3">
-                            {commentUser?.avatarUrl ? (
-                              <img src={commentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white" />
-                            ) : (
-                              <UserCircle size={32} className="text-slate-400 flex-shrink-0" />
-                            )}
-                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="text-xs font-bold text-slate-700">{commentUser?.name || 'Unknown User'}</span>
-                                <span className="text-[10px] text-slate-400">{new Date(comment.timestamp).toLocaleString()}</span>
-                              </div>
-                              <p className="text-sm text-slate-600 whitespace-pre-wrap">{comment.text}</p>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-sm text-slate-400 italic text-center p-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">No comments yet. Start the discussion!</div>
-                    )}
+                        return (<div key={comment.id} className="flex gap-3">{commentUser?.avatarUrl ? <img src={commentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white" /> : <UserCircle size={32} className="text-slate-400 flex-shrink-0" />}<div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-100"><div className="flex justify-between items-start mb-1"><span className="text-xs font-bold text-slate-700">{commentUser?.name || 'Unknown User'}</span><span className="text-[10px] text-slate-400">{new Date(comment.timestamp).toLocaleString()}</span></div><p className="text-sm text-slate-600 whitespace-pre-wrap">{comment.text}</p></div></div>);
+                    }) : <div className="text-sm text-slate-400 italic text-center p-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">No comments yet. Start the discussion!</div>}
                   </div>
-
-                  {/* Add New Comment */}
                   <div className="flex gap-3">
-                     {currentUser?.avatarUrl ? (
-                        <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white border border-slate-200" />
-                      ) : (
-                        <UserCircle size={32} className="text-slate-400 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 flex flex-col items-end gap-2">
-                        <textarea
-                          rows="2"
-                          value={newCommentText}
-                          onChange={(e) => setNewCommentText(e.target.value)}
-                          placeholder="Ask a question or post an update..."
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddComment}
-                          disabled={!newCommentText.trim() || !currentTask.id}
-                          className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${!newCommentText.trim() || !currentTask.id ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-                        >
-                          {currentTask.id ? 'Post Comment' : 'Save task to comment'}
-                        </button>
-                      </div>
+                     {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white border border-slate-200" /> : <UserCircle size={32} className="text-slate-400 flex-shrink-0" />}
+                     <div className="flex-1 flex flex-col items-end gap-2"><textarea rows="2" value={newCommentText} onChange={(e) => setNewCommentText(e.target.value)} placeholder="Ask a question or post an update..." className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" /><button type="button" onClick={handleAddComment} disabled={!newCommentText.trim() || !currentTask.id} className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${!newCommentText.trim() || !currentTask.id ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>{currentTask.id ? 'Post Comment' : 'Save task to comment'}</button></div>
                   </div>
                 </div>
-
               </form>
             </div>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
@@ -2664,84 +2179,25 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-600">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Receipt className="text-emerald-600" size={20} />
-                {currentExpense.id ? 'Edit Expense' : 'Add New Expense'}
-              </h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Receipt className="text-emerald-600" size={20} />{currentExpense.id ? 'Edit Expense' : 'Add New Expense'}</h3>
               <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6">
               <form id="expenseForm" onSubmit={handleSaveExpense} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label>
-                  <input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Adobe Creative Cloud" />
-                </div>
-                
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Expense Name</label><input required type="text" value={currentExpense.name} onChange={(e) => setCurrentExpense({...currentExpense, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g., Adobe Creative Cloud" /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                    <select required value={currentExpense.companyId} onChange={(e) => setCurrentExpense({...currentExpense, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                      <option value="" disabled>Select a company</option>
-                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-                    <select value={currentExpense.category} onChange={(e) => setCurrentExpense({...currentExpense, category: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                      {expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                    </select>
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Company</label><select required value={currentExpense.companyId} onChange={(e) => setCurrentExpense({...currentExpense, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"><option value="" disabled>Select a company</option>{visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Category</label><select value={currentExpense.category} onChange={(e) => setCurrentExpense({...currentExpense, category: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">{expenseCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
-                      <input required type="number" step="0.01" min="0" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select value={currentExpense.cycle} onChange={(e) => setCurrentExpense({...currentExpense, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                      <option value="monthly">Monthly</option>
-                      <option value="annual">Annual</option>
-                      <option value="one-time">One-Time</option>
-                    </select>
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Amount ($)</label><div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div><input required type="number" step="0.01" min="0" value={currentExpense.amount} onChange={(e) => setCurrentExpense({...currentExpense, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0.00" /></div></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label><select value={currentExpense.cycle} onChange={(e) => setCurrentExpense({...currentExpense, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"><option value="monthly">Monthly</option><option value="annual">Annual</option><option value="one-time">One-Time</option></select></div>
                 </div>
-
                 <div>
-                  <div className="flex justify-between items-center mb-1">
-                      <label className="block text-sm font-medium text-slate-700">Next Renewal Date</label>
-                      {currentExpense.cycle !== 'one-time' && (
-                          <label className="flex items-center gap-2 cursor-pointer">
-                              <span className="text-xs font-semibold text-slate-500">Auto-Renew:</span>
-                              <button type="button" onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})} className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}>
-                                  {currentExpense.autoRenew ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                              </button>
-                          </label>
-                      )}
-                  </div>
-                  {currentExpense.cycle === 'monthly' ? (
-                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        Renews every month on day: 
-                        <input type="number" min="1" max="31" placeholder="DD" value={currentExpense.renewalDate ? currentExpense.renewalDate.replace(/\D/g,'') : ''} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: `Day ${e.target.value}`})} className="w-16 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                     </div>
-                  ) : currentExpense.cycle === 'annual' ? (
-                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        Renews every year on: 
-                        <input type="text" placeholder="e.g. Mar 15" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                     </div>
-                  ) : (
-                     <input type="date" value={currentExpense.renewalDate} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                  )}
+                  <div className="flex justify-between items-center mb-1"><label className="block text-sm font-medium text-slate-700">Next Renewal Date</label>{currentExpense.cycle !== 'one-time' && (<label className="flex items-center gap-2 cursor-pointer"><span className="text-xs font-semibold text-slate-500">Auto-Renew:</span><button type="button" onClick={() => setCurrentExpense({...currentExpense, autoRenew: !currentExpense.autoRenew})} className={`${currentExpense.autoRenew ? 'text-emerald-500' : 'text-slate-300'} transition-colors`}>{currentExpense.autoRenew ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}</button></label>)}</div>
+                  {currentExpense.cycle === 'monthly' ? <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">Renews every month on day: <input type="number" min="1" max="31" placeholder="DD" value={currentExpense.renewalDate ? currentExpense.renewalDate.replace(/\D/g,'') : ''} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: `Day ${e.target.value}`})} className="w-16 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div> : currentExpense.cycle === 'annual' ? <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">Renews every year on: <input type="text" placeholder="e.g. Mar 15" value={currentExpense.renewalDate || ''} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500" /></div> : <input type="date" value={currentExpense.renewalDate || ''} onChange={(e) => setCurrentExpense({...currentExpense, renewalDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-                  <textarea rows="2" value={currentExpense.notes || ''} onChange={(e) => setCurrentExpense({...currentExpense, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Optional details..." />
-                </div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Notes</label><textarea rows="2" value={currentExpense.notes || ''} onChange={(e) => setCurrentExpense({...currentExpense, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Optional details..." /></div>
               </form>
             </div>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
@@ -2758,76 +2214,25 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-teal-500">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <Globe className="text-teal-500" size={20} />
-                {currentDomain.id ? 'Edit Domain' : 'Add New Domain'}
-              </h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Globe className="text-teal-500" size={20} />{currentDomain.id ? 'Edit Domain' : 'Add New Domain'}</h3>
               <button onClick={() => setIsDomainModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6">
               <form id="domainForm" onSubmit={handleSaveDomain} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label>
-                  <input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., example.com" />
-                </div>
-                
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Domain URL</label><input required type="text" value={currentDomain.name} onChange={(e) => setCurrentDomain({...currentDomain, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., example.com" /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                    <select required value={currentDomain.companyId} onChange={(e) => setCurrentDomain({...currentDomain, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
-                      <option value="" disabled>Select a company</option>
-                      {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label>
-                    <select value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-                      <option value="annual">Annual</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Company</label><select required value={currentDomain.companyId} onChange={(e) => setCurrentDomain({...currentDomain, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50"><option value="" disabled>Select a company</option>{visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Billing Cycle</label><select value={currentDomain.cycle} onChange={(e) => setCurrentDomain({...currentDomain, cycle: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"><option value="annual">Annual</option><option value="monthly">Monthly</option></select></div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div>
-                      <input required type="number" step="0.01" min="0" value={currentDomain.amount} onChange={(e) => setCurrentDomain({...currentDomain, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="15.99" />
-                    </div>
-                  </div>
-                  <div>
-                     <div className="flex justify-between items-center mb-1">
-                        <label className="block text-sm font-medium text-slate-700">Auto-Renew</label>
-                     </div>
-                     <div className="flex items-center h-[42px]">
-                         <button type="button" onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})} className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}>
-                             {currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                         </button>
-                         <span className="ml-2 text-sm font-bold text-slate-600">{currentDomain.autoRenew ? 'ON' : 'OFF'}</span>
-                     </div>
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Cost ($)</label><div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={16} className="text-slate-400" /></div><input required type="number" step="0.01" min="0" value={currentDomain.amount} onChange={(e) => setCurrentDomain({...currentDomain, amount: e.target.value})} className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="15.99" /></div></div>
+                  <div><div className="flex justify-between items-center mb-1"><label className="block text-sm font-medium text-slate-700">Auto-Renew</label></div><div className="flex items-center h-[42px]"><button type="button" onClick={() => setCurrentDomain({...currentDomain, autoRenew: !currentDomain.autoRenew})} className={`${currentDomain.autoRenew ? 'text-teal-500' : 'text-slate-300'} transition-colors`}>{currentDomain.autoRenew ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button><span className="ml-2 text-sm font-bold text-slate-600">{currentDomain.autoRenew ? 'ON' : 'OFF'}</span></div></div>
                 </div>
-
                 <div>
                    <label className="block text-sm font-medium text-slate-700 mb-1">Renewal Date</label>
-                   {currentDomain.cycle === 'monthly' ? (
-                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        Renews every month on day: 
-                        <input type="number" min="1" max="31" placeholder="DD" value={currentDomain.renewalDate ? currentDomain.renewalDate.replace(/\D/g,'') : ''} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: `Day ${e.target.value}`})} className="w-16 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                     </div>
-                  ) : (
-                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        Renews every year on: 
-                        <input type="text" placeholder="e.g. Mar 15" value={currentDomain.renewalDate} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: e.target.value})} className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                     </div>
-                  )}
+                   {currentDomain.cycle === 'monthly' ? <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">Renews every month on day: <input type="number" min="1" max="31" placeholder="DD" value={currentDomain.renewalDate ? currentDomain.renewalDate.replace(/\D/g,'') : ''} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: `Day ${e.target.value}`})} className="w-16 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-teal-500" /></div> : <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">Renews every year on: <input type="text" placeholder="e.g. Mar 15" value={currentDomain.renewalDate || ''} onChange={(e) => setCurrentDomain({...currentDomain, renewalDate: e.target.value})} className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Where is it hosted?</label>
-                  <input type="text" value={currentDomain.notes || ''} onChange={(e) => setCurrentDomain({...currentDomain, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., GoDaddy, Namecheap..." />
-                </div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Where is it hosted?</label><input type="text" value={currentDomain.notes || ''} onChange={(e) => setCurrentDomain({...currentDomain, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., GoDaddy, Namecheap..." /></div>
               </form>
             </div>
             <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
@@ -2844,131 +2249,53 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-purple-600">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                <CalendarDays className="text-purple-600" size={20} />
-                {editingEvent.id ? 'Edit Event' : 'Add New Event'}
-              </h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><CalendarDays className="text-purple-600" size={20} />{editingEvent.id ? 'Edit Event' : 'Add New Event'}</h3>
               <button onClick={() => setIsEventModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-6">
               <form id="eventForm" onSubmit={handleSaveEvent} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Event Name</label>
-                  <input required type="text" value={editingEvent.title} onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., CES 2027" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                  <select required value={editingEvent.companyId} onChange={(e) => setEditingEvent({...editingEvent, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
-                    <option value="" disabled>Select a company</option>
-                    {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Event Name</label><input required type="text" value={editingEvent.title} onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., CES 2027" /></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Company</label><select required value={editingEvent.companyId} onChange={(e) => setEditingEvent({...editingEvent, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50"><option value="" disabled>Select a company</option>{visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-                    <input required type="date" value={editingEvent.eventDate} onChange={(e) => setEditingEvent({...editingEvent, eventDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Time <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-                    <input type="time" value={editingEvent.eventTime} onChange={(e) => setEditingEvent({...editingEvent, eventTime: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Date</label><input required type="date" value={editingEvent.eventDate} onChange={(e) => setEditingEvent({...editingEvent, eventDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Time <span className="text-xs text-slate-400 font-normal">(Optional)</span></label><input type="time" value={editingEvent.eventTime || ''} onChange={(e) => setEditingEvent({...editingEvent, eventTime: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" /></div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between mb-3">
-                        <div>
-                            <div className="text-sm font-bold text-slate-800">Estimated Cost / Expenses</div>
-                            <div className="text-[10px] text-slate-500">Auto-generates one-time expenses for your budget.</div>
-                        </div>
-                        <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); if (e.target.value === 'installments' && editingEvent.installments.length === 0) setEditingEvent({...editingEvent, installments: [{amount: '', date: ''}]}); }} className="text-xs border border-slate-300 rounded-md px-2 py-1 bg-slate-50 text-slate-700 focus:outline-none" disabled={!!editingEvent.expenseId}>
-                            <option value="single">Single Payment</option>
-                            <option value="installments">Multiple Installments</option>
-                        </select>
+                        <div><div className="text-sm font-bold text-slate-800">Estimated Cost / Expenses</div><div className="text-[10px] text-slate-500">Auto-generates one-time expenses for your budget.</div></div>
+                        <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); if (e.target.value === 'installments' && editingEvent.installments.length === 0) setEditingEvent({...editingEvent, installments: [{amount: '', date: ''}]}); }} className="text-xs border border-slate-300 rounded-md px-2 py-1 bg-slate-50 text-slate-700 focus:outline-none" disabled={!!editingEvent.expenseId}><option value="single">Single Payment</option><option value="installments">Multiple Installments</option></select>
                     </div>
-
                     {paymentMode === 'single' ? (
                         <div className="grid grid-cols-2 gap-4 animate-in fade-in">
-                            <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Amount ($)</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={14} className="text-slate-400" /></div>
-                                    <input type="number" step="0.01" min="0" value={editingEvent.cost} onChange={(e) => setEditingEvent({...editingEvent, cost: e.target.value})} className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0.00" disabled={!!editingEvent.expenseId} />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Billing Date</label>
-                                <input type="date" value={editingEvent.billingDate} onChange={(e) => setEditingEvent({...editingEvent, billingDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
-                            </div>
+                            <div><label className="block text-xs font-medium text-slate-500 mb-1">Amount ($)</label><div className="relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={14} className="text-slate-400" /></div><input type="number" step="0.01" min="0" value={editingEvent.cost} onChange={(e) => setEditingEvent({...editingEvent, cost: e.target.value})} className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0.00" disabled={!!editingEvent.expenseId} /></div></div>
+                            <div><label className="block text-xs font-medium text-slate-500 mb-1">Billing Date</label><input type="date" value={editingEvent.billingDate || ''} onChange={(e) => setEditingEvent({...editingEvent, billingDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" disabled={!!editingEvent.expenseId} /></div>
                         </div>
                     ) : (
                         <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200 animate-in fade-in">
                             {editingEvent.installments.map((inst, idx) => (
                                 <div key={idx} className="flex items-center gap-2">
-                                    <div className="relative flex-1">
-                                        <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none"><DollarSign size={12} className="text-slate-400" /></div>
-                                        <input type="number" required placeholder="Amount" value={inst.amount} onChange={(e) => {
-                                            const newInsts = [...editingEvent.installments];
-                                            newInsts[idx].amount = e.target.value;
-                                            setEditingEvent({...editingEvent, installments: newInsts});
-                                        }} className="w-full pl-6 pr-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
-                                    </div>
-                                    <input type="date" required value={inst.date} onChange={(e) => {
-                                        const newInsts = [...editingEvent.installments];
-                                        newInsts[idx].date = e.target.value;
-                                        setEditingEvent({...editingEvent, installments: newInsts});
-                                    }} className="flex-1 px-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
-                                    
-                                    {!editingEvent.expenseId && (
-                                        <button type="button" onClick={() => {
-                                            const newInsts = editingEvent.installments.filter((_, i) => i !== idx);
-                                            setEditingEvent({...editingEvent, installments: newInsts});
-                                        }} className="p-1.5 text-slate-400 hover:text-red-500"><X size={14}/></button>
-                                    )}
+                                    <div className="relative flex-1"><div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none"><DollarSign size={12} className="text-slate-400" /></div><input type="number" required placeholder="Amount" value={inst.amount} onChange={(e) => { const newInsts = [...editingEvent.installments]; newInsts[idx].amount = e.target.value; setEditingEvent({...editingEvent, installments: newInsts}); }} className="w-full pl-6 pr-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} /></div>
+                                    <input type="date" required value={inst.date} onChange={(e) => { const newInsts = [...editingEvent.installments]; newInsts[idx].date = e.target.value; setEditingEvent({...editingEvent, installments: newInsts}); }} className="flex-1 px-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                                    {!editingEvent.expenseId && <button type="button" onClick={() => { const newInsts = editingEvent.installments.filter((_, i) => i !== idx); setEditingEvent({...editingEvent, installments: newInsts}); }} className="p-1.5 text-slate-400 hover:text-red-500"><X size={14}/></button>}
                                 </div>
                             ))}
-                            {!editingEvent.expenseId && (
-                                <button type="button" onClick={() => setEditingEvent({...editingEvent, installments: [...editingEvent.installments, {amount: '', date: ''}]})} className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 mt-2">
-                                    <Plus size={12}/> Add Installment
-                                </button>
-                            )}
+                            {!editingEvent.expenseId && <button type="button" onClick={() => setEditingEvent({...editingEvent, installments: [...editingEvent.installments, {amount: '', date: ''}]})} className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 mt-2"><Plus size={12}/> Add Installment</button>}
                         </div>
                     )}
-
-                    {editingEvent.expenseId ? (
-                        <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1"><CheckCircle size={10}/> Expenses have been mapped to your Budget.</p>
-                    ) : (
-                        <p className="text-[10px] text-slate-400 mt-2 italic">Note: Changing the cost after saving will not update the generated expenses.</p>
-                    )}
+                    {editingEvent.expenseId ? <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1"><CheckCircle size={10}/> Expenses have been mapped to your Budget.</p> : <p className="text-[10px] text-slate-400 mt-2 italic">Note: Changing the cost after saving will not update the generated expenses.</p>}
                 </div>
 
                 <div className="pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between mb-3">
-                        <div>
-                            <div className="text-sm font-bold text-slate-800">Auto-Generate Prep Project</div>
-                            <div className="text-[10px] text-slate-500">Automatically creates a project for your team to start planning.</div>
-                        </div>
-                        <button type="button" onClick={() => {
-                                if (editingEvent.projectId) { alert("A project has already been generated for this event. You cannot turn this off."); return; }
-                                setEditingEvent({...editingEvent, autoProject: !editingEvent.autoProject});
-                            }} className={`${editingEvent.autoProject ? 'text-purple-600' : 'text-slate-300'} transition-colors`}>
-                            {editingEvent.autoProject ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}
-                        </button>
+                        <div><div className="text-sm font-bold text-slate-800">Auto-Generate Prep Project</div><div className="text-[10px] text-slate-500">Automatically creates a project for your team to start planning.</div></div>
+                        <button type="button" onClick={() => { if (editingEvent.projectId) { alert("A project has already been generated for this event. You cannot turn this off."); return; } setEditingEvent({...editingEvent, autoProject: !editingEvent.autoProject}); }} className={`${editingEvent.autoProject ? 'text-purple-600' : 'text-slate-300'} transition-colors`}>{editingEvent.autoProject ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
                     </div>
-
                     {editingEvent.autoProject && !editingEvent.projectId && (
                         <div className="flex items-center gap-2 bg-purple-50 p-3 rounded-lg border border-purple-100 animate-in fade-in slide-in-from-top-2">
                             <span className="text-sm font-medium text-purple-800 flex-shrink-0">Create</span>
-                            {editingEvent.projectLeadUnit !== 'now' && (
-                                <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                            )}
-                            <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800">
-                                <option value="now">Immediately</option>
-                                <option value="days">Days before event</option>
-                                <option value="weeks">Weeks before event</option>
-                                <option value="months">Months before event</option>
-                                <option value="years">Years before event</option>
-                            </select>
+                            {editingEvent.projectLeadUnit !== 'now' && <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />}
+                            <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800"><option value="now">Immediately</option><option value="days">Days before event</option><option value="weeks">Weeks before event</option><option value="months">Months before event</option><option value="years">Years before event</option></select>
                         </div>
                     )}
                     {editingEvent.projectId && (
@@ -3057,8 +2384,6 @@ export default function App() {
       {isTeamModalOpen && currentUser?.isAdmin && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden">
-            
-            {/* Left Sidebar: User List */}
             <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
               <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
@@ -3077,7 +2402,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Right Pane: Edit Form */}
             <div className="flex-1 flex flex-col bg-white relative">
               <button onClick={() => setIsTeamModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10"><X size={20}/></button>
               
@@ -3111,13 +2435,13 @@ export default function App() {
                   <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
                   
                   <div className="space-y-3">
-                    <div className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${editingTeamMember.isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                      <div>
+                    <button type="button" onClick={() => setEditingTeamMember({...editingTeamMember, isAdmin: !editingTeamMember.isAdmin})} className={`w-full flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${editingTeamMember.isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                      <div className="text-left">
                         <div className="font-bold text-slate-800 flex items-center gap-2"><Shield size={16} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-400'}/> Master Admin</div>
                         <div className="text-xs text-slate-500 mt-1">Can see all companies, all apps, and manage team members.</div>
                       </div>
-                      <button type="button" onClick={() => setEditingTeamMember({...editingTeamMember, isAdmin: !editingTeamMember.isAdmin})} className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-300'}>{editingTeamMember.isAdmin ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
-                    </div>
+                      <div className={editingTeamMember.isAdmin ? 'text-amber-500' : 'text-slate-300'}>{editingTeamMember.isAdmin ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</div>
+                    </button>
 
                     <div className={`space-y-3 transition-opacity ${editingTeamMember.isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
                       <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
@@ -3177,7 +2501,160 @@ export default function App() {
           </div>
         </div>
       )}
+      
+      {/* COMPANY MODAL */}
+      {isCompanyModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">{editingCompany.id ? 'Edit Company' : 'Add New Company'}</h3>
+              <button onClick={() => setIsCompanyModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form id="companyForm" onSubmit={handleSaveCompany} className="p-6 overflow-y-auto space-y-5">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  {editingCompany.logoUrl ? (
+                    <img src={editingCompany.logoUrl} className="w-20 h-20 rounded-xl object-cover border border-slate-200 shadow-sm bg-white" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 shadow-sm flex items-center justify-center"><Building2 size={32} className="text-slate-400" /></div>
+                  )}
+                  <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Logo">
+                    <Camera size={14} />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleCompanyLogoUpload} disabled={isUploading} />
+                  </label>
+                </div>
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
+                <input required type="text" value={editingCompany.name} onChange={(e) => setEditingCompany({...editingCompany, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Acme Corp" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Team Members Access</label>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                  {users.map(u => (
+                    <label key={u.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-md cursor-pointer transition-colors">
+                      <input type="checkbox" checked={editingCompany.userIds.includes(u.id)} onChange={() => toggleCompanyUser(u.id)} className="w-4 h-4 accent-blue-600 rounded" />
+                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-6 h-6 rounded-full object-cover bg-white" /> : <UserCircle size={24} className="text-slate-400" />}
+                      <span className="text-sm font-medium text-slate-700">{u.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </form>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              {editingCompany.id && <button type="button" onClick={() => handleDeleteCompany(editingCompany.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+              <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
+              <button type="submit" form="companyForm" disabled={isUploading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingCompany.id ? 'Save Changes' : 'Add Company'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROJECT MODAL */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">{editingProject.id ? 'Edit Project' : 'New Project'}</h3>
+              <button onClick={() => setIsProjectModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form id="projectForm" onSubmit={handleSaveProject} className="p-6 overflow-y-auto space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Project Name</label>
+                <input required type="text" value={editingProject.name} onChange={(e) => setEditingProject({...editingProject, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Website Redesign" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+                <select required value={editingProject.companyId} onChange={(e) => setEditingProject({...editingProject, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="" disabled>Select a company</option>
+                  {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Project Color</label>
+                <div className="flex flex-wrap gap-3">
+                  {availableColors.map(color => (
+                    <button key={color} type="button" onClick={() => setEditingProject({...editingProject, color})} className={`w-8 h-8 rounded-full transition-transform ${colorStyles[color].bar} ${editingProject.color === color ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : 'hover:scale-110'}`} aria-label={color} />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Project Icon</label>
+                <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50">
+                  {availableIcons.map(iconName => (
+                    <button key={iconName} type="button" onClick={() => setEditingProject({...editingProject, icon: iconName})} className={`p-2 rounded-lg flex items-center justify-center transition-colors ${editingProject.icon === iconName ? 'bg-blue-100 text-blue-600 border border-blue-200' : 'bg-white text-slate-500 border border-transparent hover:border-slate-300 hover:bg-slate-100'}`}>
+                      <DynamicIcon name={iconName} size={20} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </form>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              {editingProject.id && (
+                editingProject.isArchived 
+                  ? <button type="button" onClick={() => handlePermanentDeleteProject(editingProject.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete Forever</button>
+                  : <button type="button" onClick={() => handleArchiveProject(editingProject)} className="px-4 py-2 text-amber-600 hover:bg-amber-50 rounded-lg font-medium mr-auto">Archive</button>
+              )}
+              <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
+              <button type="submit" form="projectForm" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">{editingProject.id ? 'Save Changes' : 'Create Project'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROFILE MODAL */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-800">My Profile</h3>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            <form id="profileForm" onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-5">
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  {profileForm.avatarUrl ? (
+                    <img src={profileForm.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>
+                  )}
+                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
+                    <Camera size={16} />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isUploading} />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input required type="text" value={profileForm.name} onChange={(e) => setProfileForm({...profileForm, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> New Password</label>
+                <input type="password" value={profileForm.password} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Leave blank to keep current password" />
+              </div>
+            </form>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3">
+              <button type="button" onClick={() => { setLoggedInUserId(null); setIsProfileModalOpen(false); }} className="px-4 py-2 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-lg font-medium flex items-center gap-2 transition-colors"><LogOut size={16}/> Log Out</button>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium">Cancel</button>
+                <button type="submit" form="profileForm" disabled={isUploading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Profile</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
