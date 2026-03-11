@@ -162,7 +162,10 @@ export default function App() {
         if(data.tasks) setTasks(data.tasks.map(t => ({ ...t, tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [] })));
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
-        if(data.activity_logs) setActivityLogs(data.activity_logs);
+        
+        // Failsafe state injector
+        if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
+        else setActivityLogs([]);
         
         if(data.youtube_channels) {
             setYoutubeChannels(data.youtube_channels);
@@ -204,7 +207,8 @@ export default function App() {
       description: description,
       timestamp: new Date().toISOString()
     };
-    setActivityLogs(prev => [newLog, ...prev]);
+    // Safe prev injector to guarantee array formatting
+    setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
     sendToAPI('save_log', newLog);
   };
 

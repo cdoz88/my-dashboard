@@ -1,20 +1,30 @@
 import React from 'react';
 import { Activity, LayoutDashboard, CheckCircle, Users, CalendarDays, UserCircle, Clock } from 'lucide-react';
 
-export default function ActivityLogView({ activityLogs, users, activeActivityTab }) {
+export default function ActivityLogView({ activityLogs = [], users = [], activeActivityTab = 'overview' }) {
+   // Ensure it's always an array to prevent mapping crashes
+   const safeLogs = Array.isArray(activityLogs) ? activityLogs : [];
+
    const filteredLogs = activeActivityTab === 'overview' 
-      ? activityLogs 
-      : activityLogs.filter(log => log.actionCategory.toLowerCase() === activeActivityTab.toLowerCase());
+      ? safeLogs 
+      : safeLogs.filter(log => {
+          if (!log) return false;
+          // Safely check the category with fallbacks
+          const category = log.actionCategory || '';
+          const targetTab = activeActivityTab || '';
+          return category.toLowerCase() === targetTab.toLowerCase();
+      });
 
    const getCategoryIcon = (category) => {
-       if (category === 'Projects') return <LayoutDashboard size={18} className="text-blue-500" />;
-       if (category === 'Tasks') return <CheckCircle size={18} className="text-emerald-500" />;
-       if (category === 'Team') return <Users size={18} className="text-amber-500" />;
-       if (category === 'Events') return <CalendarDays size={18} className="text-purple-500" />;
+       const cat = (category || '').toLowerCase();
+       if (cat === 'projects') return <LayoutDashboard size={18} className="text-blue-500" />;
+       if (cat === 'tasks') return <CheckCircle size={18} className="text-emerald-500" />;
+       if (cat === 'team') return <Users size={18} className="text-amber-500" />;
+       if (cat === 'events') return <CalendarDays size={18} className="text-purple-500" />;
        return <Activity size={18} className="text-slate-500" />;
    };
 
-   const getUser = (id) => users.find(u => u.id === id);
+   const getUser = (id) => users.find(u => u?.id === id);
 
    return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
@@ -29,24 +39,25 @@ export default function ActivityLogView({ activityLogs, users, activeActivityTab
              {filteredLogs.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                    {filteredLogs.map(log => {
+                       if (!log) return null; // Failsafe for empty array items
                        const user = getUser(log.userId);
                        return (
-                           <div key={log.id} className="p-4 sm:p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                           <div key={log.id || Math.random()} className="p-4 sm:p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
                                <div className="mt-1 flex-shrink-0 bg-slate-100 p-2.5 rounded-full border border-slate-200 shadow-sm">
                                    {getCategoryIcon(log.actionCategory)}
                                </div>
                                <div className="flex-1 min-w-0">
                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4 mb-1.5">
-                                       <span className="text-sm font-bold text-slate-800 truncate">{log.actionType}</span>
+                                       <span className="text-sm font-bold text-slate-800 truncate">{log.actionType || 'System Action'}</span>
                                        <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 flex-shrink-0">
-                                          <Clock size={12} /> {new Date(log.timestamp).toLocaleString()}
+                                          <Clock size={12} /> {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Just now'}
                                        </span>
                                    </div>
-                                   <p className="text-sm text-slate-600 mb-3">{log.description}</p>
+                                   <p className="text-sm text-slate-600 mb-3">{log.description || 'No details provided.'}</p>
                                    <div className="flex items-center gap-2">
-                                       {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" /> : <UserCircle size={20} className="text-slate-400" />}
+                                       {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={20} className="text-slate-400" />}
                                        <span className="text-xs font-semibold text-slate-600">{user?.name || 'System Auto-Action'}</span>
-                                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-slate-100 rounded text-slate-500 font-bold ml-2 border border-slate-200">{log.actionCategory}</span>
+                                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-slate-100 rounded text-slate-500 font-bold ml-2 border border-slate-200">{log.actionCategory || 'System'}</span>
                                    </div>
                                </div>
                            </div>
