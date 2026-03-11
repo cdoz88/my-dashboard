@@ -1,7 +1,17 @@
 import React from 'react';
 import { Activity, LayoutDashboard, CheckCircle, Users, CalendarDays, UserCircle, Clock } from 'lucide-react';
+import { colorStyles } from '../../utils/constants';
+import DynamicIcon from '../shared/DynamicIcon';
 
-export default function ActivityLogView({ activityLogs = [], users = [], activeActivityTab = 'overview' }) {
+export default function ActivityLogView({ 
+    activityLogs = [], 
+    users = [], 
+    activeActivityTab = 'overview',
+    tasks = [],
+    projects = [],
+    setCurrentApp,
+    setActiveTab
+}) {
    const safeLogs = Array.isArray(activityLogs) ? activityLogs : [];
    const safeUsers = Array.isArray(users) ? users : [];
 
@@ -44,11 +54,32 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
                        if (!log) return null;
                        const user = getUser(log.userId);
                        
+                       // Force UTC parsing so it converts to local time flawlessly
                        let displayDate = 'Just now';
                        if (log.timestamp) {
                            try {
-                               displayDate = new Date(log.timestamp).toLocaleString();
+                               let dateStr = log.timestamp;
+                               if (!dateStr.includes('T') && !dateStr.includes('Z')) {
+                                   dateStr = dateStr.replace(' ', 'T') + 'Z';
+                               }
+                               displayDate = new Date(dateStr).toLocaleString(undefined, {
+                                   year: 'numeric', month: 'short', day: 'numeric', 
+                                   hour: 'numeric', minute: '2-digit'
+                               });
                            } catch(e) {}
+                       }
+
+                       // Dynamic Project Matcher for Tasks
+                       let associatedProject = null;
+                       if (log.actionCategory === 'Tasks' && log.description) {
+                           const match = log.description.match(/"([^"]+)"/);
+                           if (match && match[1]) {
+                               const taskTitle = match[1];
+                               const task = tasks.find(t => t.title === taskTitle);
+                               if (task) {
+                                   associatedProject = projects.find(p => p.id === task.projectId);
+                               }
+                           }
                        }
 
                        return (
@@ -60,6 +91,19 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
                                    <div className="flex flex-col flex-1 min-w-0">
                                        <span className="text-sm font-bold text-slate-800 truncate">{log.actionType || 'System Action'}</span>
                                        <span className="text-sm text-slate-600 truncate">{log.description || 'No details provided.'}</span>
+                                       
+                                       {associatedProject && (
+                                           <button
+                                              onClick={() => {
+                                                  setCurrentApp('projects');
+                                                  setActiveTab(associatedProject.id);
+                                              }}
+                                              className={`mt-2 flex items-center gap-1.5 w-fit px-2 py-1 rounded border text-[10px] font-bold shadow-sm transition-transform hover:scale-105 ${colorStyles[associatedProject.color]?.bg} ${colorStyles[associatedProject.color]?.border} ${colorStyles[associatedProject.color]?.text}`}
+                                           >
+                                               <DynamicIcon name={associatedProject.icon} size={12} />
+                                               {associatedProject.name}
+                                           </button>
+                                       )}
                                    </div>
                                    <div className="flex items-center gap-2 sm:w-48 flex-shrink-0 mt-1 sm:mt-0">
                                        {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={18} className="text-slate-400" />}

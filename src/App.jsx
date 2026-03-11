@@ -163,7 +163,6 @@ export default function App() {
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
         
-        // Failsafe state injector
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
         
@@ -207,7 +206,6 @@ export default function App() {
       description: description,
       timestamp: new Date().toISOString()
     };
-    // Safe prev injector to guarantee array formatting
     setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
     sendToAPI('save_log', newLog);
   };
@@ -926,7 +924,7 @@ export default function App() {
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} />
             ) : currentApp === 'activity' ? (
-              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} />
+              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={tasks} projects={projects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             ) : (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             )}
