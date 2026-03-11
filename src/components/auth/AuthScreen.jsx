@@ -26,6 +26,8 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
         canViewSpreaker: isFirstUser, 
         canViewYoutube: isFirstUser,
         phone: '',
+        title: '',
+        venmo: '',
         avatarUrl: '' 
       };
       const localUser = { ...newUser };

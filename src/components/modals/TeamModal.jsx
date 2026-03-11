@@ -1,8 +1,9 @@
 import React from 'react';
 import { X, Users, Plus, UserCircle, Shield, Camera, Key, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube } from 'lucide-react';
+import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
-  users, editingTeamMember, setEditingTeamMember, handleSaveTeamMember,
+  users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember,
   handleTeamMemberImageUpload, isUploading, setIsTeamModalOpen
 }) {
   return (
@@ -11,11 +12,14 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, companyIds: [] })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
-              <button key={u.id} onClick={() => setEditingTeamMember({...u, password: ''})} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}>
+              <button key={u.id} onClick={() => {
+                  const userCompanyIds = companies.filter(c => c.userIds?.includes(u.id)).map(c => c.id);
+                  setEditingTeamMember({...u, password: '', companyIds: userCompanyIds});
+              }} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}>
                 {u.avatarUrl ? <img src={u.avatarUrl} className="w-8 h-8 rounded-full object-cover bg-white" alt="Avatar" /> : <UserCircle size={32} className="text-slate-400" />}
                 <div className="overflow-hidden">
                   <div className="font-semibold text-sm text-slate-800 truncate flex items-center gap-1">{u.name} {u.isAdmin && <Shield size={12} className="text-amber-500" title="Admin"/>}</div>
@@ -54,13 +58,39 @@ export default function TeamModal({
                   <input type="tel" value={editingTeamMember.phone || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="(555) 555-5555" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Title / Role</label>
+                  <input type="text" value={editingTeamMember.title || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lead Designer" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Venmo Username</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">@</span>
+                    <input type="text" value={editingTeamMember.venmo || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, venmo: e.target.value.replace('@', '')})} className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="username" />
+                  </div>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}</label>
                   <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
+              <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Team Assignments</h3>
+              <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50 mb-8">
+                 {companies.map(c => (
+                   <label key={c.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-md cursor-pointer transition-colors">
+                     <input type="checkbox" checked={editingTeamMember.companyIds?.includes(c.id) || false} onChange={(e) => {
+                        const newIds = e.target.checked 
+                           ? [...(editingTeamMember.companyIds || []), c.id]
+                           : (editingTeamMember.companyIds || []).filter(id => id !== c.id);
+                        setEditingTeamMember({...editingTeamMember, companyIds: newIds});
+                     }} className="w-4 h-4 accent-blue-600 rounded" />
+                     <CompanyLogo company={c} sizeClass="w-5 h-5" />
+                     <span className="text-sm font-medium text-slate-700">{c.name}</span>
+                   </label>
+                 ))}
+              </div>
+
               <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
-              
               <div className="space-y-3">
                 <button type="button" onClick={() => setEditingTeamMember({...editingTeamMember, isAdmin: !editingTeamMember.isAdmin})} className={`w-full flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-colors ${editingTeamMember.isAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                   <div className="text-left">

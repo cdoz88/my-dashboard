@@ -77,7 +77,7 @@ export default function App() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', password: '', avatarUrl: '' });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', title: '', venmo: '', password: '', avatarUrl: '' });
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
@@ -135,6 +135,8 @@ export default function App() {
                canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
                canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
                phone: u.phone || '',
+               title: u.title || '',
+               venmo: u.venmo || '',
            })));
         }
         if(data.companies) setCompanies(data.companies);
@@ -166,7 +168,6 @@ export default function App() {
     const pendingSpAuth = localStorage.getItem('pendingSpAuth');
     const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
 
-    // Gracefully handle OAuth errors returned in the URL
     if (error && (pendingYtName || pendingSpAuth)) {
         alert("Authorization failed: " + (errorDesc ? errorDesc.replace(/\+/g, ' ') : error));
         localStorage.removeItem('pendingYtName');
@@ -674,7 +675,7 @@ export default function App() {
     
     localStorage.setItem('pendingSpAuth', 'true');
 
-    // REVERTED to scope=basic based on Spreaker's strict requirements!
+    // ONLY the "basic" scope works for Spreaker!
     const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
     setIsSpreakerModalOpen(false);
@@ -693,14 +694,14 @@ export default function App() {
 
   const openProfileModal = () => {
     if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', password: '', avatarUrl: currentUser.avatarUrl });
+      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', password: '', avatarUrl: currentUser.avatarUrl });
       setIsProfileModalOpen(true);
     }
   };
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, password: profileForm.password, avatarUrl: profileForm.avatarUrl };
+    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, password: profileForm.password, avatarUrl: profileForm.avatarUrl };
     const localUser = { ...updatedUser };
     delete localUser.password;
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
@@ -715,8 +716,22 @@ export default function App() {
     if (!userToSave.id) userToSave.id = 'u' + Date.now();
     const localUser = { ...userToSave };
     delete localUser.password; 
+
     if (users.find(u => u.id === userToSave.id)) setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
     else setUsers([...users, localUser]);
+
+    // Apply the assigned companies instantly to the UI
+    if (editingTeamMember.companyIds !== undefined) {
+        const newCompanies = companies.map(c => {
+           const hasUser = editingTeamMember.companyIds.includes(c.id);
+           const userIds = c.userIds || [];
+           if (hasUser && !userIds.includes(userToSave.id)) return { ...c, userIds: [...userIds, userToSave.id] };
+           if (!hasUser && userIds.includes(userToSave.id)) return { ...c, userIds: userIds.filter(id => id !== userToSave.id) };
+           return c;
+        });
+        setCompanies(newCompanies);
+    }
+
     sendToAPI('save_user', userToSave);
     setEditingTeamMember(null);
   };
@@ -845,10 +860,10 @@ export default function App() {
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
-      {isTeamModalOpen && <TeamModal users={users} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} />}
+      {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} />}
       {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
       {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
-      {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} setEditingSpreakerShow={setEditingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
+      {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
       {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} />}
     </>
   );

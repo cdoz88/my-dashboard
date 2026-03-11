@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Circle, Shield, UserCircle, X, Contact, Phone } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Circle, Shield, UserCircle, X, Contact, Phone, Briefcase, DollarSign } from 'lucide-react';
 
 export default function TeamDirectoryView({ users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, companies, visibleCompanies, activeTeamTab }) {
   const [selectedUserForOnboarding, setSelectedUserForOnboarding] = useState(null);
@@ -65,7 +65,7 @@ export default function TeamDirectoryView({ users, currentUser, handleUpdateUser
             <Contact className="text-indigo-600" size={28} />
             {currentCompany ? `${currentCompany.name} Directory` : 'Team Directory'}
           </h2>
-          <p className="text-slate-500 text-sm mt-1">Contact info and onboarding status for {currentCompany ? 'this company' : 'all team members'}.</p>
+          <p className="text-slate-500 text-sm mt-1">Contact info and roles for {currentCompany ? 'this company' : 'all team members'}.</p>
         </div>
         {currentUser?.isAdmin && (
           <button 
@@ -94,7 +94,7 @@ export default function TeamDirectoryView({ users, currentUser, handleUpdateUser
 
           return (
             <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-slate-100 flex items-start gap-4">
+              <div className="p-5 flex items-start gap-4">
                 {user.avatarUrl ? ( 
                   <img src={user.avatarUrl} alt={user.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm bg-slate-100 flex-shrink-0" /> 
                 ) : ( 
@@ -107,43 +107,60 @@ export default function TeamDirectoryView({ users, currentUser, handleUpdateUser
                     {user.name}
                     {user.isAdmin && <Shield size={14} className="text-amber-500 flex-shrink-0" title="Admin" />}
                   </h3>
-                  <a href={`mailto:${user.email}`} className="text-sm text-indigo-600 hover:underline flex items-center gap-1.5 mt-0.5 truncate">
-                    <Mail size={14} className="flex-shrink-0" />
-                    {user.email}
-                  </a>
-                  {user.phone && (
-                    <a href={`tel:${user.phone}`} className="text-sm text-slate-500 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-0.5 truncate">
-                      <Phone size={14} className="flex-shrink-0" />
-                      {user.phone}
-                    </a>
+                  
+                  {user.title && (
+                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1 truncate">
+                      {user.title}
+                    </div>
                   )}
+
+                  <div className="mt-3 space-y-1.5">
+                      <a href={`mailto:${user.email}`} className="text-sm text-indigo-600 hover:underline flex items-center gap-2 truncate">
+                        <Mail size={14} className="flex-shrink-0" />
+                        {user.email}
+                      </a>
+                      {user.phone && (
+                        <a href={`tel:${user.phone}`} className="text-sm text-slate-500 hover:text-indigo-600 hover:underline flex items-center gap-2 truncate">
+                          <Phone size={14} className="flex-shrink-0" />
+                          {user.phone}
+                        </a>
+                      )}
+                      {user.venmo && (
+                        <div className="text-sm text-slate-500 flex items-center gap-2 truncate">
+                          <DollarSign size={14} className="flex-shrink-0 text-emerald-500 bg-emerald-50 rounded-full p-0.5" />
+                          <span className="font-medium text-slate-700">@{user.venmo}</span>
+                        </div>
+                      )}
+                  </div>
                 </div>
               </div>
               
-              <div className="p-5 bg-slate-50/50 flex-1 flex flex-col justify-between">
-                <div>
-                    <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Onboarding Status</h4>
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${isFullyOnboarded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {isFullyOnboarded ? 'Onboarded' : `${completedCount}/${totalCount} Complete`}
-                        </span>
+              {currentUser?.isAdmin && (
+                  <div className="p-5 bg-slate-50/50 border-t border-slate-100 flex-1 flex flex-col justify-end">
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Onboarding Status</h4>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${isFullyOnboarded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {isFullyOnboarded ? 'Onboarded' : `${completedCount}/${totalCount} Complete`}
+                            </span>
+                        </div>
+                        
+                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-4">
+                            <div 
+                                className={`h-full transition-all duration-500 ${isFullyOnboarded ? 'bg-emerald-500' : 'bg-amber-500'}`} 
+                                style={{ width: `${progressPercent}%` }} 
+                            />
+                        </div>
                     </div>
-                    
-                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-4">
-                        <div 
-                            className={`h-full transition-all duration-500 ${isFullyOnboarded ? 'bg-emerald-500' : 'bg-amber-500'}`} 
-                            style={{ width: `${progressPercent}%` }} 
-                        />
-                    </div>
-                </div>
 
-                <button 
-                    onClick={() => setSelectedUserForOnboarding(user)}
-                    className="w-full py-2 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-lg transition-colors border border-slate-200 mt-2 shadow-sm"
-                >
-                    View Checklist
-                </button>
-              </div>
+                    <button 
+                        onClick={() => setSelectedUserForOnboarding(user)}
+                        className="w-full py-2 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-lg transition-colors border border-slate-200 mt-2 shadow-sm"
+                    >
+                        View Checklist
+                    </button>
+                  </div>
+              )}
             </div>
           )
         })}
