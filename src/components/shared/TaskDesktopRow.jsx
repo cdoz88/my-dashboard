@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star } from 'lucide-react';
+import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, GripVertical } from 'lucide-react';
 import { isOverdue, formatDate } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
 import TagDisplay from './TagDisplay';
@@ -7,16 +7,29 @@ import CompanyLogo from './CompanyLogo';
 import DynamicIcon from './DynamicIcon';
 import { UserCircle } from 'lucide-react';
 
-export default function TaskDesktopRow({ task, showProject = true, projects, companies, users, handleToggleTaskStatus, openTaskModal, handleDeleteTask }) {
+export default function TaskDesktopRow({ 
+  task, showProject = true, projects, companies, users, 
+  handleToggleTaskStatus, openTaskModal, handleDeleteTask,
+  draggable = false, onDragStart, onDragOver, onDragEnd, isDragged
+}) {
   const project = projects?.find(p => p.id === task.projectId);
   const company = project ? companies?.find(c => c.id === project.companyId) : null;
   const assignee = users?.find(u => u.id === task.assigneeId);
   const taskIsOverdue = isOverdue(task.dueDate, task.status);
   
   return (
-    <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors group">
-      <td className="p-4 cursor-pointer w-12 pr-1" onClick={() => handleToggleTaskStatus(task)}>
-        {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
+    <tr 
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      className={`border-b border-slate-100 transition-colors group ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    >
+      <td className="p-4 w-16 pr-1 flex items-center h-full pt-6">
+        {draggable && <GripVertical size={16} className="text-slate-300 mr-2 flex-shrink-0" />}
+        <button onClick={() => handleToggleTaskStatus(task)} className="cursor-pointer flex-shrink-0">
+          {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
+        </button>
       </td>
       <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
       <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>

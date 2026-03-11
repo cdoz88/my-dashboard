@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Shield } from 'lucide-react';
 import { availableColors, colorStyles, availableIcons } from '../../utils/constants';
 import DynamicIcon from '../shared/DynamicIcon';
 
@@ -26,6 +26,16 @@ export default function ProjectModal({
               <option value="" disabled>Select a company</option>
               {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+          </div>
+
+          <div>
+             <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors">
+               <div className="text-left">
+                   <div className="font-medium text-slate-700 flex items-center gap-2"><Shield size={16} className="text-amber-500"/> Admin Only Project</div>
+                   <div className="text-xs text-slate-500 mt-0.5">Only Master Admins can view this project and its tasks.</div>
+               </div>
+               <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded cursor-pointer" checked={editingProject.adminOnly || false} onChange={(e) => setEditingProject({...editingProject, adminOnly: e.target.checked})} />
+             </label>
           </div>
 
           <div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star } from 'lucide-react';
+import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, GripVertical } from 'lucide-react';
 import { isOverdue, formatDate } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
 import TagDisplay from './TagDisplay';
@@ -7,15 +7,26 @@ import CompanyLogo from './CompanyLogo';
 import DynamicIcon from './DynamicIcon';
 import { UserCircle } from 'lucide-react';
 
-export default function TaskMobileCard({ task, showProject = true, projects, companies, users, handleToggleTaskStatus, openTaskModal, handleDeleteTask }) {
+export default function TaskMobileCard({ 
+  task, showProject = true, projects, companies, users, 
+  handleToggleTaskStatus, openTaskModal, handleDeleteTask,
+  draggable = false, onDragStart, onDragOver, onDragEnd, isDragged
+}) {
   const project = projects?.find(p => p.id === task.projectId);
   const company = project ? companies?.find(c => c.id === project.companyId) : null;
   const assignee = users?.find(u => u.id === task.assigneeId);
   const taskIsOverdue = isOverdue(task.dueDate, task.status);
 
   return (
-    <div className="p-4 hover:bg-slate-50 transition-colors group border-b border-slate-100 last:border-b-0">
+    <div 
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      className={`p-4 transition-colors group border-b border-slate-100 last:border-b-0 ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    >
       <div className="flex items-start gap-2.5 mb-2">
+        {draggable && <GripVertical size={16} className="text-slate-300 mt-0.5 flex-shrink-0" />}
         <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>
             {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
         </button>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, Plus } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress, isOverdue, formatDate } from '../../utils/helpers';
@@ -11,16 +11,49 @@ import TagDisplay from '../shared/TagDisplay';
 export default function ProjectView({ 
   projectId, projects, tasks, companies, users, 
   projectDisplayMode, handleToggleTaskStatus, openTaskModal, 
-  handleDeleteTask, handleDragStart, handleDrop, handleDragOver 
+  handleDeleteTask, handleDragStart, handleDrop, handleDragOver, handleReorderTasks 
 }) {
   const projectTasks = tasks.filter(t => t.projectId === projectId);
-  const activeProjectTasks = projectTasks.filter(t => t.status !== 'done').sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+  
+  // Sort active tasks using their new custom sortOrder, falling back to 0
+  const activeProjectTasks = projectTasks.filter(t => t.status !== 'done').sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const completedProjectTasks = projectTasks.filter(t => t.status === 'done').sort((a,b) => new Date(b.dueDate) - new Date(a.dueDate));
   
   const currentProject = projects.find(p => p.id === projectId);
   const currentCompany = currentProject ? companies.find(c => c.id === currentProject.companyId) : null;
   const progress = calculateProjectProgress(projectId, tasks);
   const getUser = (id) => users.find(u => u.id === id);
+
+  // Drag and Drop Local State
+  const [localTasks, setLocalTasks] = useState([]);
+  const [draggedTaskIndex, setDraggedTaskIndex] = useState(null);
+
+  useEffect(() => {
+     setLocalTasks(activeProjectTasks);
+  }, [tasks, projectId]);
+
+  const handleListDragStart = (e, index) => {
+     setDraggedTaskIndex(index);
+     e.dataTransfer.effectAllowed = 'move';
+     e.dataTransfer.setData('text/html', '');
+  };
+
+  const handleListDragOver = (e, index) => {
+     e.preventDefault();
+     if (draggedTaskIndex === null || draggedTaskIndex === index) return;
+     const newList = [...localTasks];
+     const draggedItem = newList[draggedTaskIndex];
+     newList.splice(draggedTaskIndex, 1);
+     newList.splice(index, 0, draggedItem);
+     setDraggedTaskIndex(index);
+     setLocalTasks(newList);
+  };
+
+  const handleListDragEnd = () => {
+     setDraggedTaskIndex(null);
+     const updated = localTasks.map((t, i) => ({ ...t, sortOrder: i }));
+     handleReorderTasks(updated);
+  };
 
   return (
     <div className="p-4 sm:p-8 h-full flex flex-col w-full">
@@ -51,11 +84,12 @@ export default function ProjectView({
           <div className="h-full overflow-y-auto pr-1 pb-8">
              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
                <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                  {activeProjectTasks.length > 0 
-                    ? activeProjectTasks.map(t => (
+                  {localTasks.length > 0 
+                    ? localTasks.map((t, i) => (
                         <TaskMobileCard 
                           key={t.id} task={t} showProject={false} users={users}
                           handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask}
+                          draggable={true} onDragStart={(e) => handleListDragStart(e, i)} onDragOver={(e) => handleListDragOver(e, i)} onDragEnd={handleListDragEnd} isDragged={draggedTaskIndex === i}
                         />
                       )) 
                     : <div className="p-8 text-center text-slate-500 text-sm">No active tasks in this project.</div>
@@ -65,15 +99,16 @@ export default function ProjectView({
                  <table className="w-full text-left min-w-[600px]">
                    <thead>
                      <tr className="bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-500">
-                       <th className="p-4 w-12 pr-1"></th><th className="py-4 px-2 w-8"></th><th className="p-4">Task Name</th><th className="p-4">Assignee</th><th className="p-4">Due Date</th>
+                       <th className="p-4 w-16 pr-1"></th><th className="py-4 px-2 w-8"></th><th className="p-4">Task Name</th><th className="p-4">Assignee</th><th className="p-4">Due Date</th>
                      </tr>
                    </thead>
                    <tbody>
-                     {activeProjectTasks.length > 0 
-                        ? activeProjectTasks.map(t => (
+                     {localTasks.length > 0 
+                        ? localTasks.map((t, i) => (
                             <TaskDesktopRow 
                               key={t.id} task={t} showProject={false} users={users}
                               handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask}
+                              draggable={true} onDragStart={(e) => handleListDragStart(e, i)} onDragOver={(e) => handleListDragOver(e, i)} onDragEnd={handleListDragEnd} isDragged={draggedTaskIndex === i}
                             />
                           )) 
                         : (<tr><td colSpan="5" className="p-8 text-center text-slate-500">No active tasks in this project.</td></tr>)
@@ -125,7 +160,7 @@ export default function ProjectView({
                   <span className="bg-slate-200 text-slate-600 text-xs py-0.5 px-2 rounded-full font-medium">{projectTasks.filter(t => t.status === status).length}</span>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                  {projectTasks.filter(t => t.status === status).map(task => {
+                  {projectTasks.filter(t => t.status === status).sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map(task => {
                     const assignee = getUser(task.assigneeId);
                     const taskIsOverdue = isOverdue(task.dueDate, task.status);
                     return (

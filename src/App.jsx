@@ -78,7 +78,7 @@ export default function App() {
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState({ id: null, name: '', logoUrl: '', userIds: [] });
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false });
+  const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false, adminOnly: false });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', title: '', venmo: '', password: '', avatarUrl: '' });
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
@@ -108,6 +108,10 @@ export default function App() {
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
+
+  // Admin-Only Project Filtering System
+  const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
+  const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
 
   useEffect(() => {
     if (currentUser) localStorage.setItem('loggedInUserId', currentUser.id);
@@ -158,8 +162,19 @@ export default function App() {
         }
 
         if(data.companies) setCompanies(data.companies);
-        if(data.projects) setProjects(data.projects);
-        if(data.tasks) setTasks(data.tasks.map(t => ({ ...t, tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [] })));
+        
+        if(data.projects) setProjects(data.projects.map(p => ({ 
+            ...p, 
+            isArchived: p.isArchived == 1 || p.isArchived === true, 
+            adminOnly: p.adminOnly == 1 || p.adminOnly === true 
+        })));
+        
+        if(data.tasks) setTasks(data.tasks.map(t => ({ 
+            ...t, 
+            tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [],
+            sortOrder: parseInt(t.sortOrder) || 0
+        })));
+        
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
         
@@ -213,6 +228,14 @@ export default function App() {
   const handleSaveGlobalChecklist = (newList) => {
     setGlobalChecklist(newList);
     sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
+  };
+
+  const handleReorderTasks = (reorderedTasks) => {
+    setTasks(prev => {
+        const map = new Map(reorderedTasks.map(t => [t.id, t]));
+        return prev.map(t => map.has(t.id) ? map.get(t.id) : t);
+    });
+    reorderedTasks.forEach(t => sendToAPI('save_task', t));
   };
 
   useEffect(() => {
@@ -644,8 +667,8 @@ export default function App() {
   };
 
   const openProjectModal = (companyId = '', projectToEdit = null) => {
-    if (projectToEdit) setEditingProject({ ...projectToEdit, isArchived: projectToEdit.isArchived == 1 || projectToEdit.isArchived === true });
-    else setEditingProject({ id: null, name: '', companyId: companyId || companies[0]?.id || '', icon: 'FolderKanban', color: 'slate', isArchived: false });
+    if (projectToEdit) setEditingProject({ ...projectToEdit, isArchived: projectToEdit.isArchived == 1 || projectToEdit.isArchived === true, adminOnly: projectToEdit.adminOnly == 1 || projectToEdit.adminOnly === true });
+    else setEditingProject({ id: null, name: '', companyId: companyId || companies[0]?.id || '', icon: 'FolderKanban', color: 'slate', isArchived: false, adminOnly: false });
     setIsProjectModalOpen(true);
   };
 
@@ -851,7 +874,7 @@ export default function App() {
   const handleDragStart = (e, taskId) => e.dataTransfer.setData('taskId', taskId);
   const handleDrop = (e, newStatus) => {
      const taskId = e.dataTransfer.getData('taskId');
-     const task = tasks.find(t => t.id === taskId);
+     const task = visibleTasks.find(t => t.id === taskId);
      if(task && task.status !== newStatus) {
         logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
         const updatedTask = { ...task, status: newStatus, completedAt: newStatus === 'done' ? new Date().toISOString() : null, completedBy: newStatus === 'done' ? currentUser.id : null };
@@ -883,7 +906,7 @@ export default function App() {
           <Sidebar 
              currentApp={currentApp} setCurrentApp={setCurrentApp} activeTab={activeTab} setActiveTab={setActiveTab}
              isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} currentUser={currentUser}
-             users={users} companies={companies} visibleCompanies={visibleCompanies} projects={projects} tasks={tasks} events={events}
+             users={users} companies={companies} visibleCompanies={visibleCompanies} projects={visibleProjects} tasks={visibleTasks} events={events}
              youtubeChannels={youtubeChannels} spreakerShows={spreakerShows} activeBudgetTab={activeBudgetTab} setActiveBudgetTab={setActiveBudgetTab}
              activeDomainTab={activeDomainTab} setActiveDomainTab={setActiveDomainTab} activeEventTab={activeEventTab} setActiveEventTab={setActiveEventTab}
              activeYoutubeChannelId={activeYoutubeChannelId} setActiveYoutubeChannelId={setActiveYoutubeChannelId}
@@ -909,10 +932,10 @@ export default function App() {
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
-              activeTab === 'mytasks' ? <DashboardView tasks={tasks} currentUser={currentUser} projects={projects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
-              activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={tasks} projects={projects} /> : 
-              activeTab === 'archived' ? <ArchivedProjectsView projects={projects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
-              <ProjectView projectId={activeTab} projects={projects} tasks={tasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} />
+              activeTab === 'mytasks' ? <DashboardView tasks={visibleTasks} currentUser={currentUser} projects={visibleProjects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
+              activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={visibleTasks} projects={visibleProjects} /> : 
+              activeTab === 'archived' ? <ArchivedProjectsView projects={visibleProjects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
+              <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} />
             ) : currentApp === 'budget' ? (
               <BudgetDashboard expenses={expenses} activeBudgetTab={activeBudgetTab} budgetDisplayMode={budgetDisplayMode} expenseSortConfig={expenseSortConfig} setExpenseSortConfig={setExpenseSortConfig} openExpenseModal={openExpenseModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />
             ) : currentApp === 'domains' ? (
@@ -924,7 +947,7 @@ export default function App() {
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} />
             ) : currentApp === 'activity' ? (
-              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={tasks} projects={projects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
+              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             ) : (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             )}

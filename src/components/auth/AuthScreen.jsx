@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import { API_URL } from '../../utils/constants';
 
@@ -6,29 +6,26 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  
+  const isFirstUser = users.length === 0;
 
   const handleAuth = async (e) => {
     e.preventDefault();
-    if (isRegistering) {
+    if (isFirstUser) {
       if (!name.trim() || !email.trim() || !password.trim()) return;
-      const isFirstUser = users.length === 0;
       const newUser = { 
         id: 'u' + Date.now(), 
         name, 
         email: email.toLowerCase(), 
         password, 
-        isAdmin: isFirstUser, 
+        isAdmin: true, 
         canViewProjects: true, 
-        canViewBudget: isFirstUser, 
-        canViewDomains: isFirstUser, 
-        canViewEvents: isFirstUser, 
-        canViewSpreaker: isFirstUser, 
-        canViewYoutube: isFirstUser,
-        phone: '',
-        title: '',
-        venmo: '',
-        avatarUrl: '' 
+        canViewBudget: true, 
+        canViewDomains: true, 
+        canViewEvents: true, 
+        canViewSpreaker: true, 
+        canViewYoutube: true,
+        phone: '', title: '', venmo: '', avatarUrl: '' 
       };
       const localUser = { ...newUser };
       delete localUser.password;
@@ -36,8 +33,6 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
       setLoggedInUserId(localUser.id);
       await sendToAPI('save_user', newUser);
     } else {
-      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (!existingUser) { setIsRegistering(true); return; }
       try {
         const response = await fetch(`${API_URL}?action=login`, { 
           method: 'POST', 
@@ -64,9 +59,11 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
           <LayoutDashboard size={32} className="text-white" />
         </div>
         <h1 className="text-2xl font-black text-slate-800 text-center mb-2">Control Room</h1>
-        <p className="text-slate-500 text-center mb-8">{isRegistering ? "It looks like you're new! Let's get you set up." : "Enter your credentials to sign in."}</p>
+        <p className="text-slate-500 text-center mb-8">
+            {isFirstUser ? "Welcome! Create your Master Admin account to set up the workspace." : "Enter your credentials to sign in."}
+        </p>
         <form onSubmit={handleAuth} className="space-y-4">
-          {isRegistering && (
+          {isFirstUser && (
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
               <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="John Doe" />
@@ -74,15 +71,16 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
           )}
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="you@company.com" disabled={isRegistering && email !== ''} />
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="you@company.com" />
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all" placeholder="••••••••" />
           </div>
-          <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">{isRegistering ? 'Create Account' : 'Sign In'}</button>
+          <button type="submit" className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-colors mt-4">
+              {isFirstUser ? 'Create Workspace' : 'Sign In'}
+          </button>
         </form>
-        {isRegistering && <button onClick={() => setIsRegistering(false)} className="w-full mt-4 text-sm text-slate-500 hover:text-slate-700 font-medium">Back to Sign In</button>}
       </div>
     </div>
   );
