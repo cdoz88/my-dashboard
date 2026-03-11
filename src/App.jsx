@@ -166,7 +166,6 @@ export default function App() {
     const pendingSpAuth = localStorage.getItem('pendingSpAuth');
     const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
 
-    // Gracefully handle OAuth errors returned in the URL
     if (error && (pendingYtName || pendingSpAuth)) {
         alert("Authorization failed: " + (errorDesc ? errorDesc.replace(/\+/g, ' ') : error));
         localStorage.removeItem('pendingYtName');
@@ -674,8 +673,8 @@ export default function App() {
     
     localStorage.setItem('pendingSpAuth', 'true');
 
-    // REVERTED to scope=basic based on Spreaker's developer API strict requirements!
-    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    // FIXED: Spreaker requires a COMMA to separate scopes, unlike Google's space formatting.
+    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic,stats&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
     setIsSpreakerModalOpen(false);
     window.location.href = authUrl; 
