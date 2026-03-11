@@ -266,8 +266,12 @@ export default function Sidebar({
         </button>
 
         <div className="flex items-center gap-1">
-          {currentUser?.isAdmin && <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions"><Users size={16} /></button>}
-          <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)"><UserCog size={16} /></button>
+          {currentUser?.isAdmin && (
+             <>
+               <button onClick={() => setIsTeamModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Manage Team Permissions"><Users size={16} /></button>
+               <button onClick={() => setIsSwitchUserModalOpen(true)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Switch User (Test Mode)"><UserCog size={16} /></button>
+             </>
+          )}
         </div>
       </div>
     </div>

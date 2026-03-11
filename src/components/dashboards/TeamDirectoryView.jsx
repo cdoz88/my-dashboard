@@ -1,19 +1,8 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Circle, Shield, UserCircle, X, Contact, Phone, Briefcase, DollarSign } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Circle, Shield, UserCircle, X, Contact, Phone, DollarSign } from 'lucide-react';
 
-export default function TeamDirectoryView({ users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, companies, visibleCompanies, activeTeamTab }) {
+export default function TeamDirectoryView({ users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, companies, visibleCompanies, activeTeamTab, globalChecklist }) {
   const [selectedUserForOnboarding, setSelectedUserForOnboarding] = useState(null);
-
-  const getGlobalChecklist = () => {
-    const saved = localStorage.getItem('globalOnboardingChecklist');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', text: 'Company Email Address' },
-      { id: '2', text: 'Add to Google Chat' }
-    ];
-  };
-
-  const globalChecklist = getGlobalChecklist();
 
   const toggleChecklistItem = async (userId, itemId) => {
     const userToUpdate = users.find(u => u.id === userId);

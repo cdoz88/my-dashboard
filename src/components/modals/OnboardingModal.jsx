@@ -1,27 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
 
-export default function OnboardingModal({ setIsOnboardingModalOpen }) {
-  const [checklist, setChecklist] = useState([]);
+export default function OnboardingModal({ setIsOnboardingModalOpen, globalChecklist, handleSaveGlobalChecklist }) {
+  const [checklist, setChecklist] = useState(globalChecklist);
   const [newItemText, setNewItemText] = useState('');
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
 
-  // Load the initial list from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('globalOnboardingChecklist');
-    if (saved) {
-      setChecklist(JSON.parse(saved));
-    } else {
-      setChecklist([
-        { id: '1', text: 'Company Email Address' },
-        { id: '2', text: 'Add to Google Chat' }
-      ]);
-    }
-  }, []);
-
   const saveChecklist = (newList) => {
     setChecklist(newList);
-    localStorage.setItem('globalOnboardingChecklist', JSON.stringify(newList));
+    handleSaveGlobalChecklist(newList);
   };
 
   const handleAddItem = (e) => {
@@ -36,11 +23,9 @@ export default function OnboardingModal({ setIsOnboardingModalOpen }) {
     saveChecklist(checklist.filter(item => item.id !== id));
   };
 
-  // Simple Drag and Drop Reordering
   const handleDragStart = (e, index) => {
     setDraggedItemIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    // Required for Firefox
     e.dataTransfer.setData('text/html', ''); 
   };
 
@@ -51,18 +36,16 @@ export default function OnboardingModal({ setIsOnboardingModalOpen }) {
     const newList = [...checklist];
     const draggedItem = newList[draggedItemIndex];
     
-    // Remove the item from its original position
     newList.splice(draggedItemIndex, 1);
-    // Insert it at the new position
     newList.splice(index, 0, draggedItem);
     
     setDraggedItemIndex(index);
-    setChecklist(newList); // Update visually during drag
+    setChecklist(newList); 
   };
 
   const handleDragEnd = () => {
     setDraggedItemIndex(null);
-    saveChecklist(checklist); // Save to local storage when dropping finishes
+    saveChecklist(checklist); 
   };
 
   return (

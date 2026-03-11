@@ -53,6 +53,7 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [events, setEvents] = useState([]);
+  const [globalChecklist, setGlobalChecklist] = useState([]);
   
   // YouTube & Spreaker State
   const [youtubeChannels, setYoutubeChannels] = useState([]);
@@ -139,6 +140,20 @@ export default function App() {
                venmo: u.venmo || '',
            })));
         }
+        
+        // Checklist MIGRATION Logic
+        if (data.settings && data.settings.globalOnboardingChecklist) {
+            try { setGlobalChecklist(JSON.parse(data.settings.globalOnboardingChecklist)); } catch(e) {}
+        } else {
+            const localSaved = localStorage.getItem('globalOnboardingChecklist');
+            if (localSaved) {
+                try { setGlobalChecklist(JSON.parse(localSaved)); } catch(e) {}
+                fetch(`${API_URL}?action=save_setting`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key_name: 'globalOnboardingChecklist', setting_value: localSaved }) });
+            } else {
+                setGlobalChecklist([{ id: '1', text: 'Company Email Address' }, { id: '2', text: 'Add to Google Chat' }]);
+            }
+        }
+
         if(data.companies) setCompanies(data.companies);
         if(data.projects) setProjects(data.projects);
         if(data.tasks) setTasks(data.tasks.map(t => ({ ...t, tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [] })));
@@ -157,7 +172,11 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- OAUTH CALLBACK LISTENER ---
+  const handleSaveGlobalChecklist = (newList) => {
+    setGlobalChecklist(newList);
+    sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
+  };
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -180,7 +199,6 @@ export default function App() {
     if (code && pendingYtName) {
         setIsLoading(true);
         const pendingYtId = localStorage.getItem('pendingYtId');
-
         window.history.replaceState({path: redirectUri}, '', redirectUri);
 
         fetch(`${API_URL}?action=exchange_youtube_code`, {
@@ -190,9 +208,8 @@ export default function App() {
         })
         .then(res => res.json())
         .then(data => {
-            if (data.error) {
-                alert('Failed to connect YouTube: ' + data.error);
-            } else {
+            if (data.error) { alert('Failed to connect YouTube: ' + data.error); } 
+            else {
                 setCurrentApp('youtube');
                 fetch(`${API_URL}?action=get_all`).then(r => r.json()).then(freshData => {
                     if(freshData.youtube_channels) {
@@ -215,7 +232,6 @@ export default function App() {
 
     } else if (code && pendingSpAuth) {
         setIsLoading(true);
-        
         window.history.replaceState({path: redirectUri}, '', redirectUri);
 
         fetch(`${API_URL}?action=exchange_spreaker_code`, {
@@ -230,7 +246,6 @@ export default function App() {
                 setIsLoading(false);
             } else {
                 setCurrentApp('spreaker');
-                // Auto trigger a background sync so stats populate instantly!
                 fetch(`${API_URL}?action=sync_spreaker&days=30`)
                 .then(() => fetch(`${API_URL}?action=get_all`))
                 .then(r => r.json())
@@ -666,7 +681,6 @@ export default function App() {
     setIsSpreakerModalOpen(true);
   };
 
-  // --- GOOGLE OAUTH REDIRECT TRIGGER FOR SPREAKER ---
   const handleSaveSpreakerShow = (e) => {
     e.preventDefault();
     
@@ -675,7 +689,6 @@ export default function App() {
     
     localStorage.setItem('pendingSpAuth', 'true');
 
-    // ONLY the "basic" scope works for Spreaker!
     const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
     setIsSpreakerModalOpen(false);
@@ -720,7 +733,6 @@ export default function App() {
     if (users.find(u => u.id === userToSave.id)) setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
     else setUsers([...users, localUser]);
 
-    // Apply the assigned companies instantly to the UI
     if (editingTeamMember.companyIds !== undefined) {
         const newCompanies = companies.map(c => {
            const hasUser = editingTeamMember.companyIds.includes(c.id);
@@ -835,7 +847,7 @@ export default function App() {
             ) : currentApp === 'spreaker' ? (
               <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
             ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} />
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} />
             ) : (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             )}
@@ -864,7 +876,7 @@ export default function App() {
       {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
       {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
       {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
-      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} />}
+      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} />}
     </>
   );
 }
