@@ -155,12 +155,12 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- NEW GOOGLE & SPREAKER OAUTH CATCHER ---
+  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const pendingYtName = localStorage.getItem('pendingYtName');
-    const pendingSpName = localStorage.getItem('pendingSpName');
+    const pendingSpAuth = localStorage.getItem('pendingSpAuth');
 
     if (code && pendingYtName) {
         setIsLoading(true);
@@ -199,40 +199,41 @@ export default function App() {
             setIsLoading(false);
         });
 
-    } else if (code && pendingSpName) {
+    } else if (code && pendingSpAuth) {
         setIsLoading(true);
         const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
-        const pendingSpId = localStorage.getItem('pendingSpId');
-
+        
         window.history.replaceState({path: redirectUri}, '', redirectUri);
 
         fetch(`${API_URL}?action=exchange_spreaker_code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, redirect_uri: redirectUri, name: pendingSpName, id: pendingSpId })
+            body: JSON.stringify({ code, redirect_uri: redirectUri })
         })
         .then(res => res.json())
         .then(data => {
             if (data.error) {
                 alert('Failed to connect Spreaker: ' + data.error);
+                setIsLoading(false);
             } else {
                 setCurrentApp('spreaker');
-                fetch(`${API_URL}?action=get_all`).then(r => r.json()).then(freshData => {
+                // Auto trigger a background sync so stats populate instantly!
+                fetch(`${API_URL}?action=sync_spreaker&days=30`)
+                .then(() => fetch(`${API_URL}?action=get_all`))
+                .then(r => r.json())
+                .then(freshData => {
                     if(freshData.spreaker_shows) {
                         setSpreakerShows(freshData.spreaker_shows);
-                        if (pendingSpId) setActiveSpreakerShowId(pendingSpId);
-                        else if (freshData.spreaker_shows.length > 0) setActiveSpreakerShowId(freshData.spreaker_shows[freshData.spreaker_shows.length - 1].id);
+                        if (freshData.spreaker_shows.length > 0) setActiveSpreakerShowId(freshData.spreaker_shows[0].id);
                     }
+                    setIsLoading(false);
                 });
             }
-            localStorage.removeItem('pendingSpName');
-            localStorage.removeItem('pendingSpId');
-            setIsLoading(false);
+            localStorage.removeItem('pendingSpAuth');
         })
         .catch(err => {
             alert("Server error during Spreaker connection.");
-            localStorage.removeItem('pendingSpName');
-            localStorage.removeItem('pendingSpId');
+            localStorage.removeItem('pendingSpAuth');
             setIsLoading(false);
         });
     }
@@ -655,19 +656,11 @@ export default function App() {
   // --- NEW GOOGLE OAUTH REDIRECT TRIGGER FOR SPREAKER ---
   const handleSaveSpreakerShow = (e) => {
     e.preventDefault();
-    if (!editingSpreakerShow.name.trim()) { alert("Please provide a Show Name."); return; }
     
     const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
-    
     const clientId = '29162'; 
     
-    localStorage.setItem('pendingSpName', editingSpreakerShow.name);
-    if (editingSpreakerShow.id) {
-        localStorage.setItem('pendingSpId', editingSpreakerShow.id);
-    } else {
-        localStorage.removeItem('pendingSpId');
-    }
-    
+    localStorage.setItem('pendingSpAuth', 'true');
     const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
     setIsSpreakerModalOpen(false);
