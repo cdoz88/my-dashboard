@@ -16,6 +16,7 @@ import DashboardView from './components/dashboards/DashboardView';
 import ArchivedProjectsView from './components/dashboards/ArchivedProjectsView';
 import ProjectView from './components/dashboards/ProjectView';
 import TeamCapacityView from './components/dashboards/TeamCapacityView';
+import TeamDirectoryView from './components/dashboards/TeamDirectoryView';
 import BudgetDashboard from './components/dashboards/BudgetDashboard';
 import DomainsDashboard from './components/dashboards/DomainsDashboard';
 import EventsDashboard from './components/dashboards/EventsDashboard';
@@ -34,6 +35,7 @@ import SpreakerModal from './components/modals/SpreakerModal';
 import YoutubeModal from './components/modals/YoutubeModal';
 import TeamModal from './components/modals/TeamModal';
 import SwitchUserModal from './components/modals/SwitchUserModal';
+import OnboardingModal from './components/modals/OnboardingModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +87,7 @@ export default function App() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
   const [paymentMode, setPaymentMode] = useState('single');
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -180,8 +183,9 @@ export default function App() {
              if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
                  const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
                  let triggerDate = new Date(eventDateObj);
-                 if (event.projectLeadUnit === 'now') triggerDate = new Date(0);
-                 else {
+                 if (event.projectLeadUnit === 'now') {
+                     triggerDate = new Date(0);
+                 } else {
                      const leadTime = parseInt(event.projectLeadTime);
                      if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
                      if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
@@ -600,6 +604,11 @@ export default function App() {
     setEditingTeamMember(null);
   };
 
+  const handleUpdateUser = (updatedUser) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    sendToAPI('save_user', updatedUser);
+  };
+
   const handleCompanyLogoUpload = async (e) => {
     if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingCompany({ ...editingCompany, logoUrl: url }); setIsUploading(false); }
   };
@@ -682,6 +691,7 @@ export default function App() {
             {currentApp === 'projects' ? (
               activeTab === 'mytasks' ? <DashboardView tasks={tasks} currentUser={currentUser} projects={projects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
               activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={tasks} projects={projects} /> : 
+              activeTab === 'directory' ? <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} /> :
               activeTab === 'archived' ? <ArchivedProjectsView projects={projects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
               <ProjectView projectId={activeTab} projects={projects} tasks={tasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} />
             ) : currentApp === 'budget' ? (
@@ -720,6 +730,7 @@ export default function App() {
       {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
       {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
       {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} setEditingSpreakerShow={setEditingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
+      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} />}
     </>
   );
 }
