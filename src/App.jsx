@@ -159,12 +159,25 @@ export default function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const error = urlParams.get('error');
+    const errorDesc = urlParams.get('error_description');
+    
     const pendingYtName = localStorage.getItem('pendingYtName');
     const pendingSpAuth = localStorage.getItem('pendingSpAuth');
+    const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
+
+    // Gracefully handle OAuth errors returned in the URL
+    if (error && (pendingYtName || pendingSpAuth)) {
+        alert("Authorization failed: " + (errorDesc ? errorDesc.replace(/\+/g, ' ') : error));
+        localStorage.removeItem('pendingYtName');
+        localStorage.removeItem('pendingYtId');
+        localStorage.removeItem('pendingSpAuth');
+        window.history.replaceState({path: redirectUri}, '', redirectUri);
+        return;
+    }
 
     if (code && pendingYtName) {
         setIsLoading(true);
-        const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
         const pendingYtId = localStorage.getItem('pendingYtId');
 
         window.history.replaceState({path: redirectUri}, '', redirectUri);
@@ -201,7 +214,6 @@ export default function App() {
 
     } else if (code && pendingSpAuth) {
         setIsLoading(true);
-        const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
         
         window.history.replaceState({path: redirectUri}, '', redirectUri);
 
@@ -662,8 +674,8 @@ export default function App() {
     
     localStorage.setItem('pendingSpAuth', 'true');
 
-    // We explicitly ask for basic AND stats here so we can read the analytics correctly!
-    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic%20stats&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    // REVERTED to scope=basic based on Spreaker's developer API strict requirements!
+    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
     setIsSpreakerModalOpen(false);
     window.location.href = authUrl; 
