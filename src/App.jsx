@@ -83,7 +83,7 @@ export default function App() {
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
-  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '', refreshToken: '' });
+  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '' });
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
   const [paymentMode, setPaymentMode] = useState('single');
@@ -154,6 +154,59 @@ export default function App() {
       })
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
+
+  // --- NEW GOOGLE OAUTH CATCHER ---
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const pendingYtName = localStorage.getItem('pendingYtName');
+
+    if (code && pendingYtName) {
+        setIsLoading(true);
+        // Clean the URL out dynamically
+        const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        const pendingYtId = localStorage.getItem('pendingYtId');
+
+        // Erase code from browser bar so it doesn't try to re-process if they hit refresh
+        window.history.replaceState({path: redirectUri}, '', redirectUri);
+
+        fetch(`${API_URL}?action=exchange_youtube_code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                code, 
+                redirect_uri: redirectUri, 
+                name: pendingYtName, 
+                id: pendingYtId 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert('Failed to connect YouTube: ' + data.error);
+            } else {
+                setCurrentApp('youtube');
+                // Fetch the new channel gracefully
+                fetch(`${API_URL}?action=get_all`).then(r => r.json()).then(freshData => {
+                    if(freshData.youtube_channels) {
+                        setYoutubeChannels(freshData.youtube_channels);
+                        if (pendingYtId) setActiveYoutubeChannelId(pendingYtId);
+                        else if (freshData.youtube_channels.length > 0) setActiveYoutubeChannelId(freshData.youtube_channels[freshData.youtube_channels.length - 1].id);
+                    }
+                });
+            }
+            localStorage.removeItem('pendingYtName');
+            localStorage.removeItem('pendingYtId');
+            setIsLoading(false);
+        })
+        .catch(err => {
+            alert("Server error during YouTube connection.");
+            localStorage.removeItem('pendingYtName');
+            localStorage.removeItem('pendingYtId');
+            setIsLoading(false);
+        });
+    }
+  }, []); 
 
   useEffect(() => {
      if (events.length > 0 && currentUser?.isAdmin) {
@@ -527,19 +580,35 @@ export default function App() {
   };
 
   const openYoutubeModal = (channel = null) => {
-    if (channel) setEditingYoutubeChannel({ ...channel, refreshToken: channel.refreshToken || '' });
-    else setEditingYoutubeChannel({ id: null, name: '', refreshToken: '' });
+    if (channel) setEditingYoutubeChannel({ ...channel });
+    else setEditingYoutubeChannel({ id: null, name: '' });
     setIsYoutubeModalOpen(true);
   };
 
+  // --- NEW GOOGLE OAUTH REDIRECT TRIGGER ---
   const handleSaveYoutubeChannel = (e) => {
     e.preventDefault();
-    if (!editingYoutubeChannel.name.trim() || !editingYoutubeChannel.refreshToken?.trim()) { alert("Please provide both a Channel Name and a Refresh Token."); return; }
-    const channelData = editingYoutubeChannel.id ? editingYoutubeChannel : { ...editingYoutubeChannel, id: 'yt' + Date.now(), views: '0', watchTime: '0.0', subs: '0', revenue: '$0.00', realtimeViews: '0', realtimeSubs: '0', topVideos: '[]' };
-    if (editingYoutubeChannel.id) setYoutubeChannels(youtubeChannels.map(c => c.id === channelData.id ? channelData : c));
-    else { setYoutubeChannels([...youtubeChannels, channelData]); setActiveYoutubeChannelId(channelData.id); }
+    if (!editingYoutubeChannel.name.trim()) { alert("Please provide a Channel Name."); return; }
+    
+    // Dynamically grab the exact URL the user is currently on
+    const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    
+    // We hardcode the Client ID here since it's universally used across the app
+    const clientId = '985277958318-3ubsghnc9fj8010949mhskta84g2mds4.apps.googleusercontent.com';
+    const scope = encodeURIComponent('https://www.googleapis.com/auth/yt-analytics-monetary.readonly https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly');
+    
+    // Save state before bouncing away so we remember what we were doing when we get back
+    localStorage.setItem('pendingYtName', editingYoutubeChannel.name);
+    if (editingYoutubeChannel.id) {
+        localStorage.setItem('pendingYtId', editingYoutubeChannel.id);
+    } else {
+        localStorage.removeItem('pendingYtId');
+    }
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+    
     setIsYoutubeModalOpen(false);
-    sendToAPI('save_youtube_channel', channelData);
+    window.location.href = authUrl; // Bounce user to Google
   };
 
   const handleDeleteYoutubeChannel = (channelId) => {
