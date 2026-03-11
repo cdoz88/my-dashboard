@@ -64,7 +64,7 @@ export default function App() {
   
   // Modal states
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
-  const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '', apiToken: '' });
+  const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '' });
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], comments: [], assigneeId: '', tags: [], weight: 1, completedAt: null, completedBy: null });
   const [newCommentText, setNewCommentText] = useState('');
@@ -155,30 +155,24 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- NEW GOOGLE OAUTH CATCHER ---
+  // --- NEW GOOGLE & SPREAKER OAUTH CATCHER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const pendingYtName = localStorage.getItem('pendingYtName');
+    const pendingSpName = localStorage.getItem('pendingSpName');
 
     if (code && pendingYtName) {
         setIsLoading(true);
-        // Clean the URL out dynamically
         const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
         const pendingYtId = localStorage.getItem('pendingYtId');
 
-        // Erase code from browser bar so it doesn't try to re-process if they hit refresh
         window.history.replaceState({path: redirectUri}, '', redirectUri);
 
         fetch(`${API_URL}?action=exchange_youtube_code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                code, 
-                redirect_uri: redirectUri, 
-                name: pendingYtName, 
-                id: pendingYtId 
-            })
+            body: JSON.stringify({ code, redirect_uri: redirectUri, name: pendingYtName, id: pendingYtId })
         })
         .then(res => res.json())
         .then(data => {
@@ -186,7 +180,6 @@ export default function App() {
                 alert('Failed to connect YouTube: ' + data.error);
             } else {
                 setCurrentApp('youtube');
-                // Fetch the new channel gracefully
                 fetch(`${API_URL}?action=get_all`).then(r => r.json()).then(freshData => {
                     if(freshData.youtube_channels) {
                         setYoutubeChannels(freshData.youtube_channels);
@@ -203,6 +196,43 @@ export default function App() {
             alert("Server error during YouTube connection.");
             localStorage.removeItem('pendingYtName');
             localStorage.removeItem('pendingYtId');
+            setIsLoading(false);
+        });
+
+    } else if (code && pendingSpName) {
+        setIsLoading(true);
+        const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        const pendingSpId = localStorage.getItem('pendingSpId');
+
+        window.history.replaceState({path: redirectUri}, '', redirectUri);
+
+        fetch(`${API_URL}?action=exchange_spreaker_code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, redirect_uri: redirectUri, name: pendingSpName, id: pendingSpId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert('Failed to connect Spreaker: ' + data.error);
+            } else {
+                setCurrentApp('spreaker');
+                fetch(`${API_URL}?action=get_all`).then(r => r.json()).then(freshData => {
+                    if(freshData.spreaker_shows) {
+                        setSpreakerShows(freshData.spreaker_shows);
+                        if (pendingSpId) setActiveSpreakerShowId(pendingSpId);
+                        else if (freshData.spreaker_shows.length > 0) setActiveSpreakerShowId(freshData.spreaker_shows[freshData.spreaker_shows.length - 1].id);
+                    }
+                });
+            }
+            localStorage.removeItem('pendingSpName');
+            localStorage.removeItem('pendingSpId');
+            setIsLoading(false);
+        })
+        .catch(err => {
+            alert("Server error during Spreaker connection.");
+            localStorage.removeItem('pendingSpName');
+            localStorage.removeItem('pendingSpId');
             setIsLoading(false);
         });
     }
@@ -585,19 +615,14 @@ export default function App() {
     setIsYoutubeModalOpen(true);
   };
 
-  // --- NEW GOOGLE OAUTH REDIRECT TRIGGER ---
   const handleSaveYoutubeChannel = (e) => {
     e.preventDefault();
     if (!editingYoutubeChannel.name.trim()) { alert("Please provide a Channel Name."); return; }
     
-    // Dynamically grab the exact URL the user is currently on
     const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
-    
-    // We hardcode the Client ID here since it's universally used across the app
     const clientId = '985277958318-3ubsghnc9fj8010949mhskta84g2mds4.apps.googleusercontent.com';
     const scope = encodeURIComponent('https://www.googleapis.com/auth/yt-analytics-monetary.readonly https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly');
     
-    // Save state before bouncing away so we remember what we were doing when we get back
     localStorage.setItem('pendingYtName', editingYoutubeChannel.name);
     if (editingYoutubeChannel.id) {
         localStorage.setItem('pendingYtId', editingYoutubeChannel.id);
@@ -608,7 +633,7 @@ export default function App() {
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
     
     setIsYoutubeModalOpen(false);
-    window.location.href = authUrl; // Bounce user to Google
+    window.location.href = authUrl;
   };
 
   const handleDeleteYoutubeChannel = (channelId) => {
@@ -622,19 +647,31 @@ export default function App() {
   };
 
   const openSpreakerModal = (show = null) => {
-    if (show) setEditingSpreakerShow({ ...show, apiToken: show.apiToken || '' });
-    else setEditingSpreakerShow({ id: null, name: '', apiToken: '' });
+    if (show) setEditingSpreakerShow({ ...show });
+    else setEditingSpreakerShow({ id: null, name: '' });
     setIsSpreakerModalOpen(true);
   };
 
+  // --- NEW GOOGLE OAUTH REDIRECT TRIGGER FOR SPREAKER ---
   const handleSaveSpreakerShow = (e) => {
     e.preventDefault();
-    if (!editingSpreakerShow.name.trim() || !editingSpreakerShow.apiToken?.trim()) { alert("Please provide both a Show Name and a Developer Token."); return; }
-    const showData = editingSpreakerShow.id ? editingSpreakerShow : { ...editingSpreakerShow, id: 'sp' + Date.now(), plays: '0', downloads: '0', topGeo: 'N/A', topSource: 'N/A' };
-    if (editingSpreakerShow.id) setSpreakerShows(spreakerShows.map(c => c.id === showData.id ? showData : c));
-    else { setSpreakerShows([...spreakerShows, showData]); setActiveSpreakerShowId(showData.id); }
+    if (!editingSpreakerShow.name.trim()) { alert("Please provide a Show Name."); return; }
+    
+    const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    
+    const clientId = '29162'; 
+    
+    localStorage.setItem('pendingSpName', editingSpreakerShow.name);
+    if (editingSpreakerShow.id) {
+        localStorage.setItem('pendingSpId', editingSpreakerShow.id);
+    } else {
+        localStorage.removeItem('pendingSpId');
+    }
+    
+    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    
     setIsSpreakerModalOpen(false);
-    sendToAPI('save_spreaker_show', showData);
+    window.location.href = authUrl; // Bounce user to Spreaker
   };
 
   const handleDeleteSpreakerShow = (showId) => {
