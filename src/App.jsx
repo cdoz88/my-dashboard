@@ -77,7 +77,7 @@ export default function App() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: '', email: '', password: '', avatarUrl: '' });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', password: '', avatarUrl: '' });
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
@@ -116,6 +116,7 @@ export default function App() {
       if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
       if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('projects');
       if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('projects');
+      if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
 
@@ -132,6 +133,8 @@ export default function App() {
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
                canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
                canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
+               canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
+               phone: u.phone || '',
            })));
         }
         if(data.companies) setCompanies(data.companies);
@@ -577,14 +580,14 @@ export default function App() {
 
   const openProfileModal = () => {
     if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, password: '', avatarUrl: currentUser.avatarUrl });
+      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', password: '', avatarUrl: currentUser.avatarUrl });
       setIsProfileModalOpen(true);
     }
   };
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, password: profileForm.password, avatarUrl: profileForm.avatarUrl };
+    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, password: profileForm.password, avatarUrl: profileForm.avatarUrl };
     const localUser = { ...updatedUser };
     delete localUser.password;
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));

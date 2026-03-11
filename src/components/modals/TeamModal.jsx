@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Plus, UserCircle, Shield, Camera, Key, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft } from 'lucide-react';
+import { X, Users, Plus, UserCircle, Shield, Camera, Key, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube } from 'lucide-react';
 
 export default function TeamModal({
   users, editingTeamMember, setEditingTeamMember, handleSaveTeamMember,
@@ -11,7 +11,7 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
@@ -40,7 +40,7 @@ export default function TeamModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                   <input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -49,11 +49,14 @@ export default function TeamModal({
                   <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                   <input type="email" required value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-              </div>
-
-              <div className="mb-8">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                  <input type="tel" value={editingTeamMember.phone || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="(555) 555-5555" />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}</label>
                   <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
               </div>
 
               <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">App Access & Permissions</h3>
@@ -83,6 +86,10 @@ export default function TeamModal({
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Domains App</div>
                     <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
+                  </label>
+                  <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><Youtube size={16} className="text-red-500"/> YouTube App</div>
+                    <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewYoutube} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewYoutube: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Mic size={16} className="text-[#ffc005]"/> Spreaker App</div>

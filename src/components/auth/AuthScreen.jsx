@@ -24,6 +24,8 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
         canViewDomains: isFirstUser, 
         canViewEvents: isFirstUser, 
         canViewSpreaker: isFirstUser, 
+        canViewYoutube: isFirstUser,
+        phone: '',
         avatarUrl: '' 
       };
       const localUser = { ...newUser };

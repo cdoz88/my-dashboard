@@ -1,152 +1,114 @@
 import React from 'react';
-import { 
-  LayoutDashboard, Wallet, Youtube, CalendarDays, Mic, Globe, 
-  ChevronsUpDown, ListTodo, CalendarClock, Plus, Clock, ChevronDown, 
-  RefreshCw, Upload, Kanban 
-} from 'lucide-react';
+import { CalendarDays, X, DollarSign, Plus, CheckCircle, ToggleRight, ToggleLeft } from 'lucide-react';
 
-export default function TopBar({
-  currentApp, setCurrentApp, isAppSwitcherOpen, setIsAppSwitcherOpen,
-  isMobileMenuOpen, setIsMobileMenuOpen, currentUser, activeTab,
-  activeBudgetTab, activeDomainTab, activeEventTab,
-  projectDisplayMode, setProjectDisplayMode,
-  budgetDisplayMode, setBudgetDisplayMode,
-  domainDisplayMode, setDomainDisplayMode,
-  eventDisplayMode, setEventDisplayMode,
-  youtubeTimeFilter, handleYoutubeFilterChange, handleSyncYoutube,
-  spreakerTimeFilter, handleSpreakerFilterChange, handleSyncSpreaker,
-  openTaskModal, openExpenseModal, openDomainModal, openEventModal,
-  handleImportCSV, handleSyncGoDaddy
+export default function EventModal({
+  editingEvent, setEditingEvent, paymentMode, setPaymentMode,
+  handleSaveEvent, handleDeleteEvent, setIsEventModalOpen, visibleCompanies
 }) {
-  const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
-  const isBudgetView = currentApp === 'budget';
-  const isDomainView = currentApp === 'domains';
-  const isYoutubeView = currentApp === 'youtube';
-  const isEventView = currentApp === 'events';
-  const isSpreakerView = currentApp === 'spreaker';
-
   return (
-    <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : 'bg-teal-500'} ${currentApp === 'spreaker' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
-      <div className="relative">
-        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : 'hover:bg-teal-600'}`}>
-          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : <Globe size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />}
-          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp}</span>
-          <ChevronsUpDown size={18} className={`${currentApp === 'spreaker' ? 'text-slate-900/60' : 'text-white/60'} ml-1`} />
-        </button>
-        {isAppSwitcherOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setIsAppSwitcherOpen(false)} />
-            <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 py-1">
-              {(currentUser.isAdmin || currentUser.canViewProjects) && <button onClick={() => { setCurrentApp('projects'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'projects' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'projects' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><LayoutDashboard size={18} /></div>Projects</button>}
-              {(currentUser.isAdmin || currentUser.canViewEvents) && <button onClick={() => { setCurrentApp('events'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'events' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'events' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}><CalendarDays size={18} /></div>Events</button>}
-              {(currentUser.isAdmin || currentUser.canViewBudget) && <button onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Wallet size={18} /></div>Expenses</button>}
-              {(currentUser.isAdmin || currentUser.canViewDomains) && <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains</button>}
-              {(currentUser.isAdmin || currentUser.canViewProjects) && <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube</button>}
-              {(currentUser.isAdmin || currentUser.canViewSpreaker) && <button onClick={() => { setCurrentApp('spreaker'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'spreaker' ? 'bg-[#ffc005]/10 text-[#d9a304]' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'spreaker' ? 'bg-[#ffc005]/20 text-[#d9a304]' : 'bg-slate-100 text-slate-500'}`}><Mic size={18} /></div>Spreaker</button>}
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-purple-600">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><CalendarDays className="text-purple-600" size={20} />{editingEvent.id ? 'Edit Event' : 'Add New Event'}</h3>
+          <button onClick={() => setIsEventModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-6">
+          <form id="eventForm" onSubmit={handleSaveEvent} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Event Name</label>
+              <input required type="text" value={editingEvent.title} onChange={(e) => setEditingEvent({...editingEvent, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="e.g., CES 2027" />
             </div>
-          </>
-        )}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+              <select required value={editingEvent.companyId} onChange={(e) => setEditingEvent({...editingEvent, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-slate-50">
+                <option value="" disabled>Select a company</option>
+                {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                <input required type="date" value={editingEvent.eventDate} onChange={(e) => setEditingEvent({...editingEvent, eventDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Time <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
+                <input type="time" value={editingEvent.eventTime || ''} onChange={(e) => setEditingEvent({...editingEvent, eventTime: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                    <div><div className="text-sm font-bold text-slate-800">Estimated Cost / Expenses</div><div className="text-[10px] text-slate-500">Auto-generates one-time expenses for your budget.</div></div>
+                    <select value={paymentMode} onChange={(e) => { setPaymentMode(e.target.value); if (e.target.value === 'installments' && editingEvent.installments.length === 0) setEditingEvent({...editingEvent, installments: [{amount: '', date: ''}]}); }} className="text-xs border border-slate-300 rounded-md px-2 py-1 bg-slate-50 text-slate-700 focus:outline-none" disabled={!!editingEvent.expenseId}>
+                        <option value="single">Single Payment</option>
+                        <option value="installments">Multiple Installments</option>
+                    </select>
+                </div>
+                {paymentMode === 'single' ? (
+                    <div className="grid grid-cols-2 gap-4 animate-in fade-in">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Amount ($)</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><DollarSign size={14} className="text-slate-400" /></div>
+                                <input type="number" step="0.01" min="0" value={editingEvent.cost} onChange={(e) => setEditingEvent({...editingEvent, cost: e.target.value})} className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0.00" disabled={!!editingEvent.expenseId} />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Billing Date</label>
+                            <input type="date" value={editingEvent.billingDate || ''} onChange={(e) => setEditingEvent({...editingEvent, billingDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200 animate-in fade-in">
+                        {editingEvent.installments.map((inst, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none"><DollarSign size={12} className="text-slate-400" /></div>
+                                    <input type="number" required placeholder="Amount" value={inst.amount} onChange={(e) => { const newInsts = [...editingEvent.installments]; newInsts[idx].amount = e.target.value; setEditingEvent({...editingEvent, installments: newInsts}); }} className="w-full pl-6 pr-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                                </div>
+                                <input type="date" required value={inst.date} onChange={(e) => { const newInsts = [...editingEvent.installments]; newInsts[idx].date = e.target.value; setEditingEvent({...editingEvent, installments: newInsts}); }} className="flex-1 px-2 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500" disabled={!!editingEvent.expenseId} />
+                                {!editingEvent.expenseId && <button type="button" onClick={() => { const newInsts = editingEvent.installments.filter((_, i) => i !== idx); setEditingEvent({...editingEvent, installments: newInsts}); }} className="p-1.5 text-slate-400 hover:text-red-500"><X size={14}/></button>}
+                            </div>
+                        ))}
+                        {!editingEvent.expenseId && <button type="button" onClick={() => setEditingEvent({...editingEvent, installments: [...editingEvent.installments, {amount: '', date: ''}]})} className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1 mt-2"><Plus size={12}/> Add Installment</button>}
+                    </div>
+                )}
+                {editingEvent.expenseId ? <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1"><CheckCircle size={10}/> Expenses have been mapped to your Budget.</p> : <p className="text-[10px] text-slate-400 mt-2 italic">Note: Changing the cost after saving will not update the generated expenses.</p>}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                    <div><div className="text-sm font-bold text-slate-800">Auto-Generate Prep Project</div><div className="text-[10px] text-slate-500">Automatically creates a project for your team to start planning.</div></div>
+                    <button type="button" onClick={() => { if (editingEvent.projectId) { alert("A project has already been generated for this event. You cannot turn this off."); return; } setEditingEvent({...editingEvent, autoProject: !editingEvent.autoProject}); }} className={`${editingEvent.autoProject ? 'text-purple-600' : 'text-slate-300'} transition-colors`}>{editingEvent.autoProject ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
+                </div>
+                {editingEvent.autoProject && !editingEvent.projectId && (
+                    <div className="flex items-center gap-2 bg-purple-50 p-3 rounded-lg border border-purple-100 animate-in fade-in slide-in-from-top-2">
+                        <span className="text-sm font-medium text-purple-800 flex-shrink-0">Create</span>
+                        {editingEvent.projectLeadUnit !== 'now' && <input type="number" min="1" value={editingEvent.projectLeadTime} onChange={(e) => setEditingEvent({...editingEvent, projectLeadTime: e.target.value})} className="w-16 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500" />}
+                        <select value={editingEvent.projectLeadUnit} onChange={(e) => setEditingEvent({...editingEvent, projectLeadUnit: e.target.value})} className="flex-1 px-2 py-1 text-sm border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-purple-800">
+                            <option value="now">Immediately</option>
+                            <option value="days">Days before event</option>
+                            <option value="weeks">Weeks before event</option>
+                            <option value="months">Months before event</option>
+                            <option value="years">Years before event</option>
+                        </select>
+                    </div>
+                )}
+                {editingEvent.projectId && (
+                    <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                         <p className="text-xs text-purple-700 font-bold flex items-center gap-1"><CheckCircle size={14}/> Prep Project has been generated!</p>
+                         <p className="text-[10px] text-purple-600 mt-0.5">Check your Projects dashboard to manage tasks for this event.</p>
+                    </div>
+                )}
+            </div>
+          </form>
+        </div>
+        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
+          {editingEvent.id && <button type="button" onClick={() => handleDeleteEvent(editingEvent.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
+          <button type="button" onClick={() => setIsEventModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+          <button type="submit" form="eventForm" className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium">{editingEvent.id ? 'Save Changes' : 'Create Event'}</button>
+        </div>
       </div>
-      
-      <div className="flex items-center gap-2 sm:gap-4">
-        {isEventView && (
-           <>
-             <div className="flex bg-purple-700/50 rounded-lg p-1 border border-purple-500/50">
-                <button onClick={() => setEventDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${eventDisplayMode === 'list' ? 'bg-white text-purple-600 shadow-sm' : 'text-purple-100 hover:text-white hover:bg-purple-500/50'}`}><ListTodo size={16} /></button>
-                <button onClick={() => setEventDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${eventDisplayMode === 'timeline' ? 'bg-white text-purple-600 shadow-sm' : 'text-purple-100 hover:text-white hover:bg-purple-500/50'}`}><CalendarClock size={16} /></button>
-             </div>
-             <button onClick={() => openEventModal()} className="bg-white text-purple-600 hover:bg-purple-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
-               <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Event</span>
-             </button>
-           </>
-        )}
-        {isYoutubeView && (
-           <>
-             <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
-               <Clock size={16} className="text-red-200 mr-2" />
-               <select value={youtubeTimeFilter} onChange={handleYoutubeFilterChange} className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
-                 <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
-                 <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
-                 <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
-                 <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
-                 <option value="lifetime" className="text-slate-800 font-medium">Lifetime</option>
-               </select>
-               <ChevronDown size={14} className="text-red-200 absolute right-3 pointer-events-none" />
-             </div>
-             {currentUser?.isAdmin && (
-               <button onClick={() => handleSyncYoutube()} className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Google API">
-                 <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
-               </button>
-             )}
-           </>
-        )}
-        {isSpreakerView && currentUser?.isAdmin && (
-           <>
-             <div className="relative flex items-center bg-slate-900/10 rounded-lg border border-slate-900/20 px-3 py-1.5 hover:bg-slate-900/20 transition-colors cursor-pointer mr-3">
-               <Clock size={16} className="text-slate-900 mr-2" />
-               <select value={spreakerTimeFilter} onChange={handleSpreakerFilterChange} className="bg-transparent text-slate-900 text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
-                 <option value="1" className="text-slate-800 font-medium">Today (so far)</option>
-                 <option value="2" className="text-slate-800 font-medium">Yesterday</option>
-                 <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
-                 <option value="30" className="text-slate-800 font-medium">Last 30 days</option>
-                 <option value="365" className="text-slate-800 font-medium">Last 12 months</option>
-                 <option value="lifetime" className="text-slate-800 font-medium">All Time</option>
-               </select>
-               <ChevronDown size={14} className="text-slate-900 absolute right-3 pointer-events-none" />
-             </div>
-             <button onClick={() => handleSyncSpreaker()} className="bg-slate-900 text-[#ffc005] hover:bg-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Spreaker API">
-               <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
-             </button>
-           </>
-        )}
-        {isProjectView && (
-           <>
-             <div className="flex bg-blue-700/50 rounded-lg p-1 border border-blue-500/50">
-                <button onClick={() => setProjectDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><ListTodo size={16} /></button>
-                <button onClick={() => setProjectDisplayMode('kanban')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'kanban' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><Kanban size={16} /></button>
-                <button onClick={() => setProjectDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${projectDisplayMode === 'timeline' ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-100 hover:text-white hover:bg-blue-500/50'}`}><CalendarClock size={16} /></button>
-             </div>
-             <button onClick={() => openTaskModal(null, activeTab, 'todo')} className="bg-white text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
-               <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Task</span>
-             </button>
-           </>
-        )}
-        {isBudgetView && (
-           <>
-             <div className="flex bg-emerald-700/50 rounded-lg p-1 border border-emerald-500/50">
-                <button onClick={() => setBudgetDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${budgetDisplayMode === 'list' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-100 hover:text-white hover:bg-emerald-500/50'}`}><ListTodo size={16} /></button>
-                <button onClick={() => setBudgetDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${budgetDisplayMode === 'timeline' ? 'bg-white text-emerald-600 shadow-sm' : 'text-emerald-100 hover:text-white hover:bg-emerald-500/50'}`}><CalendarClock size={16} /></button>
-             </div>
-             <label className={`${activeBudgetTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Expenses from CSV">
-               <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Import</span>
-               <input type="file" accept=".csv" className="hidden" disabled={activeBudgetTab === 'overview'} onClick={(e) => { if(activeBudgetTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeBudgetTab, false)} />
-             </label>
-             <button onClick={() => openExpenseModal(null, activeBudgetTab === 'overview' ? '' : activeBudgetTab)} className="bg-white text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
-               <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Expense</span>
-             </button>
-           </>
-        )}
-        {isDomainView && (
-           <>
-             <div className="flex bg-teal-700/50 rounded-lg p-1 border border-teal-500/50">
-                <button onClick={() => setDomainDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'list' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><ListTodo size={16} /></button>
-                <button onClick={() => setDomainDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'timeline' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><CalendarClock size={16} /></button>
-             </div>
-             {activeDomainTab !== 'overview' && (
-               <button onClick={() => handleSyncGoDaddy(activeDomainTab)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with GoDaddy API">
-                 <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
-               </button>
-             )}
-             <label className={`${activeDomainTab === 'overview' ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-700 hover:bg-teal-800 cursor-pointer'} text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors`} title="Import Domains from CSV">
-               <Upload size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">CSV</span>
-               <input type="file" accept=".csv" className="hidden" disabled={activeDomainTab === 'overview'} onClick={(e) => { if(activeDomainTab === 'overview') { e.preventDefault(); alert("Please select a specific company from the left sidebar before importing."); } }} onChange={(e) => handleImportCSV(e, activeDomainTab, true)} />
-             </label>
-             <button onClick={() => openDomainModal(null, activeDomainTab === 'overview' ? '' : activeDomainTab)} className="bg-white text-teal-600 hover:bg-teal-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
-               <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Add</span>
-             </button>
-           </>
-        )}
-      </div>
-    </header>
+    </div>
   );
 }

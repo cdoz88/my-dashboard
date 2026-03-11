@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Circle, Shield, UserCircle, X, Contact } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Circle, Shield, UserCircle, X, Contact, Phone } from 'lucide-react';
 
 export default function TeamDirectoryView({ users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, companies, visibleCompanies, activeTeamTab }) {
   const [selectedUserForOnboarding, setSelectedUserForOnboarding] = useState(null);
@@ -111,6 +111,12 @@ export default function TeamDirectoryView({ users, currentUser, handleUpdateUser
                     <Mail size={14} className="flex-shrink-0" />
                     {user.email}
                   </a>
+                  {user.phone && (
+                    <a href={`tel:${user.phone}`} className="text-sm text-slate-500 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-0.5 truncate">
+                      <Phone size={14} className="flex-shrink-0" />
+                      {user.phone}
+                    </a>
+                  )}
                 </div>
               </div>
               
