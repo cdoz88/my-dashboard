@@ -17,7 +17,8 @@ export default function Sidebar({
   activeYoutubeChannelId, setActiveYoutubeChannelId,
   activeSpreakerShowId, setActiveSpreakerShowId,
   openCompanyModal, openProjectModal, openYoutubeModal, openSpreakerModal,
-  openProfileModal, setIsTeamModalOpen, setIsSwitchUserModalOpen
+  openProfileModal, setIsTeamModalOpen, setIsSwitchUserModalOpen,
+  activeTeamTab, setActiveTeamTab
 }) {
 
   // Helper functions that rely on arrays passed via props
@@ -40,9 +41,6 @@ export default function Sidebar({
                 </button>
                 <button onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
                   <Users size={18} /> Team Capacity
-                </button>
-                <button onClick={() => { setActiveTab('directory'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'directory' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
-                  <Contact size={18} /> Team Directory
                 </button>
                 <button onClick={() => { setActiveTab('archived'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'archived' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
                   <Archive size={18} /> Archived
@@ -88,6 +86,33 @@ export default function Sidebar({
                   </div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {currentApp === 'team' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Directory</p>
+              <button onClick={() => { setActiveTeamTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTeamTab === 'overview' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
+                <Contact size={18} /> All Members
+              </button>
+            </div>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                {visibleCompanies.map(company => (
+                  <div key={company.id} className="flex items-center justify-between group/company">
+                    <button onClick={() => { setActiveTeamTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTeamTab === company.id ? 'bg-slate-800 text-indigo-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                      <span className="truncate">{company.name}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}

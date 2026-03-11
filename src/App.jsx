@@ -100,6 +100,7 @@ export default function App() {
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [activeEventTab, setActiveEventTab] = useState('overview');
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
+  const [activeTeamTab, setActiveTeamTab] = useState('overview');
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
@@ -671,6 +672,7 @@ export default function App() {
              activeSpreakerShowId={activeSpreakerShowId} setActiveSpreakerShowId={setActiveSpreakerShowId}
              openCompanyModal={openCompanyModal} openProjectModal={openProjectModal} openYoutubeModal={openYoutubeModal} openSpreakerModal={openSpreakerModal}
              openProfileModal={openProfileModal} setIsTeamModalOpen={setIsTeamModalOpen} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen}
+             activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -691,7 +693,6 @@ export default function App() {
             {currentApp === 'projects' ? (
               activeTab === 'mytasks' ? <DashboardView tasks={tasks} currentUser={currentUser} projects={projects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
               activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={tasks} projects={projects} /> : 
-              activeTab === 'directory' ? <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} /> :
               activeTab === 'archived' ? <ArchivedProjectsView projects={projects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
               <ProjectView projectId={activeTab} projects={projects} tasks={tasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} />
             ) : currentApp === 'budget' ? (
@@ -702,6 +703,8 @@ export default function App() {
               <EventsDashboard events={events} activeEventTab={activeEventTab} eventDisplayMode={eventDisplayMode} openEventModal={openEventModal} handleDeleteEvent={handleDeleteEvent} companies={companies} />
             ) : currentApp === 'spreaker' ? (
               <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
+            ) : currentApp === 'team' ? (
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} />
             ) : (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             )}
