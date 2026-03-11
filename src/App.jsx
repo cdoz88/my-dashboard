@@ -653,7 +653,7 @@ export default function App() {
     setIsSpreakerModalOpen(true);
   };
 
-  // --- NEW GOOGLE OAUTH REDIRECT TRIGGER FOR SPREAKER ---
+  // --- GOOGLE OAUTH REDIRECT TRIGGER FOR SPREAKER ---
   const handleSaveSpreakerShow = (e) => {
     e.preventDefault();
     
@@ -661,10 +661,12 @@ export default function App() {
     const clientId = '29162'; 
     
     localStorage.setItem('pendingSpAuth', 'true');
-    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+    // We explicitly ask for basic AND stats here so we can read the analytics correctly!
+    const authUrl = `https://www.spreaker.com/oauth2/authorize?client_id=${clientId}&response_type=code&state=spreaker&scope=basic%20stats&redirect_uri=${encodeURIComponent(redirectUri)}`;
     
     setIsSpreakerModalOpen(false);
-    window.location.href = authUrl; // Bounce user to Spreaker
+    window.location.href = authUrl; 
   };
 
   const handleDeleteSpreakerShow = (showId) => {
