@@ -23,3 +23,13 @@ export const tagStyles = {
 export const availableTags = Object.keys(tagStyles);
 
 export const expenseCategories = ['Company Expense', 'Website', 'Tools', 'Domains', 'Social Media', 'Merchandise', 'Personnel', 'Other'];
+
+// Define the available icons for the Project Modal
+export const availableIcons = [
+  'Building2', 'Globe', 'Smartphone', 'Megaphone', 'ShoppingCart', 
+  'Rocket', 'Code', 'Monitor', 'Heart', 'Star', 'Briefcase', 'FolderKanban',
+  'Users', 'Settings', 'Mail', 'Camera', 'Box', 'PenTool', 'Database', 'Cloud', 
+  'FileText', 'Zap', 'Compass', 'MapPin', 'Coffee', 'Music', 'ImageIcon', 
+  'FileVideo', 'Shield', 'Target', 'Award', 'Crown', 'Upload', 'RefreshCw',
+  'CalendarDays', 'Ticket', 'Mic', 'Headphones'
+];
