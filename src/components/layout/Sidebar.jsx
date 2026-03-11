@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact 
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity 
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -18,10 +18,9 @@ export default function Sidebar({
   activeSpreakerShowId, setActiveSpreakerShowId,
   openCompanyModal, openProjectModal, openYoutubeModal, openSpreakerModal,
   openProfileModal, setIsTeamModalOpen, setIsSwitchUserModalOpen,
-  activeTeamTab, setActiveTeamTab
+  activeTeamTab, setActiveTeamTab, activeActivityTab, setActiveActivityTab
 }) {
 
-  // Helper functions that rely on arrays passed via props
   const getCompany = (id) => companies.find(c => c.id === id);
 
   return (
@@ -254,6 +253,30 @@ export default function Sidebar({
           </>
         )}
 
+        {currentApp === 'activity' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filters</p>
+              <div className="space-y-1">
+                <button onClick={() => { setActiveActivityTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'overview' ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
+                  <Activity size={18} /> All Activity
+                </button>
+                <button onClick={() => { setActiveActivityTab('projects'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'projects' ? 'bg-slate-800 text-blue-400' : 'hover:bg-slate-800 text-slate-300 hover:text-blue-400'}`}>
+                  <LayoutDashboard size={18} /> Projects
+                </button>
+                <button onClick={() => { setActiveActivityTab('tasks'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'tasks' ? 'bg-slate-800 text-emerald-400' : 'hover:bg-slate-800 text-slate-300 hover:text-emerald-400'}`}>
+                  <CheckCircle size={18} /> Tasks
+                </button>
+                <button onClick={() => { setActiveActivityTab('team'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'team' ? 'bg-slate-800 text-amber-400' : 'hover:bg-slate-800 text-slate-300 hover:text-amber-400'}`}>
+                  <Users size={18} /> Team
+                </button>
+                <button onClick={() => { setActiveActivityTab('events'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'events' ? 'bg-slate-800 text-purple-400' : 'hover:bg-slate-800 text-slate-300 hover:text-purple-400'}`}>
+                  <CalendarDays size={18} /> Events
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">

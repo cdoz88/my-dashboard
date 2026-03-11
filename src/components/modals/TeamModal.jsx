@@ -3,8 +3,8 @@ import { X, Users, Plus, UserCircle, Shield, Camera, Key, LayoutDashboard, Calen
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
-  users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember,
-  handleTeamMemberImageUpload, isUploading, setIsTeamModalOpen
+  users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, handleDeleteUser,
+  handleTeamMemberImageUpload, isUploading, setIsTeamModalOpen, currentUser
 }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -128,8 +128,11 @@ export default function TeamModal({
                 </div>
               </div>
 
-              <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
-                <button onClick={handleSaveTeamMember} disabled={isUploading} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">Save Member</button>
+              <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between">
+                {editingTeamMember.id && editingTeamMember.id !== currentUser.id ? (
+                   <button type="button" onClick={() => handleDeleteUser(editingTeamMember.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">Remove Member</button>
+                ) : <div></div>}
+                <button onClick={handleSaveTeamMember} disabled={isUploading} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm transition-colors">Save Member</button>
               </div>
             </div>
           ) : ( <div className="flex-1 flex flex-col items-center justify-center text-slate-400"><Users size={64} className="mb-4 opacity-20" /><p>Select a user to edit or create a new one.</p></div> )}

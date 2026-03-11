@@ -22,6 +22,7 @@ import DomainsDashboard from './components/dashboards/DomainsDashboard';
 import EventsDashboard from './components/dashboards/EventsDashboard';
 import SpreakerDashboard from './components/dashboards/SpreakerDashboard';
 import YoutubeDashboard from './components/dashboards/YoutubeDashboard';
+import ActivityLogView from './components/dashboards/ActivityLogView';
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -54,6 +55,7 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [events, setEvents] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
   
   // YouTube & Spreaker State
   const [youtubeChannels, setYoutubeChannels] = useState([]);
@@ -102,6 +104,7 @@ export default function App() {
   const [activeEventTab, setActiveEventTab] = useState('overview');
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
   const [activeTeamTab, setActiveTeamTab] = useState('overview');
+  const [activeActivityTab, setActiveActivityTab] = useState('overview');
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
@@ -118,6 +121,7 @@ export default function App() {
       if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('projects');
       if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('projects');
       if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('projects');
+      if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
 
@@ -141,7 +145,6 @@ export default function App() {
            })));
         }
         
-        // Checklist MIGRATION Logic
         if (data.settings && data.settings.globalOnboardingChecklist) {
             try { setGlobalChecklist(JSON.parse(data.settings.globalOnboardingChecklist)); } catch(e) {}
         } else {
@@ -159,6 +162,8 @@ export default function App() {
         if(data.tasks) setTasks(data.tasks.map(t => ({ ...t, tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [] })));
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
+        if(data.activity_logs) setActivityLogs(data.activity_logs);
+        
         if(data.youtube_channels) {
             setYoutubeChannels(data.youtube_channels);
             if(data.youtube_channels.length > 0 && !activeYoutubeChannelId) setActiveYoutubeChannelId(data.youtube_channels[0].id);
@@ -172,11 +177,102 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
+  const sendToAPI = async (action, data) => {
+    try { await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); }
+    catch (err) { console.error(`Error with ${action}:`, err); }
+  };
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch(`${API_URL}?action=upload_file`, { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.success) return data.url;
+      alert('Upload failed: ' + data.error);
+      return null;
+    } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
+  };
+
+  // --- LOGGING ENGINE ---
+  const logActivity = (category, type, description) => {
+    const newLog = {
+      id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+      userId: currentUser?.id || 'system',
+      actionCategory: category,
+      actionType: type,
+      description: description,
+      timestamp: new Date().toISOString()
+    };
+    setActivityLogs(prev => [newLog, ...prev]);
+    sendToAPI('save_log', newLog);
+  };
+
   const handleSaveGlobalChecklist = (newList) => {
     setGlobalChecklist(newList);
     sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
   };
 
+  useEffect(() => {
+     if (events.length > 0 && currentUser?.isAdmin) {
+         events.forEach(event => {
+             let updatedEvent = null;
+             
+             if (!event.expenseId) {
+                 const isInstallments = event.installments && event.installments.length > 0;
+                 const hasCost = parseFloat(event.cost) > 0;
+                 if (isInstallments) {
+                     const newIds = [];
+                     let tempExpenses = [];
+                     event.installments.forEach((inst, idx) => {
+                         const newExpenseId = 'e' + Date.now() + idx + Math.random().toString(36).substr(2, 5);
+                         newIds.push(newExpenseId);
+                         const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title} (Installment ${idx + 1})`, category: 'Company Expense', amount: inst.amount, cycle: 'one-time', renewalDate: inst.date, notes: `Auto-generated installment for event ${event.title}`, autoRenew: false };
+                         sendToAPI('save_expense', newExpense);
+                         tempExpenses.push(newExpense);
+                     });
+                     setExpenses(prev => [...prev, ...tempExpenses]);
+                     updatedEvent = { ...event, expenseId: newIds.join(',') };
+                 } else if (hasCost) {
+                     const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
+                     const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title}`, category: 'Company Expense', amount: event.cost, cycle: 'one-time', renewalDate: event.billingDate || event.eventDate, notes: `Auto-generated for event ${event.title}`, autoRenew: false };
+                     sendToAPI('save_expense', newExpense);
+                     setExpenses(prev => [...prev, newExpense]);
+                     updatedEvent = { ...event, expenseId: newExpenseId };
+                 }
+             }
+
+             if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
+                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
+                 let triggerDate = new Date(eventDateObj);
+                 if (event.projectLeadUnit === 'now') {
+                     triggerDate = new Date(0);
+                 } else {
+                     const leadTime = parseInt(event.projectLeadTime);
+                     if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
+                     if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
+                     if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
+                     if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
+                 }
+                 const today = new Date();
+                 if (today >= triggerDate) {
+                     const newProjectId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
+                     const newProject = { id: newProjectId, companyId: event.companyId, name: `${event.title} (Event Prep)`, icon: 'CalendarDays', color: 'purple' };
+                     sendToAPI('save_project', newProject);
+                     setProjects(prev => [...prev, newProject]);
+                     updatedEvent = { ...(updatedEvent || event), projectId: newProjectId };
+                 }
+             }
+
+             if (updatedEvent) {
+                 sendToAPI('save_event', updatedEvent);
+                 setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+             }
+         });
+     }
+  }, [events, currentUser]); 
+
+  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -266,82 +362,6 @@ export default function App() {
         });
     }
   }, []); 
-
-  useEffect(() => {
-     if (events.length > 0 && currentUser?.isAdmin) {
-         events.forEach(event => {
-             let updatedEvent = null;
-             
-             if (!event.expenseId) {
-                 const isInstallments = event.installments && event.installments.length > 0;
-                 const hasCost = parseFloat(event.cost) > 0;
-                 if (isInstallments) {
-                     const newIds = [];
-                     let tempExpenses = [];
-                     event.installments.forEach((inst, idx) => {
-                         const newExpenseId = 'e' + Date.now() + idx + Math.random().toString(36).substr(2, 5);
-                         newIds.push(newExpenseId);
-                         const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title} (Installment ${idx + 1})`, category: 'Company Expense', amount: inst.amount, cycle: 'one-time', renewalDate: inst.date, notes: `Auto-generated installment for event ${event.title}`, autoRenew: false };
-                         sendToAPI('save_expense', newExpense);
-                         tempExpenses.push(newExpense);
-                     });
-                     setExpenses(prev => [...prev, ...tempExpenses]);
-                     updatedEvent = { ...event, expenseId: newIds.join(',') };
-                 } else if (hasCost) {
-                     const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
-                     const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title}`, category: 'Company Expense', amount: event.cost, cycle: 'one-time', renewalDate: event.billingDate || event.eventDate, notes: `Auto-generated for event ${event.title}`, autoRenew: false };
-                     sendToAPI('save_expense', newExpense);
-                     setExpenses(prev => [...prev, newExpense]);
-                     updatedEvent = { ...event, expenseId: newExpenseId };
-                 }
-             }
-
-             if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
-                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
-                 let triggerDate = new Date(eventDateObj);
-                 if (event.projectLeadUnit === 'now') {
-                     triggerDate = new Date(0);
-                 } else {
-                     const leadTime = parseInt(event.projectLeadTime);
-                     if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
-                     if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
-                     if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
-                     if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
-                 }
-                 const today = new Date();
-                 if (today >= triggerDate) {
-                     const newProjectId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
-                     const newProject = { id: newProjectId, companyId: event.companyId, name: `${event.title} (Event Prep)`, icon: 'CalendarDays', color: 'purple' };
-                     sendToAPI('save_project', newProject);
-                     setProjects(prev => [...prev, newProject]);
-                     updatedEvent = { ...(updatedEvent || event), projectId: newProjectId };
-                 }
-             }
-
-             if (updatedEvent) {
-                 sendToAPI('save_event', updatedEvent);
-                 setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-             }
-         });
-     }
-  }, [events, currentUser]); 
-
-  const sendToAPI = async (action, data) => {
-    try { await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); }
-    catch (err) { console.error(`Error with ${action}:`, err); }
-  };
-
-  const uploadFileToServer = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const response = await fetch(`${API_URL}?action=upload_file`, { method: 'POST', body: formData });
-      const data = await response.json();
-      if (data.success) return data.url;
-      alert('Upload failed: ' + data.error);
-      return null;
-    } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
-  };
 
   const handleSyncGoDaddy = async (companyId) => {
     setIsLoading(true);
@@ -461,7 +481,23 @@ export default function App() {
 
   const handleSaveTask = (e) => {
     e.preventDefault();
+    const isNew = !currentTask.id;
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
+    
+    if (isNew) {
+        logActivity('Tasks', 'Task Added', `Created task "${taskData.title}"`);
+    } else {
+        const oldTask = tasks.find(t => t.id === taskData.id);
+        if (oldTask) {
+            if (oldTask.status !== taskData.status) {
+                logActivity('Tasks', 'Task Status Update', `Changed status of "${taskData.title}" to ${taskData.status}`);
+            }
+            if (JSON.stringify(oldTask.tags) !== JSON.stringify(taskData.tags)) {
+                logActivity('Tasks', 'Task Tag Changes', `Updated tags for "${taskData.title}"`);
+            }
+        }
+    }
+
     if (currentTask.id) setTasks(tasks.map(t => t.id === taskData.id ? taskData : t));
     else setTasks([...tasks, taskData]);
     setIsTaskModalOpen(false);
@@ -476,7 +512,9 @@ export default function App() {
 
   const handleToggleTaskStatus = (task) => {
     const isNowDone = task.status !== 'done';
-    const updatedTask = { ...task, status: isNowDone ? 'done' : 'todo', completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
+    const newStatus = isNowDone ? 'done' : 'todo';
+    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
+    logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
     sendToAPI('save_task', updatedTask);
   };
@@ -485,6 +523,8 @@ export default function App() {
     if (!newCommentText.trim()) return;
     const newComment = { id: 'c' + Date.now(), text: newCommentText.trim(), userId: currentUser.id, timestamp: new Date().toISOString() };
     const updatedTask = { ...currentTask, comments: [...(currentTask.comments || []), newComment] };
+    
+    logActivity('Tasks', 'Comment Added', `Added a comment to "${currentTask.title}"`);
     setCurrentTask(updatedTask);
     setNewCommentText('');
     if (updatedTask.id) {
@@ -547,10 +587,13 @@ export default function App() {
     if (paymentMode === 'installments') {
         finalCost = editingEvent.installments.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
     }
+    const isNew = !editingEvent.id;
     const eventData = editingEvent.id 
         ? { ...editingEvent, cost: finalCost, installments: paymentMode === 'installments' ? editingEvent.installments : [] } 
         : { ...editingEvent, id: 'ev' + Date.now(), cost: finalCost, installments: paymentMode === 'installments' ? editingEvent.installments : [] };
     
+    if (isNew) logActivity('Events', 'Event Added', `Added event "${eventData.title}"`);
+
     if (editingEvent.id) setEvents(events.map(ev => ev.id === eventData.id ? eventData : ev));
     else setEvents([...events, eventData]);
     setIsEventModalOpen(false);
@@ -558,6 +601,9 @@ export default function App() {
   };
 
   const handleDeleteEvent = (eventId) => {
+    const ev = events.find(e => e.id === eventId);
+    if (ev) logActivity('Events', 'Event Deleted', `Deleted event "${ev.title}"`);
+
     setEvents(events.filter(e => e.id !== eventId));
     setIsEventModalOpen(false);
     sendToAPI('delete_event', { id: eventId });
@@ -604,7 +650,11 @@ export default function App() {
   const handleSaveProject = (e) => {
     e.preventDefault();
     if (!editingProject.name.trim() || !editingProject.companyId) return;
+    const isNew = !editingProject.id;
     const projectData = editingProject.id ? editingProject : { ...editingProject, id: 'p' + Date.now() };
+    
+    if (isNew) logActivity('Projects', 'New Project Created', `Created project "${projectData.name}"`);
+
     if (editingProject.id) setProjects(projects.map(p => p.id === projectData.id ? projectData : p));
     else {
       setProjects([...projects, projectData]);
@@ -617,6 +667,7 @@ export default function App() {
   const handleArchiveProject = (project) => {
      const updated = { ...project, isArchived: true };
      setProjects(projects.map(p => p.id === project.id ? updated : p));
+     logActivity('Projects', 'Project Archived', `Archived project "${project.name}"`);
      sendToAPI('save_project', updated);
      if (activeTab === project.id) setActiveTab('mytasks');
      setIsProjectModalOpen(false);
@@ -630,9 +681,13 @@ export default function App() {
   };
 
   const handlePermanentDeleteProject = (projectId) => {
+     const proj = projects.find(p => p.id === projectId);
      tasks.filter(t => t.projectId === projectId).forEach(t => sendToAPI('delete_task', { id: t.id }));
      setTasks(tasks.filter(t => t.projectId !== projectId));
      setProjects(projects.filter(p => p.id !== projectId));
+     
+     if (proj) logActivity('Projects', 'Project Deleted', `Permanently deleted project "${proj.name}"`);
+
      if (activeTab === projectId) setActiveTab('mytasks');
      setIsProjectModalOpen(false);
      sendToAPI('delete_project', { id: projectId });
@@ -725,10 +780,15 @@ export default function App() {
 
   const handleSaveTeamMember = (e) => {
     e.preventDefault();
+    const isNew = !editingTeamMember.id;
     const userToSave = { ...editingTeamMember };
     if (!userToSave.id) userToSave.id = 'u' + Date.now();
     const localUser = { ...userToSave };
     delete localUser.password; 
+
+    if (isNew) {
+        logActivity('Team', 'New Member Added', `Added "${userToSave.name}" to the team directory.`);
+    }
 
     if (users.find(u => u.id === userToSave.id)) setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
     else setUsers([...users, localUser]);
@@ -746,6 +806,18 @@ export default function App() {
 
     sendToAPI('save_user', userToSave);
     setEditingTeamMember(null);
+  };
+
+  const handleDeleteUser = (userId) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (!userToDelete) return;
+    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace?`)) return;
+
+    logActivity('Team', 'Team Member Removed', `Removed team member "${userToDelete.name}" from the directory.`);
+    
+    setUsers(users.filter(u => u.id !== userId));
+    setIsTeamModalOpen(false);
+    sendToAPI('delete_user', { id: userId });
   };
 
   const handleUpdateUser = (updatedUser) => {
@@ -779,6 +851,7 @@ export default function App() {
      const taskId = e.dataTransfer.getData('taskId');
      const task = tasks.find(t => t.id === taskId);
      if(task && task.status !== newStatus) {
+        logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
         const updatedTask = { ...task, status: newStatus, completedAt: newStatus === 'done' ? new Date().toISOString() : null, completedBy: newStatus === 'done' ? currentUser.id : null };
         setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
         sendToAPI('save_task', updatedTask);
@@ -815,7 +888,7 @@ export default function App() {
              activeSpreakerShowId={activeSpreakerShowId} setActiveSpreakerShowId={setActiveSpreakerShowId}
              openCompanyModal={openCompanyModal} openProjectModal={openProjectModal} openYoutubeModal={openYoutubeModal} openSpreakerModal={openSpreakerModal}
              openProfileModal={openProfileModal} setIsTeamModalOpen={setIsTeamModalOpen} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen}
-             activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab}
+             activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab} activeActivityTab={activeActivityTab} setActiveActivityTab={setActiveActivityTab}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -848,6 +921,8 @@ export default function App() {
               <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} />
+            ) : currentApp === 'activity' ? (
+              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} />
             ) : (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             )}
@@ -872,7 +947,7 @@ export default function App() {
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
-      {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} />}
+      {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleDeleteUser={handleDeleteUser} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} currentUser={currentUser} />}
       {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
       {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
       {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
