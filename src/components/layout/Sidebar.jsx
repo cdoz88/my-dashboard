@@ -267,7 +267,7 @@ export default function Sidebar({
                 <button onClick={() => { setActiveActivityTab('tasks'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'tasks' ? 'bg-slate-800 text-emerald-400' : 'hover:bg-slate-800 text-slate-300 hover:text-emerald-400'}`}>
                   <CheckCircle size={18} /> Tasks
                 </button>
-                <button onClick={() => { setActiveActivityTab('team'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'team' ? 'bg-slate-800 text-amber-400' : 'hover:bg-slate-800 text-slate-300 hover:text-amber-400'}`}>
+                <button onClick={() => { setActiveActivityTab('team'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'team' ? 'bg-slate-800 text-indigo-400' : 'hover:bg-slate-800 text-slate-300 hover:text-indigo-400'}`}>
                   <Users size={18} /> Team
                 </button>
                 <button onClick={() => { setActiveActivityTab('events'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeActivityTab === 'events' ? 'bg-slate-800 text-purple-400' : 'hover:bg-slate-800 text-slate-300 hover:text-purple-400'}`}>

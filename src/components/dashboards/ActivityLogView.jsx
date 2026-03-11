@@ -2,11 +2,9 @@ import React from 'react';
 import { Activity, LayoutDashboard, CheckCircle, Users, CalendarDays, UserCircle, Clock } from 'lucide-react';
 
 export default function ActivityLogView({ activityLogs = [], users = [], activeActivityTab = 'overview' }) {
-   // 1. Extreme safety checks to guarantee arrays exist
    const safeLogs = Array.isArray(activityLogs) ? activityLogs : [];
    const safeUsers = Array.isArray(users) ? users : [];
 
-   // 2. Safely filter without calling .toLowerCase() on nulls or undefined values
    const filteredLogs = safeLogs.filter(log => {
       if (!log || typeof log !== 'object') return false; 
       if (activeActivityTab === 'overview') return true;
@@ -19,11 +17,11 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
 
    const getCategoryIcon = (category) => {
        const cat = typeof category === 'string' ? category.toLowerCase() : '';
-       if (cat === 'projects') return <LayoutDashboard size={18} className="text-blue-500" />;
-       if (cat === 'tasks') return <CheckCircle size={18} className="text-emerald-500" />;
-       if (cat === 'team') return <Users size={18} className="text-amber-500" />;
-       if (cat === 'events') return <CalendarDays size={18} className="text-purple-500" />;
-       return <Activity size={18} className="text-slate-500" />;
+       if (cat === 'projects') return <LayoutDashboard size={16} className="text-blue-500" />;
+       if (cat === 'tasks') return <CheckCircle size={16} className="text-emerald-500" />;
+       if (cat === 'team') return <Users size={16} className="text-indigo-500" />;
+       if (cat === 'events') return <CalendarDays size={16} className="text-purple-500" />;
+       return <Activity size={16} className="text-slate-500" />;
    };
 
    const getUser = (id) => {
@@ -43,9 +41,9 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
              {filteredLogs.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                    {filteredLogs.map((log, index) => {
+                       if (!log) return null;
                        const user = getUser(log.userId);
                        
-                       // Safe date formatting
                        let displayDate = 'Just now';
                        if (log.timestamp) {
                            try {
@@ -54,22 +52,21 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
                        }
 
                        return (
-                           <div key={log.id || `log-${index}`} className="p-4 sm:p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
-                               <div className="mt-1 flex-shrink-0 bg-slate-100 p-2.5 rounded-full border border-slate-200 shadow-sm">
+                           <div key={log.id || `log-${index}`} className="py-3 px-4 flex items-start gap-3 hover:bg-slate-50 transition-colors">
+                               <div className="flex-shrink-0 bg-slate-50 p-2 rounded-full border border-slate-200 shadow-sm mt-0.5">
                                    {getCategoryIcon(log.actionCategory)}
                                </div>
-                               <div className="flex-1 min-w-0">
-                                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4 mb-1.5">
+                               <div className="flex flex-col sm:flex-row sm:items-center flex-1 min-w-0 gap-1 sm:gap-4">
+                                   <div className="flex flex-col flex-1 min-w-0">
                                        <span className="text-sm font-bold text-slate-800 truncate">{log.actionType || 'System Action'}</span>
-                                       <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 flex-shrink-0">
-                                          <Clock size={12} /> {displayDate}
-                                       </span>
+                                       <span className="text-sm text-slate-600 truncate">{log.description || 'No details provided.'}</span>
                                    </div>
-                                   <p className="text-sm text-slate-600 mb-3">{log.description || 'No details provided.'}</p>
-                                   <div className="flex items-center gap-2">
-                                       {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={20} className="text-slate-400" />}
-                                       <span className="text-xs font-semibold text-slate-600">{user?.name || 'System Auto-Action'}</span>
-                                       <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-slate-100 rounded text-slate-500 font-bold ml-2 border border-slate-200">{log.actionCategory || 'System'}</span>
+                                   <div className="flex items-center gap-2 sm:w-48 flex-shrink-0 mt-1 sm:mt-0">
+                                       {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={18} className="text-slate-400" />}
+                                       <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || 'System Auto-Action'}</span>
+                                   </div>
+                                   <div className="flex items-center sm:justify-end sm:w-40 flex-shrink-0 text-xs text-slate-400 font-medium mt-1 sm:mt-0">
+                                      <Clock size={12} className="mr-1.5 flex-shrink-0" /> <span className="truncate">{displayDate}</span>
                                    </div>
                                </div>
                            </div>
