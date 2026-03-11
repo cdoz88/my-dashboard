@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog 
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact 
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -40,6 +40,9 @@ export default function Sidebar({
                 </button>
                 <button onClick={() => { setActiveTab('capacity'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'capacity' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
                   <Users size={18} /> Team Capacity
+                </button>
+                <button onClick={() => { setActiveTab('directory'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'directory' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
+                  <Contact size={18} /> Team Directory
                 </button>
                 <button onClick={() => { setActiveTab('archived'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeTab === 'archived' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
                   <Archive size={18} /> Archived
