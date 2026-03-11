@@ -2,21 +2,23 @@ import React from 'react';
 import { Activity, LayoutDashboard, CheckCircle, Users, CalendarDays, UserCircle, Clock } from 'lucide-react';
 
 export default function ActivityLogView({ activityLogs = [], users = [], activeActivityTab = 'overview' }) {
-   // Ensure it's always an array to prevent mapping crashes
+   // 1. Extreme safety checks to guarantee arrays exist
    const safeLogs = Array.isArray(activityLogs) ? activityLogs : [];
+   const safeUsers = Array.isArray(users) ? users : [];
 
-   const filteredLogs = activeActivityTab === 'overview' 
-      ? safeLogs 
-      : safeLogs.filter(log => {
-          if (!log) return false;
-          // Safely check the category with fallbacks
-          const category = log.actionCategory || '';
-          const targetTab = activeActivityTab || '';
-          return category.toLowerCase() === targetTab.toLowerCase();
-      });
+   // 2. Safely filter without calling .toLowerCase() on nulls or undefined values
+   const filteredLogs = safeLogs.filter(log => {
+      if (!log || typeof log !== 'object') return false; 
+      if (activeActivityTab === 'overview') return true;
+      
+      const category = typeof log.actionCategory === 'string' ? log.actionCategory.toLowerCase() : '';
+      const targetTab = typeof activeActivityTab === 'string' ? activeActivityTab.toLowerCase() : '';
+      
+      return category === targetTab;
+   });
 
    const getCategoryIcon = (category) => {
-       const cat = (category || '').toLowerCase();
+       const cat = typeof category === 'string' ? category.toLowerCase() : '';
        if (cat === 'projects') return <LayoutDashboard size={18} className="text-blue-500" />;
        if (cat === 'tasks') return <CheckCircle size={18} className="text-emerald-500" />;
        if (cat === 'team') return <Users size={18} className="text-amber-500" />;
@@ -24,7 +26,9 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
        return <Activity size={18} className="text-slate-500" />;
    };
 
-   const getUser = (id) => users.find(u => u?.id === id);
+   const getUser = (id) => {
+       return safeUsers.find(u => u && u.id === id) || null;
+   };
 
    return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
@@ -38,11 +42,19 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
              {filteredLogs.length > 0 ? (
                 <div className="divide-y divide-slate-100">
-                   {filteredLogs.map(log => {
-                       if (!log) return null; // Failsafe for empty array items
+                   {filteredLogs.map((log, index) => {
                        const user = getUser(log.userId);
+                       
+                       // Safe date formatting
+                       let displayDate = 'Just now';
+                       if (log.timestamp) {
+                           try {
+                               displayDate = new Date(log.timestamp).toLocaleString();
+                           } catch(e) {}
+                       }
+
                        return (
-                           <div key={log.id || Math.random()} className="p-4 sm:p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                           <div key={log.id || `log-${index}`} className="p-4 sm:p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
                                <div className="mt-1 flex-shrink-0 bg-slate-100 p-2.5 rounded-full border border-slate-200 shadow-sm">
                                    {getCategoryIcon(log.actionCategory)}
                                </div>
@@ -50,7 +62,7 @@ export default function ActivityLogView({ activityLogs = [], users = [], activeA
                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4 mb-1.5">
                                        <span className="text-sm font-bold text-slate-800 truncate">{log.actionType || 'System Action'}</span>
                                        <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 flex-shrink-0">
-                                          <Clock size={12} /> {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Just now'}
+                                          <Clock size={12} /> {displayDate}
                                        </span>
                                    </div>
                                    <p className="text-sm text-slate-600 mb-3">{log.description || 'No details provided.'}</p>
