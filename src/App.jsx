@@ -154,12 +154,6 @@ export default function App() {
         
         if (data.settings && data.settings.globalOnboardingChecklist) {
             try { setGlobalChecklist(JSON.parse(data.settings.globalOnboardingChecklist)); } catch(e) {}
-        } else {
-            const localSaved = localStorage.getItem('globalOnboardingChecklist');
-            if (localSaved) {
-                try { setGlobalChecklist(JSON.parse(localSaved)); } catch(e) {}
-                fetch(`${API_URL}?action=save_setting`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key_name: 'globalOnboardingChecklist', setting_value: localSaved }) });
-            }
         }
 
         if(data.companies) setCompanies(data.companies);
@@ -248,7 +242,6 @@ export default function App() {
     sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
   };
 
-  // --- AUTOMATED ONBOARDING GENERATOR ---
   const handleGenerateOnboarding = (user) => {
     if (!globalChecklist || globalChecklist.length === 0) {
         alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
@@ -272,12 +265,10 @@ export default function App() {
     logActivity('Projects', 'New Project Created', `Created onboarding project for "${user.name}"`);
 
     const newTasks = globalChecklist.map((item, idx) => {
-        // Dynamic Assignee Mapping
         let assignedTo = user.id;
         if (item.assigneeType === 'admin') assignedTo = currentUser.id;
         if (item.assigneeType === 'none') assignedTo = '';
 
-        // Dynamic Description Mapping
         let desc = item.description;
         if (desc === undefined) desc = `Welcome to the team, ${user.name.split(' ')[0]}! Please complete this task.`;
 
@@ -290,15 +281,16 @@ export default function App() {
             dueDate: '',
             assigneeId: assignedTo,
             weight: 1,
-            tags: [], // Cleared the default "Ready" tag
-            files: item.files || [], // Inherits any files uploaded to the template
+            tags: [], 
+            files: item.files || [], 
             comments: [],
             sortOrder: idx
         };
     });
 
     newTasks.forEach(t => {
-        sendToAPI('save_task', { ...t, notifyAssignee: true });
+        const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
+        sendToAPI('save_task', { ...t, notifyAssignee });
         logActivity('Tasks', 'Task Added', `Created task "${t.title}"`);
     });
 
@@ -373,9 +365,8 @@ export default function App() {
      }
   }, [events, currentUser]); 
 
-  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = newSearchParams(window.location.search);
     const code = urlParams.get('code');
     const error = urlParams.get('error');
     const errorDesc = urlParams.get('error_description');
@@ -586,7 +577,12 @@ export default function App() {
     const oldTask = isNew ? null : tasks.find(t => t.id === currentTask.id);
     
     const assigneeChanged = !isNew && oldTask && oldTask.assigneeId !== currentTask.assigneeId;
-    const notifyAssignee = (isNew && currentTask.assigneeId) || assigneeChanged;
+    const notifyAssignee = (isNew && currentTask.assigneeId && currentTask.assigneeId !== currentUser.id) || (assigneeChanged && currentTask.assigneeId !== currentUser.id);
+
+    let notifyStatus = false;
+    if (!isNew && oldTask && oldTask.status !== currentTask.status && currentTask.assigneeId && currentTask.assigneeId !== currentUser.id) {
+        notifyStatus = true;
+    }
 
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
@@ -606,7 +602,7 @@ export default function App() {
     if (currentTask.id) setTasks(tasks.map(t => t.id === taskData.id ? taskData : t));
     else setTasks([...tasks, taskData]);
     setIsTaskModalOpen(false);
-    sendToAPI('save_task', { ...taskData, notifyAssignee });
+    sendToAPI('save_task', { ...taskData, notifyAssignee, notifyStatus, newStatus: taskData.status });
   };
 
   const handleDeleteTask = (taskId) => {
@@ -620,8 +616,11 @@ export default function App() {
     const newStatus = isNowDone ? 'done' : 'todo';
     const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
+    
+    const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
+    
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
-    sendToAPI('save_task', updatedTask);
+    sendToAPI('save_task', { ...updatedTask, notifyStatus, newStatus });
   };
 
   const handleAddComment = () => {
@@ -634,7 +633,14 @@ export default function App() {
     setNewCommentText('');
     if (updatedTask.id) {
         setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
-        sendToAPI('save_task', updatedTask);
+        
+        const notifyComment = updatedTask.assigneeId && updatedTask.assigneeId !== currentUser.id;
+        sendToAPI('save_task', { 
+            ...updatedTask, 
+            notifyComment, 
+            commenterName: currentUser.name, 
+            commentText: newComment.text 
+        });
     }
   };
 
@@ -729,10 +735,16 @@ export default function App() {
     e.preventDefault();
     if (!editingCompany.name.trim()) return;
     const companyData = editingCompany.id ? editingCompany : { ...editingCompany, id: 'c' + Date.now() };
+    
+    const oldUserIds = editingCompany.id ? companies.find(c => c.id === editingCompany.id)?.userIds || [] : [];
+    const newUserIds = editingCompany.userIds || [];
+    const newlyAddedUserIds = newUserIds.filter(id => !oldUserIds.includes(id) && id !== currentUser.id);
+    
     if (editingCompany.id) setCompanies(companies.map(c => c.id === companyData.id ? companyData : c));
     else setCompanies([...companies, companyData]);
+    
     setIsCompanyModalOpen(false);
-    sendToAPI('save_company', companyData);
+    sendToAPI('save_company', { ...companyData, notifyNewUsers: newlyAddedUserIds });
   };
 
   const handleDeleteCompany = (companyId) => {
@@ -902,6 +914,13 @@ export default function App() {
     if (users.find(u => u.id === userToSave.id)) setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
     else setUsers([...users, localUser]);
 
+    const oldCompanyIds = !isNew && users.find(u => u.id === userToSave.id) 
+        ? companies.filter(c => c.userIds?.includes(userToSave.id)).map(c => c.id) 
+        : [];
+    const newCompanyIds = editingTeamMember.companyIds || [];
+    const newlyAddedCompanyIds = newCompanyIds.filter(id => !oldCompanyIds.includes(id));
+    const notifyNewCompanies = newlyAddedCompanyIds.map(id => companies.find(c => c.id === id)?.name).filter(Boolean);
+
     if (editingTeamMember.companyIds !== undefined) {
         const newCompanies = companies.map(c => {
            const hasUser = editingTeamMember.companyIds.includes(c.id);
@@ -913,7 +932,7 @@ export default function App() {
         setCompanies(newCompanies);
     }
 
-    sendToAPI('save_user', userToSave);
+    sendToAPI('save_user', { ...userToSave, notifyNewCompanies });
     
     if (isNew && generateOnboarding) {
         handleGenerateOnboarding(userToSave);
@@ -968,7 +987,9 @@ export default function App() {
         logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
         const updatedTask = { ...task, status: newStatus, completedAt: newStatus === 'done' ? new Date().toISOString() : null, completedBy: newStatus === 'done' ? currentUser.id : null };
         setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
-        sendToAPI('save_task', updatedTask);
+        
+        const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
+        sendToAPI('save_task', { ...updatedTask, notifyStatus, newStatus });
      }
   };
   const handleDragOver = (e) => e.preventDefault();
