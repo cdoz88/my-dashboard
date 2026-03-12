@@ -25,15 +25,30 @@ export default function TaskDesktopRow({
       onDragEnd={onDragEnd}
       className={`border-b border-slate-100 transition-colors group ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
-      <td className="p-4 w-16 pr-1 flex items-center h-full pt-6">
-        {draggable && <GripVertical size={16} className="text-slate-300 mr-2 flex-shrink-0" />}
-        <button onClick={() => handleToggleTaskStatus(task)} className="cursor-pointer flex-shrink-0">
-          {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-        </button>
+      <td className="p-4 w-16 pr-1 align-middle">
+        <div className="flex items-center h-full">
+          {draggable && <GripVertical size={16} className="text-slate-300 mr-2 flex-shrink-0" />}
+          <button 
+             type="button"
+             onMouseDown={(e) => e.stopPropagation()}
+             onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} 
+             className="cursor-pointer flex-shrink-0"
+          >
+            {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
+          </button>
+        </div>
       </td>
-      <td className="py-4 px-2 w-8"><div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} /></td>
-      <td className={`p-4 font-medium cursor-pointer transition-colors ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>
-        <div>{task.title}</div>
+      <td className="py-4 px-2 w-8 align-middle">
+        <div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} />
+      </td>
+      <td className="p-4 align-middle">
+        <div 
+           className={`font-medium cursor-pointer transition-colors w-fit ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} 
+           onMouseDown={(e) => e.stopPropagation()}
+           onClick={(e) => { e.stopPropagation(); openTaskModal(task); }}
+        >
+          {task.title}
+        </div>
         <div className="flex flex-wrap items-center gap-2 mt-1.5">
           <TagDisplay tags={task.tags} />
           <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span>
@@ -41,7 +56,7 @@ export default function TaskDesktopRow({
           {task.comments && task.comments.length > 0 && <span className="flex items-center gap-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200 text-[10px] font-bold" title="Comments"><MessageSquare size={12} /> {task.comments.length}</span>}
         </div>
       </td>
-      <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
+      <td className="p-4 text-sm text-slate-600 whitespace-nowrap align-middle">
         {showProject ? (
           project && company && (
             <div className={`flex items-center gap-2 ${task.status === 'done' ? 'opacity-50 grayscale' : ''}`}>
@@ -60,9 +75,16 @@ export default function TaskDesktopRow({
           )
         )}
       </td>
-      <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
+      <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap align-middle ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
         <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
-        <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"><Trash2 size={16} /></button>
+        <button 
+           type="button"
+           onMouseDown={(e) => e.stopPropagation()}
+           onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
+           className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"
+        >
+          <Trash2 size={16} />
+        </button>
       </td>
     </tr>
   );

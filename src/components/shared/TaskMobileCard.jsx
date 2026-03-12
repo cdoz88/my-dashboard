@@ -27,11 +27,22 @@ export default function TaskMobileCard({
     >
       <div className="flex items-start gap-2.5 mb-2">
         {draggable && <GripVertical size={16} className="text-slate-300 mt-0.5 flex-shrink-0" />}
-        <button className="mt-0.5 flex-shrink-0" onClick={() => handleToggleTaskStatus(task)}>
+        <button 
+           type="button"
+           onMouseDown={(e) => e.stopPropagation()}
+           onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
+           className="mt-0.5 flex-shrink-0" 
+        >
             {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
         </button>
         <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
-        <div className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} onClick={() => openTaskModal(task)}>{task.title}</div>
+        <div 
+           className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} 
+           onMouseDown={(e) => e.stopPropagation()}
+           onClick={(e) => { e.stopPropagation(); openTaskModal(task); }}
+        >
+          {task.title}
+        </div>
       </div>
       <div className="pl-8 flex flex-wrap items-center gap-x-3 gap-y-2">
         <TagDisplay tags={task.tags} />
@@ -56,7 +67,14 @@ export default function TaskMobileCard({
           )
         )}
         <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
-        <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+        <button 
+           type="button"
+           onMouseDown={(e) => e.stopPropagation()}
+           onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
+           className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
     </div>
   );
