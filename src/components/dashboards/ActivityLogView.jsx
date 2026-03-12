@@ -50,6 +50,26 @@ export default function ActivityLogView({
        return safeUsers.find(u => u && u.id === id) || null;
    };
 
+   // Helper to detect and italicize comment content (detected by double quotes)
+   const formatDescription = (desc = '') => {
+      if (!desc.includes('"')) return desc;
+      
+      // Split by double quotes
+      const parts = desc.split('"');
+      if (parts.length < 2) return desc; 
+
+      // Parts[0] is the introductory text (normal)
+      // Parts[1] is the content inside the first pair of quotes (italicize)
+      // Parts[2] is any text after (normal)
+      return (
+         <>
+            {parts[0]}"
+            <span className="italic text-slate-700">{parts[1]}</span>
+            "{parts[2]}
+         </>
+      );
+   };
+
    return (
       <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50">
          <div className="mb-6 sm:mb-8">
@@ -97,36 +117,49 @@ export default function ActivityLogView({
                                <div className="flex-shrink-0 bg-slate-50 p-2.5 rounded-full border border-slate-200 shadow-sm mt-0.5">
                                    {getCategoryIcon(log.actionCategory)}
                                </div>
-                               <div className="flex flex-col sm:flex-row sm:items-start flex-1 min-w-0 gap-2 sm:gap-4">
-                                   <div className="flex flex-col flex-1 min-w-0">
-                                       <span className="text-sm font-bold text-slate-800 truncate mb-0.5">
-                                           {getActionEmoji(log.actionType)} {log.actionType || 'System Action'}
-                                       </span>
-                                       {/* Swapped truncate for line-clamp so comments gracefully wrap on screen! */}
-                                       <span className="text-sm text-slate-600 line-clamp-4 whitespace-pre-line leading-snug">
-                                           {log.description || 'No details provided.'}
-                                       </span>
+                               
+                               <div className="flex-1 flex flex-col gap-2.5 min-w-0">
+                                   {/* Revised Header Row: Columnar Layout [Action | Project | User | Date] */}
+                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-slate-100 pb-2.5">
+                                       {/* Col 1: Action (Greedy) */}
+                                       <div className="flex-1 min-w-0">
+                                          <span className="text-sm font-bold text-slate-800 truncate block">
+                                              {getActionEmoji(log.actionType)} {log.actionType || 'System Action'}
+                                          </span>
+                                       </div>
                                        
+                                       {/* Col 2: Project (Now in this row!) */}
                                        {associatedProject && (
-                                           <button
-                                              onClick={() => {
-                                                  setCurrentApp('projects');
-                                                  setActiveTab(associatedProject.id);
-                                              }}
-                                              className={`mt-2 flex items-center gap-1.5 w-fit px-2 py-1 rounded border text-[10px] font-bold shadow-sm transition-transform hover:scale-105 ${colorStyles[associatedProject.color]?.bg} ${colorStyles[associatedProject.color]?.border} ${colorStyles[associatedProject.color]?.text}`}
-                                           >
-                                               <DynamicIcon name={associatedProject.icon} size={12} />
-                                               {associatedProject.name}
-                                           </button>
+                                           <div className="sm:w-48 flex-shrink-0">
+                                              <button
+                                                 onClick={() => {
+                                                     setCurrentApp('projects');
+                                                     setActiveTab(associatedProject.id);
+                                                 }}
+                                                 className={`flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded border ${colorStyles[associatedProject.color]?.bg} ${colorStyles[associatedProject.color]?.border} ${colorStyles[associatedProject.color]?.text} transition-transform hover:scale-105`}
+                                              >
+                                                  <DynamicIcon name={associatedProject.icon} size={11} className="flex-shrink-0" />
+                                                  <span className="truncate">{associatedProject.name}</span>
+                                              </button>
+                                           </div>
                                        )}
+                                       
+                                       {/* Col 3: User */}
+                                       <div className="flex items-center gap-1.5 sm:w-40 flex-shrink-0">
+                                           {user?.avatarUrl ? <img src={user.avatarUrl} className="w-4 h-4 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={16} className="text-slate-400" />}
+                                           <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || 'System Auto-Action'}</span>
+                                       </div>
+                                       
+                                       {/* Col 4: Date */}
+                                       <div className="flex items-center sm:justify-end sm:w-36 flex-shrink-0 text-xs text-slate-400 font-medium">
+                                          <Clock size={12} className="mr-1.5 flex-shrink-0" /> <span className="truncate">{displayDate}</span>
+                                       </div>
                                    </div>
-                                   <div className="flex items-center gap-2 sm:w-48 flex-shrink-0 mt-2 sm:mt-0">
-                                       {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={18} className="text-slate-400" />}
-                                       <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || 'System Auto-Action'}</span>
-                                   </div>
-                                   <div className="flex items-center sm:justify-end sm:w-40 flex-shrink-0 text-xs text-slate-400 font-medium mt-1 sm:mt-0">
-                                      <Clock size={12} className="mr-1.5 flex-shrink-0" /> <span className="truncate">{displayDate}</span>
-                                   </div>
+
+                                   {/* Description: Now Full Width below the header row, with Italicized Quotes */}
+                                   <span className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">
+                                       {formatDescription(log.description || 'No details provided.')}
+                                   </span>
                                </div>
                            </div>
                        );
