@@ -28,13 +28,27 @@ export default function TaskDesktopRow({
       className={`border-b border-slate-100 transition-colors group ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'}`}
     >
       <td className="p-4 w-16 pr-1 align-middle">
-        <button 
-           type="button"
-           onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} 
-           className="cursor-pointer flex-shrink-0 p-1 block mt-0.5"
-        >
-          {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
-        </button>
+        <div className="flex items-center h-full gap-1">
+          {draggable && (
+            <div 
+               onMouseEnter={() => setIsDragReady(true)}
+               onMouseLeave={() => setIsDragReady(false)}
+               onTouchStart={() => setIsDragReady(true)}
+               onTouchEnd={() => setIsDragReady(false)}
+               className="cursor-grab active:cursor-grabbing p-1 -ml-2 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
+               title="Drag to Reorder"
+            >
+               <GripVertical size={16} />
+            </div>
+          )}
+          <button 
+             type="button"
+             onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} 
+             className="cursor-pointer flex-shrink-0 p-1 block mt-0.5"
+          >
+            {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
+          </button>
+        </div>
       </td>
       <td className="py-4 px-2 w-8 align-middle">
         <div className={`w-2.5 h-2.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} title={task.status} />
@@ -74,30 +88,14 @@ export default function TaskDesktopRow({
       </td>
       <td className={`p-4 text-sm flex items-center justify-between whitespace-nowrap align-middle ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-600'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
         <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
-        
-        <div className="flex items-center gap-2">
-          <button 
-             type="button"
-             onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
-             className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1"
-             title="Delete Task"
-          >
-            <Trash2 size={16} />
-          </button>
-          
-          {draggable && (
-            <div 
-               onMouseEnter={() => setIsDragReady(true)}
-               onMouseLeave={() => setIsDragReady(false)}
-               onTouchStart={() => setIsDragReady(true)}
-               onTouchEnd={() => setIsDragReady(false)}
-               className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-500 transition-colors"
-               title="Drag to Reorder"
-            >
-               <GripVertical size={16} />
-            </div>
-          )}
-        </div>
+        <button 
+           type="button"
+           onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
+           className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1 ml-4"
+           title="Delete Task"
+        >
+          <Trash2 size={16} />
+        </button>
       </td>
     </tr>
   );

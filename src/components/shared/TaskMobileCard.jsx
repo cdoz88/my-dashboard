@@ -28,6 +28,17 @@ export default function TaskMobileCard({
       className={`p-4 transition-colors group border-b border-slate-100 last:border-b-0 ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'}`}
     >
       <div className="flex items-start gap-2 mb-2">
+        {draggable && (
+           <div 
+             onMouseEnter={() => setIsDragReady(true)}
+             onMouseLeave={() => setIsDragReady(false)}
+             onTouchStart={() => setIsDragReady(true)}
+             onTouchEnd={() => setIsDragReady(false)}
+             className="cursor-grab active:cursor-grabbing p-1 -ml-2 mt-0.5 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
+           >
+             <GripVertical size={16} />
+           </div>
+        )}
         <button 
            type="button"
            onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
@@ -70,7 +81,6 @@ export default function TaskMobileCard({
           <div className={`text-xs flex items-center gap-1 whitespace-nowrap ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}>
             <Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}
           </div>
-          
           <button 
              type="button"
              onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
@@ -78,18 +88,6 @@ export default function TaskMobileCard({
           >
             <Trash2 size={16} />
           </button>
-          
-          {draggable && (
-             <div 
-               onMouseEnter={() => setIsDragReady(true)}
-               onMouseLeave={() => setIsDragReady(false)}
-               onTouchStart={() => setIsDragReady(true)}
-               onTouchEnd={() => setIsDragReady(false)}
-               className="cursor-grab active:cursor-grabbing p-1 -mr-1 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
-             >
-               <GripVertical size={16} />
-             </div>
-          )}
         </div>
       </div>
     </div>
