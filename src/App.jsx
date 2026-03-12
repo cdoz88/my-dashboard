@@ -111,6 +111,7 @@ export default function App() {
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
 
+  // Admin-Only Project Filtering System
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
 
@@ -153,6 +154,12 @@ export default function App() {
         
         if (data.settings && data.settings.globalOnboardingChecklist) {
             try { setGlobalChecklist(JSON.parse(data.settings.globalOnboardingChecklist)); } catch(e) {}
+        } else {
+            const localSaved = localStorage.getItem('globalOnboardingChecklist');
+            if (localSaved) {
+                try { setGlobalChecklist(JSON.parse(localSaved)); } catch(e) {}
+                fetch(`${API_URL}?action=save_setting`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key_name: 'globalOnboardingChecklist', setting_value: localSaved }) });
+            }
         }
 
         if(data.companies) setCompanies(data.companies);
@@ -264,20 +271,31 @@ export default function App() {
     sendToAPI('save_project', newProject);
     logActivity('Projects', 'New Project Created', `Created onboarding project for "${user.name}"`);
 
-    const newTasks = globalChecklist.map((item, idx) => ({
-        id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
-        projectId: newProjId,
-        title: item.text,
-        description: `Welcome to the team, ${user.name.split(' ')[0]}! Please complete this task.`,
-        status: 'todo',
-        dueDate: '',
-        assigneeId: user.id,
-        weight: 1,
-        tags: ['Ready'],
-        files: [],
-        comments: [],
-        sortOrder: idx
-    }));
+    const newTasks = globalChecklist.map((item, idx) => {
+        // Dynamic Assignee Mapping
+        let assignedTo = user.id;
+        if (item.assigneeType === 'admin') assignedTo = currentUser.id;
+        if (item.assigneeType === 'none') assignedTo = '';
+
+        // Dynamic Description Mapping
+        let desc = item.description;
+        if (desc === undefined) desc = `Welcome to the team, ${user.name.split(' ')[0]}! Please complete this task.`;
+
+        return {
+            id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
+            projectId: newProjId,
+            title: item.text,
+            description: desc,
+            status: 'todo',
+            dueDate: '',
+            assigneeId: assignedTo,
+            weight: 1,
+            tags: [], // Cleared the default "Ready" tag
+            files: item.files || [], // Inherits any files uploaded to the template
+            comments: [],
+            sortOrder: idx
+        };
+    });
 
     newTasks.forEach(t => {
         sendToAPI('save_task', { ...t, notifyAssignee: true });
@@ -355,6 +373,7 @@ export default function App() {
      }
   }, [events, currentUser]); 
 
+  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -1046,7 +1065,7 @@ export default function App() {
       {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
       {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
       {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
-      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} />}
+      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
       {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
     </>
   );
