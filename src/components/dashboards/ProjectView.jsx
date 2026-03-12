@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, Plus } from 'lucide-react';
+import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, Plus, GripVertical } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress, isOverdue, formatDate } from '../../utils/helpers';
 import DynamicIcon from '../shared/DynamicIcon';
@@ -11,7 +11,8 @@ import TagDisplay from '../shared/TagDisplay';
 export default function ProjectView({ 
   projectId, projects, tasks, companies, users, 
   projectDisplayMode, handleToggleTaskStatus, openTaskModal, 
-  handleDeleteTask, handleDragStart, handleDrop, handleDragOver, handleReorderTasks 
+  handleDeleteTask, handleDragStart, handleDrop, handleDragOver, handleReorderTasks,
+  setIsProjectAttachmentsModalOpen
 }) {
   const projectTasks = tasks.filter(t => t.projectId === projectId);
   
@@ -63,9 +64,18 @@ export default function ProjectView({
              {currentProject && <DynamicIcon name={currentProject.icon} size={24} className={colorStyles[currentProject.color]?.text} />}
              {currentProject?.name || 'Unknown Project'}
           </h2>
-          <div className="flex items-center gap-2 mt-2">
-             <CompanyLogo company={currentCompany} sizeClass="w-5 h-5" />
-             <p className="text-slate-500 text-sm font-medium">{currentCompany?.name || 'Unknown Company'}</p>
+          <div className="flex items-center gap-4 mt-2">
+             <div className="flex items-center gap-2">
+                 <CompanyLogo company={currentCompany} sizeClass="w-5 h-5" />
+                 <p className="text-slate-500 text-sm font-medium">{currentCompany?.name || 'Unknown Company'}</p>
+             </div>
+             <div className="h-4 w-px bg-slate-300 hidden sm:block"></div>
+             <button 
+                onClick={() => setIsProjectAttachmentsModalOpen(true)} 
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-sm"
+             >
+                <Paperclip size={14} /> Project Files
+             </button>
           </div>
         </div>
         <div className="w-full sm:w-64 bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1.5">
