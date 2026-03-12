@@ -50,23 +50,22 @@ export default function ActivityLogView({
        return safeUsers.find(u => u && u.id === id) || null;
    };
 
-   // Helper to intelligently preserve all text and italicize anything in quotes
+   // Helper to detect and italicize comment content (detected by double quotes)
    const formatDescription = (desc = '') => {
       if (!desc.includes('"')) return desc;
       
       // Split by double quotes
       const parts = desc.split('"');
-      
+      if (parts.length < 2) return desc; 
+
+      // Parts[0] is the introductory text (normal)
+      // Parts[1] is the content inside the first pair of quotes (italicize)
+      // Parts[2] is any text after (normal)
       return (
          <>
-            {parts.map((part, index) => {
-               // Every odd index is the text that was inside the quotes!
-               if (index % 2 === 1) {
-                  return <span key={index} className="italic text-slate-800 font-medium">"{part}"</span>;
-               }
-               // Even indexes are normal text outside the quotes
-               return <span key={index}>{part}</span>;
-            })}
+            {parts[0]}"
+            <span className="italic text-slate-700">{parts[1]}</span>
+            "{parts[2]}
          </>
       );
    };
@@ -120,14 +119,16 @@ export default function ActivityLogView({
                                </div>
                                
                                <div className="flex-1 flex flex-col gap-2.5 min-w-0">
-                                   {/* Header Row: Columnar Layout [Action | Project | User | Date] */}
+                                   {/* Revised Header Row: Columnar Layout [Action | Project | User | Date] */}
                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-slate-100 pb-2.5">
+                                       {/* Col 1: Action (Greedy) */}
                                        <div className="flex-1 min-w-0">
                                           <span className="text-sm font-bold text-slate-800 truncate block">
                                               {getActionEmoji(log.actionType)} {log.actionType || 'System Action'}
                                           </span>
                                        </div>
                                        
+                                       {/* Col 2: Project (Now in this row!) */}
                                        {associatedProject && (
                                            <div className="sm:w-48 flex-shrink-0">
                                               <button
@@ -143,17 +144,19 @@ export default function ActivityLogView({
                                            </div>
                                        )}
                                        
+                                       {/* Col 3: User */}
                                        <div className="flex items-center gap-1.5 sm:w-40 flex-shrink-0">
                                            {user?.avatarUrl ? <img src={user.avatarUrl} className="w-4 h-4 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={16} className="text-slate-400" />}
                                            <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || 'System Auto-Action'}</span>
                                        </div>
                                        
+                                       {/* Col 4: Date */}
                                        <div className="flex items-center sm:justify-end sm:w-36 flex-shrink-0 text-xs text-slate-400 font-medium">
                                           <Clock size={12} className="mr-1.5 flex-shrink-0" /> <span className="truncate">{displayDate}</span>
                                        </div>
                                    </div>
 
-                                   {/* Description: Full Width, properly rendering and italicizing all quotes */}
+                                   {/* Description: Now Full Width below the header row, with Italicized Quotes */}
                                    <span className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">
                                        {formatDescription(log.description || 'No details provided.')}
                                    </span>
