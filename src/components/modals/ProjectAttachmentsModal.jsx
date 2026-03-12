@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Paperclip, FileText, Download, ExternalLink } from 'lucide-react';
+import { API_URL } from '../../utils/constants';
 
 export default function ProjectAttachmentsModal({ project, tasks, setIsProjectAttachmentsModalOpen }) {
   if (!project) return null;
@@ -41,7 +42,7 @@ export default function ProjectAttachmentsModal({ project, tasks, setIsProjectAt
                        )}
                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                           <a href={file.url} target="_blank" rel="noopener noreferrer" title="Open in new tab" className="p-2 bg-white text-slate-800 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm"><ExternalLink size={16} /></a>
-                          <a href={file.url} download={file.name} title="Download" target="_blank" rel="noopener noreferrer" className="p-2 bg-white text-slate-800 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm"><Download size={16} /></a>
+                          <a href={`${API_URL}?action=download&file=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`} title="Download" className="p-2 bg-white text-slate-800 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm"><Download size={16} /></a>
                        </div>
                      </div>
                      <div className="p-3">

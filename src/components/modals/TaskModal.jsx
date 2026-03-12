@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle, X, Upload, RefreshCw, FileText, Download, Trash2, MessageSquare, UserCircle } from 'lucide-react';
-import { availableTags, tagStyles } from '../../utils/constants';
+import { availableTags, tagStyles, API_URL } from '../../utils/constants';
 
 export default function TaskModal({
   currentTask, setCurrentTask, handleSaveTask, handleDeleteTask, setIsTaskModalOpen,
@@ -100,7 +100,7 @@ export default function TaskModal({
                           </div>
                         )}
                         <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                           <a href={file.url} target="_blank" rel="noopener noreferrer" download={file.name} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a>
+                           <a href={`${API_URL}?action=download&file=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`} title="Download" className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-blue-50 hover:text-blue-600"><Download size={14} /></a>
                            <button type="button" onClick={() => removeFile(index)} className="p-1.5 bg-white text-slate-800 rounded-md hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button>
                         </div>
                       </div>
