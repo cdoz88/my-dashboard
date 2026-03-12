@@ -242,6 +242,7 @@ export default function App() {
     sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
   };
 
+  // --- AUTOMATED ONBOARDING GENERATOR ---
   const handleGenerateOnboarding = (user) => {
     if (!globalChecklist || globalChecklist.length === 0) {
         alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
@@ -365,8 +366,9 @@ export default function App() {
      }
   }, [events, currentUser]); 
 
+  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
-    const urlParams = newSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const error = urlParams.get('error');
     const errorDesc = urlParams.get('error_description');
