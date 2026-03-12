@@ -254,7 +254,6 @@ export default function App() {
         return;
     }
     
-    // We import this directly from helpers now!
     const { newProject, newTasks } = generateOnboardingData(user, globalChecklist, companies, currentUser);
     
     sendToAPI('save_project', newProject);
@@ -496,7 +495,6 @@ export default function App() {
     reader.onload = async (event) => {
       const text = event.target.result;
       
-      // We import this directly from helpers now!
       const newExpenses = parseCSVToExpenses(text, companyId, isDomain);
       
       setExpenses(prev => [...prev, ...newExpenses]);
@@ -563,7 +561,9 @@ export default function App() {
   const handleToggleTaskStatus = (task) => {
     const isNowDone = task.status !== 'done';
     const newStatus = isNowDone ? 'done' : 'todo';
-    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new DatetoISOString() : null, completedBy: isNowDone ? currentUser.id : null };
+    
+    // THIS WAS THE FIX! new Date().toISOString() instead of new DatetoISOString()
+    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
     
     const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
