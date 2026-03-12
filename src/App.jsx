@@ -81,7 +81,7 @@ export default function App() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false, adminOnly: false });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', title: '', venmo: '', password: '', avatarUrl: '' });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', title: '', venmo: '', password: '', avatarUrl: '', webhookUrl: '' });
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
@@ -148,6 +148,7 @@ export default function App() {
                phone: u.phone || '',
                title: u.title || '',
                venmo: u.venmo || '',
+               webhookUrl: u.webhookUrl || ''
            })));
         }
         
@@ -195,6 +196,25 @@ export default function App() {
       })
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
+
+  // --- GOOGLE CHAT DEEP LINKING ROUTER ---
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskIdParam = urlParams.get('task');
+    
+    if (taskIdParam && tasks.length > 0 && projects.length > 0 && !isTaskModalOpen) {
+        const targetTask = tasks.find(t => t.id === taskIdParam);
+        if (targetTask) {
+            const targetProject = projects.find(p => p.id === targetTask.projectId);
+            if (targetProject) {
+                setCurrentApp('projects');
+                setActiveTab(targetProject.id);
+                openTaskModal(targetTask);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+    }
+  }, [tasks, projects, isTaskModalOpen]);
 
   const sendToAPI = async (action, data) => {
     try { await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); }
@@ -509,12 +529,17 @@ export default function App() {
   const handleSaveTask = (e) => {
     e.preventDefault();
     const isNew = !currentTask.id;
+    const oldTask = isNew ? null : tasks.find(t => t.id === currentTask.id);
+    
+    // Core check for Google Chat Webhooks
+    const assigneeChanged = !isNew && oldTask && oldTask.assigneeId !== currentTask.assigneeId;
+    const notifyAssignee = (isNew && currentTask.assigneeId) || assigneeChanged;
+
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
     if (isNew) {
         logActivity('Tasks', 'Task Added', `Created task "${taskData.title}"`);
     } else {
-        const oldTask = tasks.find(t => t.id === taskData.id);
         if (oldTask) {
             if (oldTask.status !== taskData.status) {
                 logActivity('Tasks', 'Task Status Update', `Changed status of "${taskData.title}" to ${taskData.status}`);
@@ -528,7 +553,7 @@ export default function App() {
     if (currentTask.id) setTasks(tasks.map(t => t.id === taskData.id ? taskData : t));
     else setTasks([...tasks, taskData]);
     setIsTaskModalOpen(false);
-    sendToAPI('save_task', taskData);
+    sendToAPI('save_task', { ...taskData, notifyAssignee });
   };
 
   const handleDeleteTask = (taskId) => {
@@ -789,14 +814,14 @@ export default function App() {
 
   const openProfileModal = () => {
     if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', password: '', avatarUrl: currentUser.avatarUrl });
+      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', password: '', avatarUrl: currentUser.avatarUrl, webhookUrl: currentUser.webhookUrl || '' });
       setIsProfileModalOpen(true);
     }
   };
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, password: profileForm.password, avatarUrl: profileForm.avatarUrl };
+    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, password: profileForm.password, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
     const localUser = { ...updatedUser };
     delete localUser.password;
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));

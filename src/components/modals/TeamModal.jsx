@@ -12,7 +12,7 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, companyIds: [] })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, companyIds: [] })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
@@ -44,7 +44,7 @@ export default function TeamModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                   <input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -72,6 +72,12 @@ export default function TeamModal({
                   <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}</label>
                   <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
+              </div>
+              
+              <div className="mb-8 pt-2">
+                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Google Chat Webhook URL <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Push Notifications</span></label>
+                 <input type="text" value={editingTeamMember.webhookUrl || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, webhookUrl: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://chat.googleapis.com/v1/spaces/..." />
+                 <p className="text-[10px] text-slate-400 mt-1.5">Paste the incoming webhook URL from this user's Google Chat Space to enable push notifications for task assignments.</p>
               </div>
 
               <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Team Assignments</h3>
