@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, GripVertical } from 'lucide-react';
 import { isOverdue, formatDate } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
@@ -12,6 +12,8 @@ export default function TaskDesktopRow({
   handleToggleTaskStatus, openTaskModal, handleDeleteTask,
   draggable = false, onDragStart, onDragOver, onDragEnd, isDragged
 }) {
+  const [isDragReady, setIsDragReady] = useState(false);
+  
   const project = projects?.find(p => p.id === task.projectId);
   const company = project ? companies?.find(c => c.id === project.companyId) : null;
   const assignee = users?.find(u => u.id === task.assigneeId);
@@ -19,20 +21,29 @@ export default function TaskDesktopRow({
   
   return (
     <tr 
-      draggable={draggable}
+      draggable={draggable && isDragReady}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className={`border-b border-slate-100 transition-colors group ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`border-b border-slate-100 transition-colors group ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'}`}
     >
       <td className="p-4 w-16 pr-1 align-middle">
-        <div className="flex items-center h-full">
-          {draggable && <GripVertical size={16} className="text-slate-300 mr-2 flex-shrink-0" />}
+        <div className="flex items-center h-full gap-1">
+          {draggable && (
+            <div 
+               onMouseEnter={() => setIsDragReady(true)}
+               onMouseLeave={() => setIsDragReady(false)}
+               onTouchStart={() => setIsDragReady(true)}
+               onTouchEnd={() => setIsDragReady(false)}
+               className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 hover:text-slate-500 transition-colors"
+            >
+               <GripVertical size={16} className="flex-shrink-0" />
+            </div>
+          )}
           <button 
              type="button"
-             onMouseDown={(e) => e.stopPropagation()}
              onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} 
-             className="cursor-pointer flex-shrink-0"
+             className="cursor-pointer flex-shrink-0 p-1"
           >
             {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
           </button>
@@ -44,7 +55,6 @@ export default function TaskDesktopRow({
       <td className="p-4 align-middle">
         <div 
            className={`font-medium cursor-pointer transition-colors w-fit ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} 
-           onMouseDown={(e) => e.stopPropagation()}
            onClick={(e) => { e.stopPropagation(); openTaskModal(task); }}
         >
           {task.title}
@@ -79,7 +89,6 @@ export default function TaskDesktopRow({
         <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
         <button 
            type="button"
-           onMouseDown={(e) => e.stopPropagation()}
            onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
            className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"
         >

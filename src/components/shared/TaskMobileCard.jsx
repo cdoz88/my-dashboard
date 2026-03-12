@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, GripVertical } from 'lucide-react';
 import { isOverdue, formatDate } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
@@ -12,6 +12,8 @@ export default function TaskMobileCard({
   handleToggleTaskStatus, openTaskModal, handleDeleteTask,
   draggable = false, onDragStart, onDragOver, onDragEnd, isDragged
 }) {
+  const [isDragReady, setIsDragReady] = useState(false);
+
   const project = projects?.find(p => p.id === task.projectId);
   const company = project ? companies?.find(c => c.id === project.companyId) : null;
   const assignee = users?.find(u => u.id === task.assigneeId);
@@ -19,26 +21,34 @@ export default function TaskMobileCard({
 
   return (
     <div 
-      draggable={draggable}
+      draggable={draggable && isDragReady}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className={`p-4 transition-colors group border-b border-slate-100 last:border-b-0 ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`p-4 transition-colors group border-b border-slate-100 last:border-b-0 ${isDragged ? 'opacity-50 bg-blue-50' : 'hover:bg-slate-50'}`}
     >
-      <div className="flex items-start gap-2.5 mb-2">
-        {draggable && <GripVertical size={16} className="text-slate-300 mt-0.5 flex-shrink-0" />}
+      <div className="flex items-start gap-2 mb-2">
+        {draggable && (
+           <div 
+             onMouseEnter={() => setIsDragReady(true)}
+             onMouseLeave={() => setIsDragReady(false)}
+             onTouchStart={() => setIsDragReady(true)}
+             onTouchEnd={() => setIsDragReady(false)}
+             className="cursor-grab active:cursor-grabbing p-1 -ml-1 mt-0.5 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0"
+           >
+             <GripVertical size={16} />
+           </div>
+        )}
         <button 
            type="button"
-           onMouseDown={(e) => e.stopPropagation()}
            onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }}
-           className="mt-0.5 flex-shrink-0" 
+           className="mt-1 flex-shrink-0 p-0.5" 
         >
             {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
         </button>
-        <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
+        <div className={`mt-2 w-2.5 h-2.5 rounded-full flex-shrink-0 ${task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-400' : 'bg-slate-300'}`} />
         <div 
-           className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} 
-           onMouseDown={(e) => e.stopPropagation()}
+           className={`flex-1 font-medium cursor-pointer transition-colors leading-tight pt-1 ml-0.5 ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 hover:text-blue-600'}`} 
            onClick={(e) => { e.stopPropagation(); openTaskModal(task); }}
         >
           {task.title}
@@ -69,7 +79,6 @@ export default function TaskMobileCard({
         <div className={`text-xs flex items-center gap-1 whitespace-nowrap ml-auto ${taskIsOverdue ? 'text-red-500 font-bold' : 'text-slate-500'} ${task.status === 'done' ? 'text-slate-400' : ''}`}><Clock size={12} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</div>
         <button 
            type="button"
-           onMouseDown={(e) => e.stopPropagation()}
            onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
            className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
         >
