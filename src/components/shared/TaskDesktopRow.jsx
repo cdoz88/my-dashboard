@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { CheckCircle, Circle, Clock, Trash2, Paperclip, MessageSquare, Star, GripVertical } from 'lucide-react';
 import { isOverdue, formatDate } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
@@ -12,16 +12,19 @@ export default function TaskDesktopRow({
   handleToggleTaskStatus, openTaskModal, handleDeleteTask,
   draggable = false, onDragStart, onDragOver, onDragEnd, isDragged
 }) {
-  const [isDragReady, setIsDragReady] = useState(false);
-  
   const project = projects?.find(p => p.id === task.projectId);
   const company = project ? companies?.find(c => c.id === project.companyId) : null;
   const assignee = users?.find(u => u.id === task.assigneeId);
   const taskIsOverdue = isOverdue(task.dueDate, task.status);
   
+  // This helper stops the drag engine from swallowing our clicks!
+  const stopDragConflict = (e) => {
+    e.stopPropagation();
+  };
+
   return (
     <tr 
-      draggable={draggable && isDragReady}
+      draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
@@ -30,18 +33,14 @@ export default function TaskDesktopRow({
       <td className="p-4 w-16 pr-1 align-middle">
         <div className="flex items-center h-full gap-1">
           {draggable && (
-            <div 
-               onMouseEnter={() => setIsDragReady(true)}
-               onMouseLeave={() => setIsDragReady(false)}
-               onTouchStart={() => setIsDragReady(true)}
-               onTouchEnd={() => setIsDragReady(false)}
-               className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 hover:text-slate-500 transition-colors"
-            >
+            <div className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-300 hover:text-slate-500 transition-colors">
                <GripVertical size={16} className="flex-shrink-0" />
             </div>
           )}
           <button 
              type="button"
+             onMouseDown={stopDragConflict}
+             onTouchStart={stopDragConflict}
              onClick={(e) => { e.stopPropagation(); handleToggleTaskStatus(task); }} 
              className="cursor-pointer flex-shrink-0 p-1"
           >
@@ -55,11 +54,13 @@ export default function TaskDesktopRow({
       <td className="p-4 align-middle">
         <div 
            className={`font-medium cursor-pointer transition-colors w-fit ${task.status === 'done' ? 'text-slate-400 line-through hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'}`} 
+           onMouseDown={stopDragConflict}
+           onTouchStart={stopDragConflict}
            onClick={(e) => { e.stopPropagation(); openTaskModal(task); }}
         >
           {task.title}
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+        <div className="flex flex-wrap items-center gap-2 mt-1.5" onMouseDown={stopDragConflict}>
           <TagDisplay tags={task.tags} />
           <span className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded border bg-slate-50 text-slate-500 border-slate-200" title="Task Weight / Points"><Star size={10}/> {task.weight || 1} pts</span>
           {task.files && task.files.length > 0 && <span className="flex items-center text-slate-400 bg-slate-100 p-1 rounded-md border border-slate-200" title="Has Attachments"><Paperclip size={14} /></span>}
@@ -89,8 +90,10 @@ export default function TaskDesktopRow({
         <span className="flex items-center gap-1"><Clock size={14} className={taskIsOverdue ? 'text-red-500' : 'text-slate-400'} />{formatDate(task.dueDate)}</span>
         <button 
            type="button"
+           onMouseDown={stopDragConflict}
+           onTouchStart={stopDragConflict}
            onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} 
-           className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4"
+           className="text-slate-300 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-4 p-1"
         >
           <Trash2 size={16} />
         </button>
