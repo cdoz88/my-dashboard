@@ -24,12 +24,19 @@ export const availableTags = Object.keys(tagStyles);
 
 export const expenseCategories = ['Company Expense', 'Website', 'Tools', 'Domains', 'Social Media', 'Merchandise', 'Personnel', 'Other'];
 
-// Define the available icons for the Project Modal
 export const availableIcons = [
-  'Building2', 'Globe', 'Smartphone', 'Megaphone', 'ShoppingCart', 
-  'Rocket', 'Code', 'Monitor', 'Heart', 'Star', 'Briefcase', 'FolderKanban',
-  'Users', 'Settings', 'Mail', 'Camera', 'Box', 'PenTool', 'Database', 'Cloud', 
-  'FileText', 'Zap', 'Compass', 'MapPin', 'Coffee', 'Music', 'ImageIcon', 
-  'FileVideo', 'Shield', 'Target', 'Award', 'Crown', 'Upload', 'RefreshCw',
-  'CalendarDays', 'Ticket', 'Mic', 'Headphones'
+  // Business & Finance
+  'Briefcase', 'Building2', 'Building', 'Landmark', 'Banknote', 'Wallet', 'PiggyBank', 'PieChart', 'BarChart', 'TrendingUp', 'LineChart', 'Presentation', 'Scale', 'Store',
+  // Sports, Fitness & Competition
+  'Trophy', 'Medal', 'Award', 'Dumbbell', 'Target', 'Goal', 'Crosshair', 'Flag', 'Swords',
+  // Media & Creator
+  'Mic', 'Headphones', 'Headset', 'Video', 'Camera', 'Clapperboard', 'Film', 'Tv', 'MonitorPlay', 'Radio', 'ImageIcon',
+  // Tech & IT
+  'Code', 'Database', 'Server', 'Cloud', 'Globe', 'Smartphone', 'Laptop', 'Monitor', 'Wifi', 'Zap', 'ShieldCheck', 'Lock',
+  // E-commerce & Shopping
+  'ShoppingCart', 'ShoppingBag', 'Ticket', 'Box',
+  // General & Branding
+  'Star', 'Heart', 'Crown', 'Flame', 'Rocket', 'Coffee', 'Music', 'MapPin', 'Compass', 'Smile', 'ThumbsUp',
+  // UI & Planning
+  'FolderKanban', 'Users', 'CalendarDays', 'Mail', 'Settings', 'PenTool', 'FileText', 'Upload', 'RefreshCw'
 ];
