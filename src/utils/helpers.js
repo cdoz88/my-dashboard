@@ -66,3 +66,92 @@ export const formatAVD = (minutes, views) => {
   const s = Math.floor((avgMin - m) * 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
+
+// --- NEW DATA EXTRACTORS ---
+
+export const parseCSVToExpenses = (text, companyId, isDomain) => {
+  const lines = text.split('\n');
+  const newExpenses = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Regex safely splits CSV columns while ignoring commas inside quotes
+    const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    const cols = line.split(regex).map(col => col.replace(/^"|"$/g, '').trim());
+    if (cols.length < 3) continue; 
+    
+    const name = cols[0];
+    if (!name || name === 'What' || name === 'Totals' || name.includes('Total') || name === 'Website' || name === 'Tools') continue;
+
+    let amount = 0, cycle = 'monthly', autoRenew = true;
+    const col1Str = (cols[1] || '').toLowerCase(), col2Str = (cols[2] || '').toLowerCase(), notesStr = (cols[7] || cols[6] || '').toLowerCase();
+    
+    if (col1Str.includes('ar off') || col2Str.includes('ar off') || notesStr.includes('ar off')) autoRenew = false;
+    
+    const monthlyStr = col1Str.replace(/[^0-9.]/g, ''), annualStr = col2Str.replace(/[^0-9.]/g, '');
+    if (monthlyStr && parseFloat(monthlyStr) > 0) { amount = parseFloat(monthlyStr); cycle = 'monthly'; } 
+    else if (annualStr && parseFloat(annualStr) > 0) { amount = parseFloat(annualStr); cycle = 'annual'; } 
+    else if (autoRenew) continue; 
+    else amount = 0; 
+
+    const renewalDate = cols[4] || '';
+    const notes = cols[7] || cols[6] || '';
+    let category = isDomain ? 'Domains' : 'Other';
+    
+    if (!isDomain) {
+       if (name.toLowerCase().includes('.com') || name.toLowerCase().includes('.network')) category = 'Domains';
+       else if (amount > 1000) category = 'Company Expense';
+       else if (cols[1] && cols[2]) category = 'Website';
+       else category = 'Tools';
+    }
+    
+    newExpenses.push({ 
+      id: 'e' + Date.now() + Math.random().toString(36).substr(2, 5) + i, 
+      companyId, name, amount, cycle, category, renewalDate, notes, autoRenew 
+    });
+  }
+  return newExpenses;
+};
+
+export const generateOnboardingData = (user, globalChecklist, companies, currentUser) => {
+  const newProjId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
+  const firstCompanyId = user.companyIds?.[0] || companies[0]?.id || '';
+  
+  const newProject = {
+      id: newProjId,
+      name: `Onboarding: ${user.name}`,
+      companyId: firstCompanyId,
+      icon: 'Star',
+      color: 'indigo',
+      isArchived: false,
+      adminOnly: true
+  };
+
+  const newTasks = globalChecklist.map((item, idx) => {
+      let assignedTo = user.id;
+      if (item.assigneeType === 'admin') assignedTo = currentUser.id;
+      if (item.assigneeType === 'none') assignedTo = '';
+
+      let desc = item.description;
+      if (desc === undefined) desc = `Welcome to the team, ${user.name.split(' ')[0]}! Please complete this task.`;
+
+      return {
+          id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
+          projectId: newProjId,
+          title: item.text,
+          description: desc,
+          status: 'todo',
+          dueDate: '',
+          assigneeId: assignedTo,
+          weight: 1,
+          tags: [], 
+          files: item.files || [], 
+          comments: [],
+          sortOrder: idx
+      };
+  });
+
+  return { newProject, newTasks };
+};

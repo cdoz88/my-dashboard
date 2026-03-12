@@ -3,6 +3,7 @@ import { Menu, X, UserCircle } from 'lucide-react';
 
 // Utils
 import { API_URL } from './utils/constants';
+import { parseCSVToExpenses, generateOnboardingData } from './utils/helpers';
 
 // Shared Components
 import AuthScreen from './components/auth/AuthScreen';
@@ -253,45 +254,11 @@ export default function App() {
         return;
     }
     
-    const newProjId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
-    const firstCompanyId = user.companyIds?.[0] || companies[0]?.id || '';
-    
-    const newProject = {
-        id: newProjId,
-        name: `Onboarding: ${user.name}`,
-        companyId: firstCompanyId,
-        icon: 'Star',
-        color: 'indigo',
-        isArchived: false,
-        adminOnly: true
-    };
+    // We import this directly from helpers now!
+    const { newProject, newTasks } = generateOnboardingData(user, globalChecklist, companies, currentUser);
     
     sendToAPI('save_project', newProject);
     logActivity('Projects', 'New Project Created', `Created onboarding project for "${user.name}"`);
-
-    const newTasks = globalChecklist.map((item, idx) => {
-        let assignedTo = user.id;
-        if (item.assigneeType === 'admin') assignedTo = currentUser.id;
-        if (item.assigneeType === 'none') assignedTo = '';
-
-        let desc = item.description;
-        if (desc === undefined) desc = `Welcome to the team, ${user.name.split(' ')[0]}! Please complete this task.`;
-
-        return {
-            id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
-            projectId: newProjId,
-            title: item.text,
-            description: desc,
-            status: 'todo',
-            dueDate: '',
-            assigneeId: assignedTo,
-            weight: 1,
-            tags: [], 
-            files: item.files || [], 
-            comments: [],
-            sortOrder: idx
-        };
-    });
 
     newTasks.forEach(t => {
         const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
@@ -528,42 +495,16 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target.result;
-      const lines = text.split('\n');
-      let importedCount = 0;
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-        const cols = line.split(regex).map(col => col.replace(/^"|"$/g, '').trim());
-        if (cols.length < 3) continue; 
-        const name = cols[0];
-        if (!name || name === 'What' || name === 'Totals' || name.includes('Total') || name === 'Website' || name === 'Tools') continue;
-
-        let amount = 0, cycle = 'monthly', autoRenew = true;
-        const col1Str = (cols[1] || '').toLowerCase(), col2Str = (cols[2] || '').toLowerCase(), notesStr = (cols[7] || cols[6] || '').toLowerCase();
-        if (col1Str.includes('ar off') || col2Str.includes('ar off') || notesStr.includes('ar off')) autoRenew = false;
-        
-        const monthlyStr = col1Str.replace(/[^0-9.]/g, ''), annualStr = col2Str.replace(/[^0-9.]/g, '');
-        if (monthlyStr && parseFloat(monthlyStr) > 0) { amount = parseFloat(monthlyStr); cycle = 'monthly'; } 
-        else if (annualStr && parseFloat(annualStr) > 0) { amount = parseFloat(annualStr); cycle = 'annual'; } 
-        else if (autoRenew) continue; 
-        else amount = 0; 
-
-        const renewalDate = cols[4] || '';
-        const notes = cols[7] || cols[6] || '';
-        let category = isDomain ? 'Domains' : 'Other';
-        if (!isDomain) {
-           if (name.toLowerCase().includes('.com') || name.toLowerCase().includes('.network')) category = 'Domains';
-           else if (amount > 1000) category = 'Company Expense';
-           else if (cols[1] && cols[2]) category = 'Website';
-           else category = 'Tools';
-        }
-        const expenseData = { id: 'e' + Date.now() + Math.random().toString(36).substr(2, 5), companyId, name, amount, cycle, category, renewalDate, notes, autoRenew };
-        setExpenses(prev => [...prev, expenseData]);
-        await sendToAPI('save_expense', expenseData);
-        importedCount++;
+      
+      // We import this directly from helpers now!
+      const newExpenses = parseCSVToExpenses(text, companyId, isDomain);
+      
+      setExpenses(prev => [...prev, ...newExpenses]);
+      for (const expenseData of newExpenses) {
+          await sendToAPI('save_expense', expenseData);
       }
-      alert(`Successfully imported ${importedCount} items from the CSV!`);
+      
+      alert(`Successfully imported ${newExpenses.length} items from the CSV!`);
       e.target.value = null; 
     };
     reader.readAsText(file);
@@ -622,7 +563,7 @@ export default function App() {
   const handleToggleTaskStatus = (task) => {
     const isNowDone = task.status !== 'done';
     const newStatus = isNowDone ? 'done' : 'todo';
-    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
+    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new DatetoISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
     
     const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
