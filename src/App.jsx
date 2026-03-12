@@ -111,7 +111,6 @@ export default function App() {
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
 
-  // Admin-Only Project Filtering System
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
 
@@ -154,14 +153,6 @@ export default function App() {
         
         if (data.settings && data.settings.globalOnboardingChecklist) {
             try { setGlobalChecklist(JSON.parse(data.settings.globalOnboardingChecklist)); } catch(e) {}
-        } else {
-            const localSaved = localStorage.getItem('globalOnboardingChecklist');
-            if (localSaved) {
-                try { setGlobalChecklist(JSON.parse(localSaved)); } catch(e) {}
-                fetch(`${API_URL}?action=save_setting`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key_name: 'globalOnboardingChecklist', setting_value: localSaved }) });
-            } else {
-                setGlobalChecklist([{ id: '1', text: 'Company Email Address' }, { id: '2', text: 'Add to Google Chat' }]);
-            }
         }
 
         if(data.companies) setCompanies(data.companies);
@@ -197,7 +188,6 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- GOOGLE CHAT DEEP LINKING ROUTER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const taskIdParam = urlParams.get('task');
@@ -233,7 +223,6 @@ export default function App() {
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
-  // --- LOGGING ENGINE ---
   const logActivity = (category, type, description) => {
     const newLog = {
       id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
@@ -250,6 +239,53 @@ export default function App() {
   const handleSaveGlobalChecklist = (newList) => {
     setGlobalChecklist(newList);
     sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
+  };
+
+  // --- AUTOMATED ONBOARDING GENERATOR ---
+  const handleGenerateOnboarding = (user) => {
+    if (!globalChecklist || globalChecklist.length === 0) {
+        alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
+        return;
+    }
+    
+    const newProjId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
+    const firstCompanyId = user.companyIds?.[0] || companies[0]?.id || '';
+    
+    const newProject = {
+        id: newProjId,
+        name: `Onboarding: ${user.name}`,
+        companyId: firstCompanyId,
+        icon: 'Star',
+        color: 'indigo',
+        isArchived: false,
+        adminOnly: true
+    };
+    
+    sendToAPI('save_project', newProject);
+    logActivity('Projects', 'New Project Created', `Created onboarding project for "${user.name}"`);
+
+    const newTasks = globalChecklist.map((item, idx) => ({
+        id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
+        projectId: newProjId,
+        title: item.text,
+        description: `Welcome to the team, ${user.name.split(' ')[0]}! Please complete this task.`,
+        status: 'todo',
+        dueDate: '',
+        assigneeId: user.id,
+        weight: 1,
+        tags: ['Ready'],
+        files: [],
+        comments: [],
+        sortOrder: idx
+    }));
+
+    newTasks.forEach(t => {
+        sendToAPI('save_task', { ...t, notifyAssignee: true });
+        logActivity('Tasks', 'Task Added', `Created task "${t.title}"`);
+    });
+
+    setProjects(prev => [...prev, newProject]);
+    setTasks(prev => [...prev, ...newTasks]);
   };
 
   const handleReorderTasks = (reorderedTasks) => {
@@ -319,7 +355,6 @@ export default function App() {
      }
   }, [events, currentUser]); 
 
-  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -531,7 +566,6 @@ export default function App() {
     const isNew = !currentTask.id;
     const oldTask = isNew ? null : tasks.find(t => t.id === currentTask.id);
     
-    // Core check for Google Chat Webhooks
     const assigneeChanged = !isNew && oldTask && oldTask.assigneeId !== currentTask.assigneeId;
     const notifyAssignee = (isNew && currentTask.assigneeId) || assigneeChanged;
 
@@ -833,8 +867,12 @@ export default function App() {
   const handleSaveTeamMember = (e) => {
     e.preventDefault();
     const isNew = !editingTeamMember.id;
+    const generateOnboarding = editingTeamMember.generateOnboarding !== false;
+    
     const userToSave = { ...editingTeamMember };
     if (!userToSave.id) userToSave.id = 'u' + Date.now();
+    delete userToSave.generateOnboarding; 
+    
     const localUser = { ...userToSave };
     delete localUser.password; 
 
@@ -857,6 +895,11 @@ export default function App() {
     }
 
     sendToAPI('save_user', userToSave);
+    
+    if (isNew && generateOnboarding) {
+        handleGenerateOnboarding(userToSave);
+    }
+    
     setEditingTeamMember(null);
   };
 
@@ -972,7 +1015,7 @@ export default function App() {
             ) : currentApp === 'spreaker' ? (
               <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
             ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} />
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} />
             ) : currentApp === 'activity' ? (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             ) : (

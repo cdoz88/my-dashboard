@@ -12,7 +12,7 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, companyIds: [] })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, companyIds: [], generateOnboarding: true })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
@@ -79,6 +79,18 @@ export default function TeamModal({
                  <input type="text" value={editingTeamMember.webhookUrl || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, webhookUrl: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://chat.googleapis.com/v1/spaces/..." />
                  <p className="text-[10px] text-slate-400 mt-1.5">Paste the incoming webhook URL from this user's Google Chat Space to enable push notifications for task assignments.</p>
               </div>
+
+              {!editingTeamMember.id && (
+                <div className="mb-6">
+                   <label className="flex items-center justify-between p-4 rounded-xl border border-indigo-200 bg-indigo-50 cursor-pointer transition-colors shadow-sm hover:border-indigo-300">
+                     <div className="text-left">
+                         <div className="font-bold text-indigo-800 flex items-center gap-2">Generate Onboarding Project</div>
+                         <div className="text-xs text-indigo-600 mt-0.5">Automatically create an admin-only project and assign template tasks to this user.</div>
+                     </div>
+                     <input type="checkbox" className="w-5 h-5 accent-indigo-600 rounded cursor-pointer" checked={editingTeamMember.generateOnboarding !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, generateOnboarding: e.target.checked})} />
+                   </label>
+                </div>
+              )}
 
               <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Team Assignments</h3>
               <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50 mb-8">

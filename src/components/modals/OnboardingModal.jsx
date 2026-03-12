@@ -52,7 +52,7 @@ export default function OnboardingModal({ setIsOnboardingModalOpen, globalCheckl
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-          <h3 className="font-bold text-lg text-slate-800">Global Onboarding Checklist</h3>
+          <h3 className="font-bold text-lg text-slate-800">Onboarding Task Templates</h3>
           <button onClick={() => setIsOnboardingModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
           </button>
@@ -60,7 +60,7 @@ export default function OnboardingModal({ setIsOnboardingModalOpen, globalCheckl
         
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
           <p className="text-sm text-slate-500 mb-6">
-            Changes made here will update the onboarding checklist for <b>all</b> current and future team members.
+            Tasks added here act as a template. When you invite a new team member and generate an onboarding project, these items will automatically be created as assigned tasks for them.
           </p>
 
           <form onSubmit={handleAddItem} className="flex gap-2 mb-6">
@@ -69,7 +69,7 @@ export default function OnboardingModal({ setIsOnboardingModalOpen, globalCheckl
               value={newItemText} 
               onChange={(e) => setNewItemText(e.target.value)} 
               className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" 
-              placeholder="Add new checklist item..." 
+              placeholder="Add new task template..." 
             />
             <button 
               type="submit" 
@@ -106,16 +106,16 @@ export default function OnboardingModal({ setIsOnboardingModalOpen, globalCheckl
             
             {checklist.length === 0 && (
                <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-sm">
-                 The onboarding checklist is empty.
+                 The onboarding template is empty.
                </div>
             )}
           </div>
         </div>
         
-        <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0">
+        <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0 bg-white">
           <button 
             onClick={() => setIsOnboardingModalOpen(false)} 
-            className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold transition-colors"
+            className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold transition-colors shadow-sm"
           >
             Done
           </button>
