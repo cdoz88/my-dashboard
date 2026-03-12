@@ -111,7 +111,6 @@ export default function App() {
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
 
-  // Admin-Only Project Filtering System
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
 
@@ -154,6 +153,12 @@ export default function App() {
         
         if (data.settings && data.settings.globalOnboardingChecklist) {
             try { setGlobalChecklist(JSON.parse(data.settings.globalOnboardingChecklist)); } catch(e) {}
+        } else {
+            const localSaved = localStorage.getItem('globalOnboardingChecklist');
+            if (localSaved) {
+                try { setGlobalChecklist(JSON.parse(localSaved)); } catch(e) {}
+                fetch(`${API_URL}?action=save_setting`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key_name: 'globalOnboardingChecklist', setting_value: localSaved }) });
+            }
         }
 
         if(data.companies) setCompanies(data.companies);
@@ -242,7 +247,6 @@ export default function App() {
     sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
   };
 
-  // --- AUTOMATED ONBOARDING GENERATOR ---
   const handleGenerateOnboarding = (user) => {
     if (!globalChecklist || globalChecklist.length === 0) {
         alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
@@ -366,7 +370,6 @@ export default function App() {
      }
   }, [events, currentUser]); 
 
-  // --- OAUTH CALLBACK LISTENER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -608,6 +611,9 @@ export default function App() {
   };
 
   const handleDeleteTask = (taskId) => {
+    const taskToDelete = tasks.find(t => t.id === taskId);
+    if (taskToDelete) logActivity('Tasks', 'Task Deleted', `Deleted task "${taskToDelete.title}"`);
+    
     setTasks(tasks.filter(t => t.id !== taskId));
     setIsTaskModalOpen(false);
     sendToAPI('delete_task', { id: taskId });
@@ -630,7 +636,8 @@ export default function App() {
     const newComment = { id: 'c' + Date.now(), text: newCommentText.trim(), userId: currentUser.id, timestamp: new Date().toISOString() };
     const updatedTask = { ...currentTask, comments: [...(currentTask.comments || []), newComment] };
     
-    logActivity('Tasks', 'Comment Added', `Added a comment to "${currentTask.title}"`);
+    logActivity('Tasks', 'Comment Added', `Added a comment to "${currentTask.title}":\n"${newCommentText.trim()}"`);
+    
     setCurrentTask(updatedTask);
     setNewCommentText('');
     if (updatedTask.id) {
@@ -669,7 +676,12 @@ export default function App() {
 
   const handleSaveDomain = (e) => {
     e.preventDefault();
+    const isNew = !currentDomain.id;
     const domainData = currentDomain.id ? currentDomain : { ...currentDomain, id: 'e' + Date.now() };
+    
+    if (isNew) logActivity('Domains', 'Domain Added', `Added domain "${domainData.name}"`);
+    else logActivity('Domains', 'Domain Edited', `Updated domain "${domainData.name}"`);
+
     if (currentDomain.id) setExpenses(expenses.map(exp => exp.id === domainData.id ? domainData : exp));
     else setExpenses([...expenses, domainData]);
     setIsDomainModalOpen(false);
@@ -677,6 +689,9 @@ export default function App() {
   };
 
   const handleDeleteExpense = (expenseId) => {
+    const item = expenses.find(e => e.id === expenseId);
+    if (item && item.category === 'Domains') logActivity('Domains', 'Domain Deleted', `Deleted domain "${item.name}"`);
+
     setExpenses(expenses.filter(e => e.id !== expenseId));
     setIsExpenseModalOpen(false);
     setIsDomainModalOpen(false);
@@ -736,8 +751,12 @@ export default function App() {
   const handleSaveCompany = (e) => {
     e.preventDefault();
     if (!editingCompany.name.trim()) return;
+    
+    const isNew = !editingCompany.id;
     const companyData = editingCompany.id ? editingCompany : { ...editingCompany, id: 'c' + Date.now() };
     
+    if (isNew) logActivity('Companies', 'Company Added', `Added company "${companyData.name}"`);
+
     const oldUserIds = editingCompany.id ? companies.find(c => c.id === editingCompany.id)?.userIds || [] : [];
     const newUserIds = editingCompany.userIds || [];
     const newlyAddedUserIds = newUserIds.filter(id => !oldUserIds.includes(id) && id !== currentUser.id);
@@ -750,6 +769,9 @@ export default function App() {
   };
 
   const handleDeleteCompany = (companyId) => {
+    const comp = companies.find(c => c.id === companyId);
+    if (comp) logActivity('Companies', 'Company Deleted', `Deleted company "${comp.name}"`);
+
     setCompanies(companies.filter(c => c.id !== companyId));
     setProjects(projects.filter(p => p.companyId !== companyId));
     setExpenses(expenses.filter(e => e.companyId !== companyId));

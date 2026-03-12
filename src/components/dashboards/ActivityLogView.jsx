@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, LayoutDashboard, CheckCircle, Users, CalendarDays, UserCircle, Clock } from 'lucide-react';
+import { Activity, LayoutDashboard, CheckCircle, Users, CalendarDays, UserCircle, Clock, Globe, Building2 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import DynamicIcon from '../shared/DynamicIcon';
 
@@ -31,7 +31,19 @@ export default function ActivityLogView({
        if (cat === 'tasks') return <CheckCircle size={16} className="text-emerald-500" />;
        if (cat === 'team') return <Users size={16} className="text-indigo-500" />;
        if (cat === 'events') return <CalendarDays size={16} className="text-purple-500" />;
+       if (cat === 'domains') return <Globe size={16} className="text-teal-500" />;
+       if (cat === 'companies') return <Building2 size={16} className="text-rose-500" />;
        return <Activity size={16} className="text-slate-500" />;
+   };
+
+   // Dynamic Emoji Parser
+   const getActionEmoji = (type = '') => {
+       const t = type.toLowerCase();
+       if (t.includes('added') || t.includes('created')) return '➕';
+       if (t.includes('deleted') || t.includes('removed')) return '❌';
+       if (t.includes('archived')) return '📁';
+       if (t.includes('update') || t.includes('edit') || t.includes('change')) return '✏️';
+       return '🔹';
    };
 
    const getUser = (id) => {
@@ -54,7 +66,6 @@ export default function ActivityLogView({
                        if (!log) return null;
                        const user = getUser(log.userId);
                        
-                       // Force UTC parsing so it converts to local time flawlessly
                        let displayDate = 'Just now';
                        if (log.timestamp) {
                            try {
@@ -69,7 +80,6 @@ export default function ActivityLogView({
                            } catch(e) {}
                        }
 
-                       // Dynamic Project Matcher for Tasks
                        let associatedProject = null;
                        if (log.actionCategory === 'Tasks' && log.description) {
                            const match = log.description.match(/"([^"]+)"/);
@@ -83,14 +93,19 @@ export default function ActivityLogView({
                        }
 
                        return (
-                           <div key={log.id || `log-${index}`} className="py-3 px-4 flex items-start gap-3 hover:bg-slate-50 transition-colors">
-                               <div className="flex-shrink-0 bg-slate-50 p-2 rounded-full border border-slate-200 shadow-sm mt-0.5">
+                           <div key={log.id || `log-${index}`} className="py-4 px-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                               <div className="flex-shrink-0 bg-slate-50 p-2.5 rounded-full border border-slate-200 shadow-sm mt-0.5">
                                    {getCategoryIcon(log.actionCategory)}
                                </div>
-                               <div className="flex flex-col sm:flex-row sm:items-center flex-1 min-w-0 gap-1 sm:gap-4">
+                               <div className="flex flex-col sm:flex-row sm:items-start flex-1 min-w-0 gap-2 sm:gap-4">
                                    <div className="flex flex-col flex-1 min-w-0">
-                                       <span className="text-sm font-bold text-slate-800 truncate">{log.actionType || 'System Action'}</span>
-                                       <span className="text-sm text-slate-600 truncate">{log.description || 'No details provided.'}</span>
+                                       <span className="text-sm font-bold text-slate-800 truncate mb-0.5">
+                                           {getActionEmoji(log.actionType)} {log.actionType || 'System Action'}
+                                       </span>
+                                       {/* Swapped truncate for line-clamp so comments gracefully wrap on screen! */}
+                                       <span className="text-sm text-slate-600 line-clamp-4 whitespace-pre-line leading-snug">
+                                           {log.description || 'No details provided.'}
+                                       </span>
                                        
                                        {associatedProject && (
                                            <button
@@ -105,7 +120,7 @@ export default function ActivityLogView({
                                            </button>
                                        )}
                                    </div>
-                                   <div className="flex items-center gap-2 sm:w-48 flex-shrink-0 mt-1 sm:mt-0">
+                                   <div className="flex items-center gap-2 sm:w-48 flex-shrink-0 mt-2 sm:mt-0">
                                        {user?.avatarUrl ? <img src={user.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={18} className="text-slate-400" />}
                                        <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || 'System Auto-Action'}</span>
                                    </div>
