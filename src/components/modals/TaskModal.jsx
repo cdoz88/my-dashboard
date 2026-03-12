@@ -1,13 +1,16 @@
 import React from 'react';
-import { CheckCircle, X, Upload, RefreshCw, FileText, Download, Trash2, MessageSquare, UserCircle } from 'lucide-react';
+import { CheckCircle, X, Upload, RefreshCw, FileText, Download, Trash2, MessageSquare, UserCircle, Bell } from 'lucide-react';
 import { availableTags, tagStyles, API_URL } from '../../utils/constants';
 
 export default function TaskModal({
   currentTask, setCurrentTask, handleSaveTask, handleDeleteTask, setIsTaskModalOpen,
   users, isUploading, handleFileUpload, removeFile,
-  newCommentText, setNewCommentText, handleAddComment, currentUser
+  newCommentText, setNewCommentText, handleAddComment, currentUser, handleToggleSubscribe
 }) {
   const getUser = (id) => users.find(u => u.id === id);
+
+  const isSubscribed = (currentTask.subscribers || []).includes(currentUser?.id);
+  const watchers = (currentTask.subscribers || []).map(id => getUser(id)).filter(Boolean);
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -26,7 +29,7 @@ export default function TaskModal({
               <input required type="text" value={currentTask.title} onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="What needs to be done?" />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
                 <select value={currentTask.assigneeId} onChange={(e) => setCurrentTask({...currentTask, assigneeId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
@@ -34,9 +37,35 @@ export default function TaskModal({
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
                 <input type="date" value={currentTask.dueDate} onChange={(e) => setCurrentTask({...currentTask, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                 <label className="block text-sm font-medium text-slate-700 mb-1">Watchers <span className="text-[10px] text-slate-400 font-normal ml-1">(Get Notified)</span></label>
+                 <div className="flex items-center gap-3">
+                    <button 
+                        type="button" 
+                        onClick={() => handleToggleSubscribe(currentTask)} 
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border ${isSubscribed ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}
+                    >
+                        <Bell size={16} className={isSubscribed ? "fill-current" : ""} /> 
+                        {isSubscribed ? 'Following' : 'Watch'}
+                    </button>
+                    {watchers.length > 0 && (
+                        <div className="flex items-center -space-x-2">
+                            {watchers.map(w => (
+                                w.avatarUrl ? (
+                                    <img key={w.id} src={w.avatarUrl} title={w.name} alt={w.name} className="w-8 h-8 rounded-full border-2 border-white object-cover shadow-sm bg-white" />
+                                ) : (
+                                    <div key={w.id} title={w.name} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-sm">{w.name.charAt(0)}</div>
+                                )
+                            ))}
+                        </div>
+                    )}
+                 </div>
               </div>
             </div>
 
@@ -165,7 +194,7 @@ export default function TaskModal({
                       rows="2"
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
-                      placeholder="Ask a question or post an update..."
+                      placeholder="Ask a question, post an update, or type @Name to mention someone..."
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
                     <button

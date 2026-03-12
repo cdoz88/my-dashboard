@@ -71,7 +71,7 @@ export default function App() {
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
   const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '' });
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], comments: [], assigneeId: '', tags: [], weight: 1, completedAt: null, completedBy: null });
+  const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], comments: [], subscribers: [], assigneeId: '', tags: [], weight: 1, completedAt: null, completedBy: null });
   const [newCommentText, setNewCommentText] = useState('');
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState({ id: null, name: '', amount: '', cycle: 'monthly', category: 'Tools', companyId: '', renewalDate: '', notes: '', autoRenew: true });
@@ -173,6 +173,7 @@ export default function App() {
         if(data.tasks) setTasks(data.tasks.map(t => ({ 
             ...t, 
             tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [],
+            subscribers: Array.isArray(t.subscribers) ? t.subscribers : [],
             sortOrder: parseInt(t.sortOrder) || 0
         })));
         
@@ -261,7 +262,7 @@ export default function App() {
 
     newTasks.forEach(t => {
         const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
-        sendToAPI('save_task', { ...t, notifyAssignee });
+        sendToAPI('save_task', { ...t, notifyAssignee, actorId: currentUser.id });
         logActivity('Tasks', 'Task Added', `Created task "${t.title}"`);
     });
 
@@ -509,10 +510,26 @@ export default function App() {
   };
 
   const openTaskModal = (task = null, projectId = '', status = 'todo') => {
-    if (task) setCurrentTask({ ...task, files: task.files || [], comments: task.comments || [], description: task.description || '', tags: task.tags || [], weight: task.weight || 1, completedAt: task.completedAt || null, completedBy: task.completedBy || null });
-    else setCurrentTask({ title: '', description: '', dueDate: '', status, projectId, files: [], comments: [], assigneeId: currentUser?.id, tags: [], weight: 1, completedAt: null, completedBy: null });
+    if (task) setCurrentTask({ ...task, files: task.files || [], comments: task.comments || [], description: task.description || '', tags: task.tags || [], subscribers: task.subscribers || [], weight: task.weight || 1, completedAt: task.completedAt || null, completedBy: task.completedBy || null });
+    else setCurrentTask({ title: '', description: '', dueDate: '', status, projectId, files: [], comments: [], subscribers: [], assigneeId: currentUser?.id, tags: [], weight: 1, completedAt: null, completedBy: null });
     setNewCommentText('');
     setIsTaskModalOpen(true);
+  };
+
+  // --- THE NEW SUBSCRIBE TOGGLE ENGINE ---
+  const handleToggleSubscribe = (task) => {
+    const isSubbed = (task.subscribers || []).includes(currentUser.id);
+    const updatedSubs = isSubbed 
+        ? (task.subscribers || []).filter(id => id !== currentUser.id)
+        : [...(task.subscribers || []), currentUser.id];
+    
+    const updatedTask = { ...task, subscribers: updatedSubs };
+    setCurrentTask(updatedTask);
+    
+    if (task.id) {
+        setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
+        sendToAPI('save_task', { ...updatedTask, actorId: currentUser.id });
+    }
   };
 
   const handleSaveTask = (e) => {
@@ -524,7 +541,7 @@ export default function App() {
     const notifyAssignee = (isNew && currentTask.assigneeId && currentTask.assigneeId !== currentUser.id) || (assigneeChanged && currentTask.assigneeId !== currentUser.id);
 
     let notifyStatus = false;
-    if (!isNew && oldTask && oldTask.status !== currentTask.status && currentTask.assigneeId && currentTask.assigneeId !== currentUser.id) {
+    if (!isNew && oldTask && oldTask.status !== currentTask.status) {
         notifyStatus = true;
     }
 
@@ -546,7 +563,7 @@ export default function App() {
     if (currentTask.id) setTasks(tasks.map(t => t.id === taskData.id ? taskData : t));
     else setTasks([...tasks, taskData]);
     setIsTaskModalOpen(false);
-    sendToAPI('save_task', { ...taskData, notifyAssignee, notifyStatus, newStatus: taskData.status });
+    sendToAPI('save_task', { ...taskData, notifyAssignee, notifyStatus, newStatus: taskData.status, actorId: currentUser.id });
   };
 
   const handleDeleteTask = (taskId) => {
@@ -562,14 +579,11 @@ export default function App() {
     const isNowDone = task.status !== 'done';
     const newStatus = isNowDone ? 'done' : 'todo';
     
-    // THIS WAS THE FIX! new Date().toISOString() instead of new DatetoISOString()
     const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
     
-    const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
-    
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
-    sendToAPI('save_task', { ...updatedTask, notifyStatus, newStatus });
+    sendToAPI('save_task', { ...updatedTask, notifyStatus: true, newStatus, actorId: currentUser.id });
   };
 
   const handleAddComment = () => {
@@ -579,17 +593,27 @@ export default function App() {
     
     logActivity('Tasks', 'Comment Added', `Added a comment to "${currentTask.title}":\n"${newCommentText.trim()}"`);
     
+    // --- SMART MENTIONS PARSER ---
+    // Finds any user whose first name or full name is preceded by an "@" in the comment text
+    const mentionedUsers = users.filter(u => 
+        newCommentText.toLowerCase().includes('@' + u.name.split(' ')[0].toLowerCase()) ||
+        newCommentText.toLowerCase().includes('@' + u.name.toLowerCase())
+    );
+    const mentionedUserIds = mentionedUsers.map(u => u.id);
+    
     setCurrentTask(updatedTask);
     setNewCommentText('');
+    
     if (updatedTask.id) {
         setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
         
-        const notifyComment = updatedTask.assigneeId && updatedTask.assigneeId !== currentUser.id;
         sendToAPI('save_task', { 
             ...updatedTask, 
-            notifyComment, 
+            notifyComment: true, 
             commenterName: currentUser.name, 
-            commentText: newComment.text 
+            commentText: newComment.text,
+            mentionedUserIds, // Passes the mentioned IDs directly to the backend engine
+            actorId: currentUser.id
         });
     }
   };
@@ -954,7 +978,7 @@ export default function App() {
         setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
         
         const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
-        sendToAPI('save_task', { ...updatedTask, notifyStatus, newStatus });
+        sendToAPI('save_task', { ...updatedTask, notifyStatus, newStatus, actorId: currentUser.id });
      }
   };
   const handleDragOver = (e) => e.preventDefault();
@@ -1040,7 +1064,7 @@ export default function App() {
         </div>
       </div>
 
-      {isTaskModalOpen && <TaskModal currentTask={currentTask} setCurrentTask={setCurrentTask} handleSaveTask={handleSaveTask} handleDeleteTask={handleDeleteTask} setIsTaskModalOpen={setIsTaskModalOpen} users={users} isUploading={isUploading} handleFileUpload={handleFileUpload} removeFile={removeFile} newCommentText={newCommentText} setNewCommentText={setNewCommentText} handleAddComment={handleAddComment} currentUser={currentUser} />}
+      {isTaskModalOpen && <TaskModal currentTask={currentTask} setCurrentTask={setCurrentTask} handleSaveTask={handleSaveTask} handleDeleteTask={handleDeleteTask} setIsTaskModalOpen={setIsTaskModalOpen} users={users} isUploading={isUploading} handleFileUpload={handleFileUpload} removeFile={removeFile} newCommentText={newCommentText} setNewCommentText={setNewCommentText} handleAddComment={handleAddComment} currentUser={currentUser} handleToggleSubscribe={handleToggleSubscribe} />}
       {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} />}
