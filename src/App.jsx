@@ -210,7 +210,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const urlParams = newSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const taskIdParam = urlParams.get('task');
     
     if (taskIdParam && tasks.length > 0 && projects.length > 0 && !isTaskModalOpen) {
