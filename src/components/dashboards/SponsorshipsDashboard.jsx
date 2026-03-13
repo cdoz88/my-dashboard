@@ -61,7 +61,7 @@ export default function SponsorshipsDashboard({
                          <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                              <th className="p-4 w-64">Sponsor Info</th>
                              <th className="p-4 w-40">Dates & Status</th>
-                             <th className="p-4 w-48">Assigned Shows</th>
+                             <th className="p-4 w-48">Assigned Shows & Events</th>
                              <th className="p-4">Deliverables & Elements</th>
                              {currentUser?.isAdmin && <th className="p-4 w-32">Amount</th>}
                              <th className="p-4 w-12 text-right"></th>
@@ -93,8 +93,12 @@ export default function SponsorshipsDashboard({
                                      <td className="p-4">
                                          <div className="flex flex-col gap-1">
                                              {sp.showTitles?.length > 0 ? sp.showTitles.map((t, idx) => (
-                                                 <span key={idx} className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded truncate" title={t}>📺 {t}</span>
-                                             )) : <span className="text-xs text-slate-400 italic">None assigned</span>}
+                                                 <span key={`show-${idx}`} className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded truncate" title={t}>📺 {t}</span>
+                                             )) : null}
+                                             {sp.eventTitles?.length > 0 ? sp.eventTitles.map((t, idx) => (
+                                                 <span key={`event-${idx}`} className="text-[10px] font-semibold text-slate-600 bg-purple-50 text-purple-700 border border-purple-100 px-1.5 py-0.5 rounded truncate" title={t}>📅 {t}</span>
+                                             )) : null}
+                                             {(!sp.showTitles?.length && !sp.eventTitles?.length) && <span className="text-xs text-slate-400 italic">None assigned</span>}
                                          </div>
                                      </td>
                                      <td className="p-4">

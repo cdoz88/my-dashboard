@@ -4,13 +4,14 @@ import { API_URL } from '../../utils/constants';
 
 export default function SponsorshipModal({
   editingSponsorship, setEditingSponsorship, handleSaveSponsorship, handleDeleteSponsorship, 
-  setIsSponsorshipModalOpen, visibleCompanies, isUploading, handleSponsorshipLogoUpload, shows,
+  setIsSponsorshipModalOpen, visibleCompanies, isUploading, handleSponsorshipLogoUpload, shows, events,
   currentUser, handleSponsorshipAssetUpload, removeSponsorshipAsset
 }) {
   const [customElement, setCustomElement] = useState('');
   const standardElements = ['Show mention', 'Rookie guide', 'Event materials', 'Website ads'];
   
   const availableShowTitles = Array.from(new Set(shows.map(s => s.title))).filter(Boolean);
+  const availableEventTitles = Array.from(new Set(events.map(e => e.title))).filter(Boolean);
 
   const toggleElement = (element) => {
       const current = editingSponsorship.elements || [];
@@ -31,6 +32,12 @@ export default function SponsorshipModal({
       const current = editingSponsorship.showTitles || [];
       const updated = current.includes(title) ? current.filter(t => t !== title) : [...current, title];
       setEditingSponsorship({ ...editingSponsorship, showTitles: updated });
+  };
+
+  const toggleEventTitle = (title) => {
+      const current = editingSponsorship.eventTitles || [];
+      const updated = current.includes(title) ? current.filter(t => t !== title) : [...current, title];
+      setEditingSponsorship({ ...editingSponsorship, eventTitles: updated });
   };
 
   return (
@@ -97,15 +104,28 @@ export default function SponsorshipModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Connected Shows</label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
-                        {availableShowTitles.length > 0 ? availableShowTitles.map(title => (
-                            <label key={title} className="flex items-center gap-3 p-1.5 hover:bg-white rounded-md cursor-pointer transition-colors">
-                                <input type="checkbox" checked={(editingSponsorship.showTitles || []).includes(title)} onChange={() => toggleShowTitle(title)} className="w-4 h-4 accent-amber-500 rounded" />
-                                <span className="text-sm font-medium text-slate-700">{title}</span>
-                            </label>
-                        )) : <span className="text-xs text-slate-400 italic p-2 block">No shows exist yet.</span>}
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Connected Shows</label>
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                            {availableShowTitles.length > 0 ? availableShowTitles.map(title => (
+                                <label key={`show-${title}`} className="flex items-center gap-3 p-1.5 hover:bg-white rounded-md cursor-pointer transition-colors">
+                                    <input type="checkbox" checked={(editingSponsorship.showTitles || []).includes(title)} onChange={() => toggleShowTitle(title)} className="w-4 h-4 accent-amber-500 rounded" />
+                                    <span className="text-sm font-medium text-slate-700">{title}</span>
+                                </label>
+                            )) : <span className="text-xs text-slate-400 italic p-2 block">No shows exist yet.</span>}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Connected Events</label>
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                            {availableEventTitles.length > 0 ? availableEventTitles.map(title => (
+                                <label key={`event-${title}`} className="flex items-center gap-3 p-1.5 hover:bg-white rounded-md cursor-pointer transition-colors">
+                                    <input type="checkbox" checked={(editingSponsorship.eventTitles || []).includes(title)} onChange={() => toggleEventTitle(title)} className="w-4 h-4 accent-amber-500 rounded" />
+                                    <span className="text-sm font-medium text-slate-700">{title}</span>
+                                </label>
+                            )) : <span className="text-xs text-slate-400 italic p-2 block">No events exist yet.</span>}
+                        </div>
                     </div>
                 </div>
 
@@ -151,7 +171,7 @@ export default function SponsorshipModal({
             </div>
 
             <div className="pt-4 border-t border-slate-100">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Assets & Creatives (Force Download)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Assets & Creatives</label>
               <div className="space-y-3">
                 <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
