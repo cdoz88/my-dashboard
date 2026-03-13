@@ -1,10 +1,15 @@
 import React from 'react';
-import { CalendarDays, X, DollarSign, Plus, CheckCircle, ToggleRight, ToggleLeft } from 'lucide-react';
+import { CalendarDays, X, DollarSign, Plus, CheckCircle, ToggleRight, ToggleLeft, Award, ExternalLink } from 'lucide-react';
 
 export default function EventModal({
   editingEvent, setEditingEvent, paymentMode, setPaymentMode,
-  handleSaveEvent, handleDeleteEvent, setIsEventModalOpen, visibleCompanies
+  handleSaveEvent, handleDeleteEvent, setIsEventModalOpen, visibleCompanies,
+  sponsorships, openSponsorshipModal
 }) {
+
+  // Find all sponsorships that have this specific event title attached to them
+  const eventSponsors = (sponsorships || []).filter(sp => (sp.eventTitles || []).includes(editingEvent.title));
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-purple-600">
@@ -101,6 +106,29 @@ export default function EventModal({
                     </div>
                 )}
             </div>
+
+            {eventSponsors.length > 0 && (
+               <div className="pt-4 border-t border-slate-100">
+                 <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5"><Award size={14} className="text-amber-500" /> Active Sponsors</label>
+                 <div className="flex flex-col gap-2">
+                    {eventSponsors.map(sp => (
+                        <button 
+                            key={sp.id} 
+                            type="button" 
+                            onClick={() => { setIsEventModalOpen(false); openSponsorshipModal(sp); }} 
+                            className="flex items-center justify-between bg-amber-50 border border-amber-200 p-3 rounded-lg hover:bg-amber-100 transition-colors text-left group"
+                        >
+                            <div>
+                               <div className="font-bold text-amber-800 text-sm group-hover:text-amber-900">{sp.name}</div>
+                               <div className="text-[10px] text-amber-600 mt-0.5 font-semibold bg-amber-200/50 px-1.5 py-0.5 rounded w-fit">{sp.promoCode ? `Promo: ${sp.promoCode}` : 'View Deliverables'}</div>
+                            </div>
+                            <ExternalLink size={16} className="text-amber-500 group-hover:text-amber-600" />
+                        </button>
+                    ))}
+                 </div>
+               </div>
+            )}
+
           </form>
         </div>
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">

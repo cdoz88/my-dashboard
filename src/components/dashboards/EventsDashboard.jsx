@@ -1,10 +1,10 @@
 import React from 'react';
-import { CalendarDays, Trash2, CheckCircle, Plus } from 'lucide-react';
+import { CalendarDays, Trash2, CheckCircle, Plus, Award } from 'lucide-react';
 import { formatCurrency, formatTime12Hour } from '../../utils/helpers';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function EventsDashboard({
-  events, activeEventTab, eventDisplayMode, 
+  events, sponsorships, activeEventTab, eventDisplayMode, 
   openEventModal, handleDeleteEvent, companies
 }) {
   const getCompany = (id) => companies.find(c => c.id === id);
@@ -19,10 +19,14 @@ export default function EventsDashboard({
       const evDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
       const isPast = new Date(`${ev.eventDate}T12:00:00`) < new Date(new Date().setHours(0,0,0,0));
       
+      const hasSponsor = sponsorships?.some(sp => (sp.eventTitles || []).includes(ev.title));
+      
       return (
           <tr key={ev.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors group ${isPast ? 'opacity-60' : ''}`}>
             <td className="p-4 font-bold text-slate-800 cursor-pointer hover:text-purple-600 transition-colors flex items-center gap-2" onClick={() => openEventModal(ev)}>
-              <CalendarDays size={16} className="text-purple-500" />{ev.title}
+              <CalendarDays size={16} className="text-purple-500" />
+              <span className="truncate">{ev.title}</span>
+              {hasSponsor && <Award size={14} className="text-amber-500 flex-shrink-0 ml-1.5" title="Sponsored Event" />}
             </td>
             {activeEventTab === 'overview' && <td className="p-4"><div className="flex items-center gap-2"><CompanyLogo company={company} sizeClass="w-5 h-5" /><span className="text-sm text-slate-600">{company?.name}</span></div></td>}
             <td className="p-4 text-sm font-medium text-slate-700">{evDate} {ev.eventTime && <span className="text-slate-400 text-xs ml-1 block">{formatTime12Hour(ev.eventTime)}</span>}</td>
@@ -90,13 +94,18 @@ export default function EventsDashboard({
                   {upcomingEvents.length > 0 ? upcomingEvents.map(ev => {
                     const company = getCompany(ev.companyId);
                     const displayDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                    const hasSponsor = sponsorships?.some(sp => (sp.eventTitles || []).includes(ev.title));
+                    
                     return (
                       <div key={ev.id} className="relative pl-8">
                         <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white bg-purple-500"></div>
                         <div className="p-4 rounded-lg border bg-slate-50 border-slate-100 hover:shadow-md transition-shadow group flex items-start justify-between">
                           <div>
                             <div className="text-sm font-bold mb-1 text-purple-600">{displayDate} {ev.eventTime && <span className="text-slate-400 font-normal ml-1">@ {formatTime12Hour(ev.eventTime)}</span>}</div>
-                            <div className="font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 hover:text-purple-600" onClick={() => openEventModal(ev)}>{ev.title}</div>
+                            <div className="font-medium text-slate-800 cursor-pointer transition-colors mb-2 flex items-center gap-1.5 hover:text-purple-600" onClick={() => openEventModal(ev)}>
+                              <span className="truncate">{ev.title}</span> 
+                              {hasSponsor && <Award size={14} className="text-amber-500 flex-shrink-0" title="Sponsored Event" />}
+                            </div>
                             <div className="flex items-center gap-2">
                               {activeEventTab === 'overview' && company && <div className="flex items-center gap-1"><CompanyLogo company={company} sizeClass="w-4 h-4" textClass="text-[8px]" /><span className="text-[10px] text-slate-500 font-medium">{company.name}</span><span className="text-slate-300 px-1">•</span></div>}
                               {ev.autoProject == 1 && <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Prep Project: {ev.projectLeadUnit === 'now' ? 'Created Immediately' : `${ev.projectLeadTime} ${ev.projectLeadUnit} before`}</span>}
@@ -123,12 +132,16 @@ export default function EventsDashboard({
                           {pastEvents.map(ev => {
                               const company = getCompany(ev.companyId);
                               const displayDate = new Date(`${ev.eventDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                              const hasSponsor = sponsorships?.some(sp => (sp.eventTitles || []).includes(ev.title));
+
                               return (
                               <div key={ev.id} className="relative pl-8 opacity-60 hover:opacity-100 transition-opacity">
                                   <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-4 border-white bg-slate-400"></div>
                                   <div className="p-3 rounded-lg border bg-white border-slate-200 group flex items-start justify-between">
                                   <div>
-                                      <div className="font-medium text-slate-600 cursor-pointer flex items-center gap-1.5" onClick={() => openEventModal(ev)}>{ev.title}</div>
+                                      <div className="font-medium text-slate-600 cursor-pointer flex items-center gap-1.5" onClick={() => openEventModal(ev)}>
+                                        {ev.title} {hasSponsor && <Award size={14} className="text-amber-500 flex-shrink-0" title="Sponsored Event" />}
+                                      </div>
                                       {activeEventTab === 'overview' ? <div className="text-xs text-slate-400 mt-1">{displayDate} • {company?.name}</div> : <div className="text-xs text-slate-400 mt-1">{displayDate}</div>}
                                   </div>
                                   </div>
