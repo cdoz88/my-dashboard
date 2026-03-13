@@ -25,6 +25,7 @@ import SpreakerDashboard from './components/dashboards/SpreakerDashboard';
 import YoutubeDashboard from './components/dashboards/YoutubeDashboard';
 import ActivityLogView from './components/dashboards/ActivityLogView';
 import ShowsDashboard from './components/dashboards/ShowsDashboard';
+import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard';
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -41,6 +42,7 @@ import SwitchUserModal from './components/modals/SwitchUserModal';
 import OnboardingModal from './components/modals/OnboardingModal';
 import ProjectAttachmentsModal from './components/modals/ProjectAttachmentsModal';
 import ShowModal from './components/modals/ShowModal';
+import SponsorshipModal from './components/modals/SponsorshipModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +61,7 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [events, setEvents] = useState([]);
   const [shows, setShows] = useState([]);
+  const [sponsorships, setSponsorships] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
@@ -99,6 +102,8 @@ export default function App() {
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
   const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
+  const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
+  const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '' });
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -113,6 +118,7 @@ export default function App() {
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
   const [activeShowTab, setActiveShowTab] = useState('overview');
   const [showDisplayMode, setShowDisplayMode] = useState('calendar');
+  const [activeSponsorshipTab, setActiveSponsorshipTab] = useState('overview');
   const [activeTeamTab, setActiveTeamTab] = useState('overview');
   const [activeActivityTab, setActiveActivityTab] = useState('overview');
 
@@ -135,6 +141,7 @@ export default function App() {
       if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('projects');
       if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('projects');
       if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('projects');
+      if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('projects');
       if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
@@ -154,6 +161,7 @@ export default function App() {
                canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
                canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
                canViewShows: u.canViewShows == 1 || u.canViewShows === true || u.canViewShows === undefined,
+               canViewSponsorships: u.canViewSponsorships == 1 || u.canViewSponsorships === true || u.canViewSponsorships === undefined,
                phone: u.phone || '',
                title: u.title || '',
                venmo: u.venmo || '',
@@ -192,6 +200,8 @@ export default function App() {
         if(data.shows) {
             setShows(data.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
         }
+
+        if(data.sponsorships) setSponsorships(data.sponsorships);
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
@@ -774,6 +784,35 @@ export default function App() {
     sendToAPI('delete_show', { id });
   };
 
+  // --- SPONSORSHIP HANDLERS ---
+  const openSponsorshipModal = (sponsorship = null) => {
+    if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [] });
+    else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '' });
+    setIsSponsorshipModalOpen(true);
+  };
+
+  const handleSaveSponsorship = (e) => {
+    e.preventDefault();
+    if (!editingSponsorship.companyId) { alert("Please select a company."); return; }
+    const spData = editingSponsorship.id ? editingSponsorship : { ...editingSponsorship, id: 'spn_' + Date.now() };
+    
+    if (!editingSponsorship.id) logActivity('Sponsorships', 'Sponsorship Added', `Added sponsorship "${spData.name}"`);
+    
+    if (editingSponsorship.id) setSponsorships(sponsorships.map(s => s.id === spData.id ? spData : s));
+    else setSponsorships([...sponsorships, spData]);
+    
+    setIsSponsorshipModalOpen(false);
+    sendToAPI('save_sponsorship', spData);
+  };
+
+  const handleDeleteSponsorship = (id) => {
+    const sp = sponsorships.find(s => s.id === id);
+    if (sp) logActivity('Sponsorships', 'Sponsorship Deleted', `Deleted sponsorship "${sp.name}"`);
+    setSponsorships(sponsorships.filter(s => s.id !== id));
+    setIsSponsorshipModalOpen(false);
+    sendToAPI('delete_sponsorship', { id });
+  };
+
   const openCompanyModal = (companyToEdit = null) => {
     if (companyToEdit) setEditingCompany({ ...companyToEdit, userIds: companyToEdit.userIds || [currentUser?.id] });
     else setEditingCompany({ id: null, name: '', logoUrl: '', userIds: [currentUser?.id] });
@@ -815,6 +854,7 @@ export default function App() {
     if (activeBudgetTab === companyId) setActiveBudgetTab('overview');
     if (activeDomainTab === companyId) setActiveDomainTab('overview');
     if (activeEventTab === companyId) setActiveEventTab('overview');
+    if (activeSponsorshipTab === companyId) setActiveSponsorshipTab('overview');
     setIsCompanyModalOpen(false);
     sendToAPI('delete_company', { id: companyId });
   };
@@ -1037,6 +1077,9 @@ export default function App() {
   const handleTeamMemberImageUpload = async (e) => {
     if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingTeamMember({ ...editingTeamMember, avatarUrl: url }); setIsUploading(false); }
   };
+  const handleSponsorshipLogoUpload = async (e) => {
+    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingSponsorship({ ...editingSponsorship, logoUrl: url }); setIsUploading(false); }
+  };
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -1094,7 +1137,7 @@ export default function App() {
              openCompanyModal={openCompanyModal} openProjectModal={openProjectModal} openYoutubeModal={openYoutubeModal} openSpreakerModal={openSpreakerModal}
              openProfileModal={openProfileModal} setIsTeamModalOpen={setIsTeamModalOpen} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen}
              activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab} activeActivityTab={activeActivityTab} setActiveActivityTab={setActiveActivityTab}
-             activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab}
+             activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab} activeSponsorshipTab={activeSponsorshipTab} setActiveSponsorshipTab={setActiveSponsorshipTab}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -1111,6 +1154,7 @@ export default function App() {
              openTaskModal={openTaskModal} openExpenseModal={openExpenseModal} openDomainModal={openDomainModal} openEventModal={openEventModal}
              handleImportCSV={handleImportCSV} handleSyncGoDaddy={handleSyncGoDaddy}
              showDisplayMode={showDisplayMode} setShowDisplayMode={setShowDisplayMode} openShowModal={openShowModal}
+             openSponsorshipModal={openSponsorshipModal}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
@@ -1130,6 +1174,8 @@ export default function App() {
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             ) : currentApp === 'shows' ? (
               <ShowsDashboard shows={shows} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />
+            ) : currentApp === 'sponsorships' ? (
+              <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} />
             ) : (
@@ -1154,6 +1200,7 @@ export default function App() {
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} />}
       {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} />}
+      {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} />}
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}

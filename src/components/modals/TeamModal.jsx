@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Plus, UserCircle, Shield, Camera, Key, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv } from 'lucide-react';
+import { X, Users, Plus, UserCircle, Shield, Camera, Key, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv, Award } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
@@ -12,7 +12,7 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, companyIds: [], generateOnboarding: true })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, companyIds: [], generateOnboarding: true })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
@@ -142,6 +142,10 @@ export default function TeamModal({
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Tv size={16} className="text-red-500"/> Shows App</div>
                     <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewShows} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewShows: e.target.checked})} />
+                  </label>
+                  <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><Award size={16} className="text-amber-500"/> Sponsorships App</div>
+                    <input type="checkbox" className="w-5 h-5 accent-amber-500 rounded" checked={editingTeamMember.canViewSponsorships} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewSponsorships: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Mic size={16} className="text-[#ffc005]"/> Spreaker App</div>
