@@ -4,7 +4,7 @@ import CompanyLogo from '../shared/CompanyLogo';
 import { formatCurrency } from '../../utils/helpers';
 
 export default function SponsorshipsDashboard({ 
-  sponsorships, activeSponsorshipTab, openSponsorshipModal, handleDeleteSponsorship, companies 
+  sponsorships, activeSponsorshipTab, openSponsorshipModal, handleDeleteSponsorship, companies, currentUser 
 }) {
   const getCompany = (id) => companies.find(c => c.id === id);
 
@@ -40,16 +40,18 @@ export default function SponsorshipsDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500 flex items-center justify-between">
-          <div><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">Total Active Value</div><div className="text-3xl font-bold text-slate-800">{formatCurrency(activeValue)}</div></div>
-          <div className="h-12 w-12 bg-emerald-50 rounded-full flex items-center justify-center"><Award size={24} className="text-emerald-500" /></div>
-        </div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500 flex items-center justify-between">
-          <div><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">Pending Payments</div><div className="text-3xl font-bold text-slate-800">{formatCurrency(pendingValue)}</div></div>
-          <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center"><Briefcase size={24} className="text-red-500" /></div>
-        </div>
-      </div>
+      {currentUser?.isAdmin && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 flex-shrink-0">
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500 flex items-center justify-between">
+              <div><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">Total Active Value</div><div className="text-3xl font-bold text-slate-800">{formatCurrency(activeValue)}</div></div>
+              <div className="h-12 w-12 bg-emerald-50 rounded-full flex items-center justify-center"><Award size={24} className="text-emerald-500" /></div>
+            </div>
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500 flex items-center justify-between">
+              <div><div className="flex items-center gap-2 text-slate-500 text-sm font-medium mb-1">Pending Payments</div><div className="text-3xl font-bold text-slate-800">{formatCurrency(pendingValue)}</div></div>
+              <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center"><Briefcase size={24} className="text-red-500" /></div>
+            </div>
+          </div>
+      )}
 
       <div className="flex-1 min-h-0 flex flex-col">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
@@ -61,7 +63,7 @@ export default function SponsorshipsDashboard({
                              <th className="p-4 w-40">Dates & Status</th>
                              <th className="p-4 w-48">Assigned Shows</th>
                              <th className="p-4">Deliverables & Elements</th>
-                             <th className="p-4 w-32">Amount</th>
+                             {currentUser?.isAdmin && <th className="p-4 w-32">Amount</th>}
                              <th className="p-4 w-12 text-right"></th>
                          </tr>
                      </thead>
@@ -103,17 +105,19 @@ export default function SponsorshipsDashboard({
                                         </div>
                                         {sp.promoCode && <div className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded w-fit border border-blue-200 flex items-center gap-1"><LinkIcon size={10}/> {sp.promoCode}</div>}
                                      </td>
-                                     <td className="p-4">
-                                         <div className="font-bold text-slate-800">{formatCurrency(sp.amount)}</div>
-                                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sp.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{sp.paymentStatus}</span>
-                                     </td>
+                                     {currentUser?.isAdmin && (
+                                         <td className="p-4">
+                                             <div className="font-bold text-slate-800">{formatCurrency(sp.amount)}</div>
+                                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sp.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{sp.paymentStatus}</span>
+                                         </td>
+                                     )}
                                      <td className="p-4 text-right">
                                          <button onClick={() => handleDeleteSponsorship(sp.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 size={16}/></button>
                                      </td>
                                  </tr>
                              )
                          })}
-                         {viewSponsorships.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-slate-500">No sponsorships active.</td></tr>}
+                         {viewSponsorships.length === 0 && <tr><td colSpan={currentUser?.isAdmin ? "6" : "5"} className="p-8 text-center text-slate-500">No sponsorships active.</td></tr>}
                      </tbody>
                  </table>
              </div>

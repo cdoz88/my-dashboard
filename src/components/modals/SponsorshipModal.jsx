@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Award, X, Camera, Plus, Building2 } from 'lucide-react';
+import { Award, X, Camera, Plus, Building2, Upload, RefreshCw, FileText, Download, Trash2 } from 'lucide-react';
+import { API_URL } from '../../utils/constants';
 
 export default function SponsorshipModal({
   editingSponsorship, setEditingSponsorship, handleSaveSponsorship, handleDeleteSponsorship, 
-  setIsSponsorshipModalOpen, visibleCompanies, isUploading, handleSponsorshipLogoUpload, shows
+  setIsSponsorshipModalOpen, visibleCompanies, isUploading, handleSponsorshipLogoUpload, shows,
+  currentUser, handleSponsorshipAssetUpload, removeSponsorshipAsset
 }) {
   const [customElement, setCustomElement] = useState('');
   const standardElements = ['Show mention', 'Rookie guide', 'Event materials', 'Website ads'];
   
-  // Extract a list of completely unique Show Titles from your existing shows data so you can assign the sponsor directly to them!
   const availableShowTitles = Array.from(new Set(shows.map(s => s.title))).filter(Boolean);
 
   const toggleElement = (element) => {
@@ -69,7 +70,7 @@ export default function SponsorshipModal({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+            <div className={`grid grid-cols-2 ${currentUser?.isAdmin ? 'md:grid-cols-4' : ''} gap-4 pt-4 border-t border-slate-100`}>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
                 <input required type="date" value={editingSponsorship.startDate} onChange={(e) => setEditingSponsorship({...editingSponsorship, startDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
@@ -78,17 +79,21 @@ export default function SponsorshipModal({
                 <label className="block text-sm font-medium text-slate-700 mb-1">End Date</label>
                 <input required type="date" value={editingSponsorship.endDate} onChange={(e) => setEditingSponsorship({...editingSponsorship, endDate: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Deal Amount</label>
-                <input required type="number" step="0.01" min="0" value={editingSponsorship.amount} onChange={(e) => setEditingSponsorship({...editingSponsorship, amount: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="5000.00" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Payment</label>
-                <select value={editingSponsorship.paymentStatus} onChange={(e) => setEditingSponsorship({...editingSponsorship, paymentStatus: e.target.value})} className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold ${editingSponsorship.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                </select>
-              </div>
+              {currentUser?.isAdmin && (
+                  <>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Deal Amount</label>
+                        <input required type="number" step="0.01" min="0" value={editingSponsorship.amount} onChange={(e) => setEditingSponsorship({...editingSponsorship, amount: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="5000.00" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Payment</label>
+                        <select value={editingSponsorship.paymentStatus} onChange={(e) => setEditingSponsorship({...editingSponsorship, paymentStatus: e.target.value})} className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold ${editingSponsorship.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                        </select>
+                      </div>
+                  </>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
@@ -112,7 +117,6 @@ export default function SponsorshipModal({
                                 {el}
                             </button>
                         ))}
-                        {/* Render any custom elements they've added that aren't in the standard list */}
                         {(editingSponsorship.elements || []).filter(e => !standardElements.includes(e)).map(el => (
                              <button key={el} type="button" onClick={() => toggleElement(el)} className="px-2 py-1 rounded text-xs font-semibold transition-colors border bg-amber-100 text-amber-700 border-amber-300 flex items-center gap-1">
                                 {el} <X size={10} />
@@ -144,6 +148,42 @@ export default function SponsorshipModal({
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Ad Copy / Specific Notes</label>
               <textarea rows="3" value={editingSponsorship.notes || ''} onChange={(e) => setEditingSponsorship({...editingSponsorship, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Paste script requirements or tracking details here..." />
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Assets & Creatives (Force Download)</label>
+              <div className="space-y-3">
+                <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {isUploading ? <RefreshCw className="w-6 h-6 text-amber-500 mb-2 animate-spin" /> : <Upload className="w-6 h-6 text-slate-400 mb-2" />}
+                    <p className="text-sm text-slate-500">
+                       {isUploading ? <span className="font-semibold text-amber-600">Uploading asset...</span> : <><span className="font-semibold">Click to upload graphics</span></>}
+                    </p>
+                  </div>
+                  <input type="file" className="hidden" multiple onChange={handleSponsorshipAssetUpload} disabled={isUploading} />
+                </label>
+                
+                {(editingSponsorship.files || []).length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {editingSponsorship.files.map((file, index) => (
+                      <div key={index} className="relative group rounded-lg overflow-hidden border border-slate-200 bg-slate-50 aspect-square flex items-center justify-center">
+                        {file.url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || file.url.startsWith('data:image') ? (
+                          <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex flex-col items-center p-2 text-center">
+                            <FileText size={24} className="text-slate-400 mb-1" />
+                            <span className="text-[10px] text-slate-500 truncate w-full">{file.name}</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                           <a href={`${API_URL}?action=download&file=${encodeURIComponent(file.url)}&name=${encodeURIComponent(file.name)}`} title="Force Download" className="p-2 bg-white text-amber-600 rounded-md hover:bg-amber-50 shadow-sm"><Download size={16} strokeWidth={2.5} /></a>
+                           <button type="button" onClick={() => removeSponsorshipAsset(index)} className="p-2 bg-white text-red-600 rounded-md hover:bg-red-50 shadow-sm"><Trash2 size={16} strokeWidth={2.5} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
           </form>

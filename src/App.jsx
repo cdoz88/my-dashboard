@@ -103,7 +103,7 @@ export default function App() {
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
   const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
-  const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '' });
+  const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -786,8 +786,8 @@ export default function App() {
 
   // --- SPONSORSHIP HANDLERS ---
   const openSponsorshipModal = (sponsorship = null) => {
-    if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [] });
-    else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '' });
+    if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [], files: sponsorship.files || [] });
+    else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
     setIsSponsorshipModalOpen(true);
   };
 
@@ -812,6 +812,17 @@ export default function App() {
     setIsSponsorshipModalOpen(false);
     sendToAPI('delete_sponsorship', { id });
   };
+
+  const handleSponsorshipAssetUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    setIsUploading(true);
+    const uploadedFiles = [];
+    for (const file of files) { const url = await uploadFileToServer(file); if (url) uploadedFiles.push({ name: file.name, url: url }); }
+    setEditingSponsorship({ ...editingSponsorship, files: [...(editingSponsorship.files || []), ...uploadedFiles] });
+    setIsUploading(false);
+    e.target.value = null; 
+  };
+  const removeSponsorshipAsset = (indexToRemove) => setEditingSponsorship({ ...editingSponsorship, files: editingSponsorship.files.filter((_, i) => i !== indexToRemove) });
 
   const openCompanyModal = (companyToEdit = null) => {
     if (companyToEdit) setEditingCompany({ ...companyToEdit, userIds: companyToEdit.userIds || [currentUser?.id] });
@@ -1175,7 +1186,7 @@ export default function App() {
             ) : currentApp === 'shows' ? (
               <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />
             ) : currentApp === 'sponsorships' ? (
-              <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} />
+              <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} />
             ) : (
@@ -1200,7 +1211,7 @@ export default function App() {
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} />}
       {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
-      {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} />}
+      {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}

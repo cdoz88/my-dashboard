@@ -7,8 +7,21 @@ export default function ShowModal({
 }) {
   const studios = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4', 'Streamyard'];
 
-  // Find all sponsorships that have this specific show title attached to them
   const showSponsors = (sponsorships || []).filter(sp => (sp.showTitles || []).includes(editingShow.title));
+
+  // Time parsing logic to switch from generic 24hr picker to custom 15-minute intervals
+  const timeParts = editingShow.showTime ? editingShow.showTime.split(':') : ['12', '00'];
+  let showH = parseInt(timeParts[0], 10);
+  const showM = timeParts[1] || '00';
+  const showAmPm = showH >= 12 ? 'PM' : 'AM';
+  showH = showH % 12 || 12;
+
+  const updateTime = (newH, newM, newAmPm) => {
+      let hrs = parseInt(newH, 10);
+      if (newAmPm === 'PM' && hrs !== 12) hrs += 12;
+      if (newAmPm === 'AM' && hrs === 12) hrs = 0;
+      setEditingShow({...editingShow, showTime: `${String(hrs).padStart(2, '0')}:${newM}`});
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -39,7 +52,22 @@ export default function ShowModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
-                <input type="time" required value={editingShow.showTime} onChange={(e) => setEditingShow({...editingShow, showTime: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" />
+                <div className="flex gap-2">
+                    <select value={String(showH)} onChange={(e) => updateTime(e.target.value, showM, showAmPm)} className="w-1/3 px-2 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
+                        {[...Array(12)].map((_,i) => <option key={i+1} value={String(i+1)}>{i+1}</option>)}
+                    </select>
+                    <span className="text-slate-500 font-bold py-2">:</span>
+                    <select value={showM} onChange={(e) => updateTime(String(showH), e.target.value, showAmPm)} className="w-1/3 px-2 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
+                        <option value="00">00</option>
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="45">45</option>
+                    </select>
+                    <select value={showAmPm} onChange={(e) => updateTime(String(showH), showM, e.target.value)} className="w-1/3 px-2 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                    </select>
+                </div>
               </div>
             </div>
 
