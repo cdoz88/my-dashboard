@@ -91,14 +91,14 @@ export default function App() {
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
   const [loggedInUserId, setLoggedInUserId] = useState(() => localStorage.getItem('loggedInUserId') || null);
   const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
-  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '' });
+  const [editingYoutubeChannel, setEditingYoutubeChannel] = useState({ id: null, name: '', color: 'red' });
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState({ id: null, title: '', companyId: '', eventDate: '', eventTime: '', cost: '', autoProject: false, projectLeadTime: 1, projectLeadUnit: 'months', billingDate: '', installments: [] });
   const [paymentMode, setPaymentMode] = useState('single');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
-  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, repeatWeeks: 4 });
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -210,7 +210,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = newSearchParams(window.location.search);
     const taskIdParam = urlParams.get('task');
     
     if (taskIdParam && tasks.length > 0 && projects.length > 0 && !isTaskModalOpen) {
@@ -714,7 +714,7 @@ export default function App() {
 
   const openShowModal = (show = null) => {
     if (show) setEditingShow({ ...show, userIds: show.userIds || [] });
-    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, repeatWeeks: 4 });
+    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
     setIsShowModalOpen(true);
   };
 
@@ -724,11 +724,12 @@ export default function App() {
     
     const isNew = !editingShow.id;
     
-    if (isNew && editingShow.isRecurring && editingShow.repeatWeeks > 1) {
+    if (isNew && editingShow.isRecurring) {
         const newShows = [];
         const baseDate = new Date(`${editingShow.showDate}T12:00:00`); 
+        const numOccurrences = parseInt(editingShow.occurrences) === 0 ? 52 : (parseInt(editingShow.occurrences) || 1);
         
-        for (let i = 0; i < editingShow.repeatWeeks; i++) {
+        for (let i = 0; i < numOccurrences; i++) {
             const iterDate = new Date(baseDate);
             iterDate.setDate(iterDate.getDate() + (i * 7));
             
@@ -740,19 +741,19 @@ export default function App() {
                 showDate: formattedDate,
             };
             delete showData.isRecurring;
-            delete showData.repeatWeeks;
+            delete showData.occurrences;
             
             newShows.push(showData);
         }
         
-        logActivity('Shows', 'Show Scheduled', `Scheduled "${editingShow.title}" for ${editingShow.repeatWeeks} consecutive weeks`);
-        setShows([...shows, ...newShows]);
+        logActivity('Shows', 'Show Scheduled', `Scheduled "${editingShow.title}" for ${numOccurrences} consecutive weeks`);
+        setShows(prev => [...prev, ...newShows]);
         newShows.forEach(s => sendToAPI('save_show', s));
         
     } else {
         const showData = editingShow.id ? editingShow : { ...editingShow, id: 'show_' + Date.now() };
         delete showData.isRecurring;
-        delete showData.repeatWeeks;
+        delete showData.occurrences;
 
         if (isNew) logActivity('Shows', 'Show Scheduled', `Scheduled "${showData.title}"`);
         
@@ -871,8 +872,8 @@ export default function App() {
   };
 
   const openYoutubeModal = (channel = null) => {
-    if (channel) setEditingYoutubeChannel({ ...channel });
-    else setEditingYoutubeChannel({ id: null, name: '' });
+    if (channel) setEditingYoutubeChannel({ ...channel, color: channel.color || 'red' });
+    else setEditingYoutubeChannel({ id: null, name: '', color: 'red' });
     setIsYoutubeModalOpen(true);
   };
 
@@ -895,6 +896,15 @@ export default function App() {
     
     setIsYoutubeModalOpen(false);
     window.location.href = authUrl;
+  };
+
+  const handleUpdateYoutubeChannel = (e) => {
+    e.preventDefault();
+    if (!editingYoutubeChannel.name.trim()) return;
+    
+    setYoutubeChannels(youtubeChannels.map(c => c.id === editingYoutubeChannel.id ? editingYoutubeChannel : c));
+    setIsYoutubeModalOpen(false);
+    sendToAPI('update_youtube_channel', editingYoutubeChannel);
   };
 
   const handleDeleteYoutubeChannel = (channelId) => {
@@ -1107,7 +1117,7 @@ export default function App() {
               activeTab === 'mytasks' ? <DashboardView tasks={visibleTasks} currentUser={currentUser} projects={visibleProjects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
               activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={visibleTasks} projects={visibleProjects} /> : 
               activeTab === 'archived' ? <ArchivedProjectsView projects={visibleProjects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
-              <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDragOver} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />
+              <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />
             ) : currentApp === 'budget' ? (
               <BudgetDashboard expenses={expenses} activeBudgetTab={activeBudgetTab} budgetDisplayMode={budgetDisplayMode} expenseSortConfig={expenseSortConfig} setExpenseSortConfig={setExpenseSortConfig} openExpenseModal={openExpenseModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />
             ) : currentApp === 'domains' ? (
@@ -1149,7 +1159,7 @@ export default function App() {
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
       {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleDeleteUser={handleDeleteUser} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} currentUser={currentUser} />}
       {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
-      {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
+      {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
       {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
       {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
       {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}

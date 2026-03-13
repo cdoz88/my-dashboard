@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2, UserCircle } from 'lucide-react';
+import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2 } from 'lucide-react';
+import { colorStyles } from '../../utils/constants';
 
 export default function ShowsDashboard({ 
   shows, activeShowTab, showDisplayMode, 
   openShowModal, handleDeleteShow, youtubeChannels, users 
 }) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [studioFilter, setStudioFilter] = useState('All');
 
   const getChannel = (id) => youtubeChannels.find(c => c.id === id);
   const getUser = (id) => users.find(u => u.id === id);
 
-  const viewShows = activeShowTab === 'overview' ? shows : shows.filter(s => s.channelId === activeShowTab);
+  let viewShows = activeShowTab === 'overview' ? shows : shows.filter(s => s.channelId === activeShowTab);
+  if (studioFilter !== 'All') {
+      viewShows = viewShows.filter(s => s.studio === studioFilter);
+  }
+  
   const currentChannel = activeShowTab === 'overview' ? null : getChannel(activeShowTab);
 
   // Calendar Logic
@@ -41,32 +47,38 @@ export default function ShowsDashboard({
                     <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-red-500 text-white' : 'text-slate-400'}`}>{i}</span>
                 </div>
                 <div className="flex flex-col gap-1.5 flex-1 overflow-y-auto no-scrollbar">
-                   {dayShows.map(show => (
-                       <button 
-                          key={show.id} 
-                          onClick={() => openShowModal(show)} 
-                          className={`text-left text-[10px] p-1.5 rounded-md border truncate transition-all hover:scale-[1.02] shadow-sm ${show.isLive ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-100 border-slate-200 text-slate-700'}`}
-                          title={`${show.title} - ${show.studio}`}
-                       >
-                           <div className="font-bold flex items-center justify-between gap-1">
-                               <div className="flex items-center gap-1 truncate">
-                                 {show.isLive ? <Radio size={10} className="animate-pulse" /> : <MonitorPlay size={10} />}
-                                 <span className="truncate">{show.showTime ? (() => { let [h, m] = show.showTime.split(':'); let ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${m} ${ampm}`; })() : 'TBD'}</span>
+                   {dayShows.map(show => {
+                       const channel = getChannel(show.channelId);
+                       const cColor = channel?.color || 'slate';
+                       const colorClasses = `${colorStyles[cColor]?.bg} ${colorStyles[cColor]?.border} ${colorStyles[cColor]?.text}`;
+
+                       return (
+                           <button 
+                              key={show.id} 
+                              onClick={() => openShowModal(show)} 
+                              className={`text-left text-[10px] p-1.5 rounded-md border truncate transition-all hover:scale-[1.02] shadow-sm ${colorClasses}`}
+                              title={`${show.title} - ${show.studio}`}
+                           >
+                               <div className="font-bold flex items-center justify-between gap-1">
+                                   <div className="flex items-center gap-1 truncate">
+                                     {show.isLive ? <Radio size={10} className="animate-pulse" /> : <MonitorPlay size={10} />}
+                                     <span className="truncate">{show.showTime ? (() => { let [h, m] = show.showTime.split(':'); let ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${m} ${ampm}`; })() : 'TBD'}</span>
+                                   </div>
+                                   <div className="flex items-center -space-x-1">
+                                      {(show.userIds || []).slice(0, 3).map(id => {
+                                          const u = getUser(id);
+                                          if (!u) return null;
+                                          return u.avatarUrl 
+                                            ? <img key={id} src={u.avatarUrl} className="w-4 h-4 rounded-full border border-white" title={u.name} />
+                                            : <div key={id} className="w-4 h-4 rounded-full border border-white bg-slate-200 text-[8px] flex items-center justify-center font-bold text-slate-500" title={u.name}>{u.name.charAt(0)}</div>
+                                      })}
+                                      {(show.userIds || []).length > 3 && <div className="w-4 h-4 rounded-full border border-white bg-slate-100 text-[7px] flex items-center justify-center font-bold text-slate-500">+{show.userIds.length - 3}</div>}
+                                   </div>
                                </div>
-                               <div className="flex items-center -space-x-1">
-                                  {(show.userIds || []).slice(0, 3).map(id => {
-                                      const u = getUser(id);
-                                      if (!u) return null;
-                                      return u.avatarUrl 
-                                        ? <img key={id} src={u.avatarUrl} className="w-4 h-4 rounded-full border border-white" title={u.name} />
-                                        : <div key={id} className="w-4 h-4 rounded-full border border-white bg-slate-200 text-[8px] flex items-center justify-center font-bold text-slate-500" title={u.name}>{u.name.charAt(0)}</div>
-                                  })}
-                                  {(show.userIds || []).length > 3 && <div className="w-4 h-4 rounded-full border border-white bg-slate-100 text-[7px] flex items-center justify-center font-bold text-slate-500">+{show.userIds.length - 3}</div>}
-                               </div>
-                           </div>
-                           <div className="truncate opacity-90 mt-0.5">{show.title}</div>
-                       </button>
-                   ))}
+                               <div className="truncate opacity-90 mt-0.5">{show.title}</div>
+                           </button>
+                       );
+                   })}
                 </div>
             </div>
         );
@@ -94,6 +106,8 @@ export default function ShowsDashboard({
                      <tbody className="divide-y divide-slate-100">
                          {sortedShows.length > 0 ? sortedShows.map(show => {
                              const channel = getChannel(show.channelId);
+                             const cColor = channel?.color || 'slate';
+
                              return (
                                  <tr key={show.id} className="hover:bg-slate-50 transition-colors group">
                                      <td className="p-4">
@@ -118,7 +132,7 @@ export default function ShowsDashboard({
                                      </td>
                                      <td className="p-4">
                                          <div className="flex flex-col gap-1.5 items-start">
-                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${show.isLive ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${colorStyles[cColor]?.bg} ${colorStyles[cColor]?.border} ${colorStyles[cColor]?.text}`}>
                                                  {show.isLive ? <Radio size={10} /> : <MonitorPlay size={10} />} {show.isLive ? 'LIVE' : 'PRE-RECORDED'}
                                              </span>
                                              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{show.studio}</span>
@@ -153,6 +167,18 @@ export default function ShowsDashboard({
              {activeShowTab === 'overview' ? 'Network Schedule' : `${currentChannel?.name} Schedule`}
           </h2>
           <p className="text-slate-500 text-sm mt-1">Manage your Live and Pre-recorded broadcast dates.</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+           <label className="text-sm font-medium text-slate-600">Studio:</label>
+           <select value={studioFilter} onChange={(e) => setStudioFilter(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm">
+              <option value="All">All Studios</option>
+              <option value="Studio 1">Studio 1</option>
+              <option value="Studio 2">Studio 2</option>
+              <option value="Studio 3">Studio 3</option>
+              <option value="Studio 4">Studio 4</option>
+              <option value="Streamyard">Streamyard</option>
+           </select>
         </div>
       </div>
 
