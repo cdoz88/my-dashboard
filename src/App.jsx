@@ -24,6 +24,7 @@ import EventsDashboard from './components/dashboards/EventsDashboard';
 import SpreakerDashboard from './components/dashboards/SpreakerDashboard';
 import YoutubeDashboard from './components/dashboards/YoutubeDashboard';
 import ActivityLogView from './components/dashboards/ActivityLogView';
+import ShowsDashboard from './components/dashboards/ShowsDashboard';
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -39,6 +40,7 @@ import TeamModal from './components/modals/TeamModal';
 import SwitchUserModal from './components/modals/SwitchUserModal';
 import OnboardingModal from './components/modals/OnboardingModal';
 import ProjectAttachmentsModal from './components/modals/ProjectAttachmentsModal';
+import ShowModal from './components/modals/ShowModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +58,7 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [events, setEvents] = useState([]);
+  const [shows, setShows] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
@@ -94,6 +97,8 @@ export default function App() {
   const [paymentMode, setPaymentMode] = useState('single');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
+  const [isShowModalOpen, setIsShowModalOpen] = useState(false);
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '' });
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -106,6 +111,8 @@ export default function App() {
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [activeEventTab, setActiveEventTab] = useState('overview');
   const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
+  const [activeShowTab, setActiveShowTab] = useState('overview');
+  const [showDisplayMode, setShowDisplayMode] = useState('calendar');
   const [activeTeamTab, setActiveTeamTab] = useState('overview');
   const [activeActivityTab, setActiveActivityTab] = useState('overview');
 
@@ -127,6 +134,7 @@ export default function App() {
       if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('projects');
       if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('projects');
       if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('projects');
+      if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('projects');
       if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
@@ -145,6 +153,7 @@ export default function App() {
                canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
                canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
                canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
+               canViewShows: u.canViewShows == 1 || u.canViewShows === true || u.canViewShows === undefined,
                phone: u.phone || '',
                title: u.title || '',
                venmo: u.venmo || '',
@@ -179,6 +188,10 @@ export default function App() {
         
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
+        
+        if(data.shows) {
+            setShows(data.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
+        }
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
@@ -516,7 +529,6 @@ export default function App() {
     setIsTaskModalOpen(true);
   };
 
-  // --- THE NEW SUBSCRIBE TOGGLE ENGINE ---
   const handleToggleSubscribe = (task) => {
     const isSubbed = (task.subscribers || []).includes(currentUser.id);
     const updatedSubs = isSubbed 
@@ -593,8 +605,6 @@ export default function App() {
     
     logActivity('Tasks', 'Comment Added', `Added a comment to "${currentTask.title}":\n"${newCommentText.trim()}"`);
     
-    // --- SMART MENTIONS PARSER ---
-    // Finds any user whose first name or full name is preceded by an "@" in the comment text
     const mentionedUsers = users.filter(u => 
         newCommentText.toLowerCase().includes('@' + u.name.split(' ')[0].toLowerCase()) ||
         newCommentText.toLowerCase().includes('@' + u.name.toLowerCase())
@@ -612,7 +622,7 @@ export default function App() {
             notifyComment: true, 
             commenterName: currentUser.name, 
             commentText: newComment.text,
-            mentionedUserIds, // Passes the mentioned IDs directly to the backend engine
+            mentionedUserIds,
             actorId: currentUser.id
         });
     }
@@ -700,6 +710,34 @@ export default function App() {
     setEvents(events.filter(e => e.id !== eventId));
     setIsEventModalOpen(false);
     sendToAPI('delete_event', { id: eventId });
+  };
+
+  const openShowModal = (show = null) => {
+    if (show) setEditingShow({ ...show });
+    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '' });
+    setIsShowModalOpen(true);
+  };
+
+  const handleSaveShow = (e) => {
+    e.preventDefault();
+    if (!editingShow.channelId) { alert("Please select a YouTube channel."); return; }
+    const showData = editingShow.id ? editingShow : { ...editingShow, id: 'show_' + Date.now() };
+    
+    if (!editingShow.id) logActivity('Shows', 'Show Scheduled', `Scheduled "${showData.title}"`);
+    
+    if (editingShow.id) setShows(shows.map(s => s.id === showData.id ? showData : s));
+    else setShows([...shows, showData]);
+    
+    setIsShowModalOpen(false);
+    sendToAPI('save_show', showData);
+  };
+
+  const handleDeleteShow = (id) => {
+    const show = shows.find(s => s.id === id);
+    if (show) logActivity('Shows', 'Show Deleted', `Deleted show "${show.title}"`);
+    setShows(shows.filter(s => s.id !== id));
+    setIsShowModalOpen(false);
+    sendToAPI('delete_show', { id });
   };
 
   const openCompanyModal = (companyToEdit = null) => {
@@ -1013,6 +1051,7 @@ export default function App() {
              openCompanyModal={openCompanyModal} openProjectModal={openProjectModal} openYoutubeModal={openYoutubeModal} openSpreakerModal={openSpreakerModal}
              openProfileModal={openProfileModal} setIsTeamModalOpen={setIsTeamModalOpen} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen}
              activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab} activeActivityTab={activeActivityTab} setActiveActivityTab={setActiveActivityTab}
+             activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -1028,6 +1067,7 @@ export default function App() {
              spreakerTimeFilter={spreakerTimeFilter} handleSpreakerFilterChange={handleSpreakerFilterChange} handleSyncSpreaker={handleSyncSpreaker}
              openTaskModal={openTaskModal} openExpenseModal={openExpenseModal} openDomainModal={openDomainModal} openEventModal={openEventModal}
              handleImportCSV={handleImportCSV} handleSyncGoDaddy={handleSyncGoDaddy}
+             showDisplayMode={showDisplayMode} setShowDisplayMode={setShowDisplayMode} openShowModal={openShowModal}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
@@ -1043,12 +1083,14 @@ export default function App() {
               <EventsDashboard events={events} activeEventTab={activeEventTab} eventDisplayMode={eventDisplayMode} openEventModal={openEventModal} handleDeleteEvent={handleDeleteEvent} companies={companies} />
             ) : currentApp === 'spreaker' ? (
               <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
+            ) : currentApp === 'youtube' ? (
+              <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
+            ) : currentApp === 'shows' ? (
+              <ShowsDashboard shows={shows} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} />
-            ) : currentApp === 'activity' ? (
-              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             ) : (
-              <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
+              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}
           </main>
           <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
@@ -1068,6 +1110,7 @@ export default function App() {
       {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} />}
+      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} />}
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}

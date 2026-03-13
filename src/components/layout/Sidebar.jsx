@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard 
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv 
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -18,7 +18,8 @@ export default function Sidebar({
   activeSpreakerShowId, setActiveSpreakerShowId,
   openCompanyModal, openProjectModal, openYoutubeModal, openSpreakerModal,
   openProfileModal, setIsTeamModalOpen, setIsSwitchUserModalOpen,
-  activeTeamTab, setActiveTeamTab, activeActivityTab, setActiveActivityTab
+  activeTeamTab, setActiveTeamTab, activeActivityTab, setActiveActivityTab,
+  activeShowTab, setActiveShowTab
 }) {
 
   const getCompany = (id) => companies.find(c => c.id === id);
@@ -199,6 +200,33 @@ export default function Sidebar({
                     {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button></div>}
                   </div>
                 )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div> )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {currentApp === 'shows' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Schedule</p>
+              <button onClick={() => { setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeShowTab === 'overview' ? 'bg-red-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
+                <CalendarDays size={18} /> All Shows
+              </button>
+            </div>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Channel</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                {youtubeChannels.map(channel => (
+                  <div key={channel.id} className="flex items-center justify-between group/channel">
+                    <button onClick={() => { setActiveShowTab(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeShowTab === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <Youtube size={16} className={`flex-shrink-0 ${activeShowTab === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
+                      <span className="truncate">{channel.name}</span>
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </>

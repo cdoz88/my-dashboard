@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Wallet, Youtube, CalendarDays, Mic, Globe, 
   ChevronsUpDown, ListTodo, CalendarClock, Plus, Clock, ChevronDown, 
-  RefreshCw, Upload, Kanban, Contact, Activity 
+  RefreshCw, Upload, Kanban, Contact, Activity, Tv 
 } from 'lucide-react';
 
 export default function TopBar({
@@ -16,21 +16,23 @@ export default function TopBar({
   youtubeTimeFilter, handleYoutubeFilterChange, handleSyncYoutube,
   spreakerTimeFilter, handleSpreakerFilterChange, handleSyncSpreaker,
   openTaskModal, openExpenseModal, openDomainModal, openEventModal,
-  handleImportCSV, handleSyncGoDaddy
+  handleImportCSV, handleSyncGoDaddy,
+  showDisplayMode, setShowDisplayMode, openShowModal
 }) {
   const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
   const isBudgetView = currentApp === 'budget';
   const isDomainView = currentApp === 'domains';
   const isYoutubeView = currentApp === 'youtube';
+  const isShowsView = currentApp === 'shows';
   const isEventView = currentApp === 'events';
   const isSpreakerView = currentApp === 'spreaker';
 
   return (
-    <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : currentApp === 'team' ? 'bg-indigo-600' : currentApp === 'activity' ? 'bg-slate-800' : 'bg-teal-500'} ${currentApp === 'spreaker' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
+    <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' || currentApp === 'shows' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : currentApp === 'team' ? 'bg-indigo-600' : currentApp === 'activity' ? 'bg-slate-800' : 'bg-teal-500'} ${currentApp === 'spreaker' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
       <div className="relative">
-        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : currentApp === 'team' ? 'hover:bg-indigo-700' : currentApp === 'activity' ? 'hover:bg-slate-900' : 'hover:bg-teal-600'}`}>
-          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : currentApp === 'team' ? <Contact size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'activity' ? <Activity size={24} className="text-white/70" /> : <Globe size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />}
-          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp === 'team' ? 'Team Directory' : currentApp}</span>
+        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' || currentApp === 'shows' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : currentApp === 'team' ? 'hover:bg-indigo-700' : currentApp === 'activity' ? 'hover:bg-slate-900' : 'hover:bg-teal-600'}`}>
+          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'shows' ? <Tv size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : currentApp === 'team' ? <Contact size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'activity' ? <Activity size={24} className="text-white/70" /> : <Globe size={24} className={currentApp === 'spreaker' ? "text-slate-900/70" : "text-white/70"} />}
+          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp === 'team' ? 'Team Directory' : currentApp === 'shows' ? 'Shows' : currentApp}</span>
           <ChevronsUpDown size={18} className={`${currentApp === 'spreaker' ? 'text-slate-900/60' : 'text-white/60'} ml-1`} />
         </button>
         {isAppSwitcherOpen && (
@@ -42,7 +44,8 @@ export default function TopBar({
               {(currentUser.isAdmin || currentUser.canViewEvents) && <button onClick={() => { setCurrentApp('events'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'events' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'events' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}><CalendarDays size={18} /></div>Events</button>}
               {(currentUser.isAdmin || currentUser.canViewBudget) && <button onClick={() => { setCurrentApp('budget'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'budget' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'budget' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Wallet size={18} /></div>Expenses</button>}
               {(currentUser.isAdmin || currentUser.canViewDomains) && <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains</button>}
-              {(currentUser.isAdmin || currentUser.canViewYoutube) && <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube</button>}
+              {(currentUser.isAdmin || currentUser.canViewYoutube) && <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube Stats</button>}
+              {(currentUser.isAdmin || currentUser.canViewShows) && <button onClick={() => { setCurrentApp('shows'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'shows' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'shows' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Tv size={18} /></div>Show Schedule</button>}
               {(currentUser.isAdmin || currentUser.canViewSpreaker) && <button onClick={() => { setCurrentApp('spreaker'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'spreaker' ? 'bg-[#ffc005]/10 text-[#d9a304]' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'spreaker' ? 'bg-[#ffc005]/20 text-[#d9a304]' : 'bg-slate-100 text-slate-500'}`}><Mic size={18} /></div>Spreaker</button>}
               {(currentUser.isAdmin) && <button onClick={() => { setCurrentApp('activity'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors border-t border-slate-100 ${currentApp === 'activity' ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'activity' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-500'}`}><Activity size={18} /></div>Activity Log</button>}
             </div>
@@ -59,6 +62,17 @@ export default function TopBar({
              </div>
              <button onClick={() => openEventModal()} className="bg-white text-purple-600 hover:bg-purple-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
                <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Event</span>
+             </button>
+           </>
+        )}
+        {isShowsView && (
+           <>
+             <div className="flex bg-red-700/50 rounded-lg p-1 border border-red-500/50 mr-2">
+                <button onClick={() => setShowDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'list' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`}><ListTodo size={16} /></button>
+                <button onClick={() => setShowDisplayMode('calendar')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'calendar' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`}><CalendarClock size={16} /></button>
+             </div>
+             <button onClick={() => openShowModal()} className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+               <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Show</span>
              </button>
            </>
         )}
