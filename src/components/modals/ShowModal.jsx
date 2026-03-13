@@ -1,10 +1,14 @@
 import React from 'react';
-import { Tv, X, Link as LinkIcon, MapPin, AlignLeft, Users, UserCircle, ToggleRight, ToggleLeft } from 'lucide-react';
+import { Tv, X, Link as LinkIcon, MapPin, AlignLeft, Users, UserCircle, ToggleRight, ToggleLeft, Award, ExternalLink } from 'lucide-react';
 
 export default function ShowModal({
-  editingShow, setEditingShow, handleSaveShow, handleDeleteShow, setIsShowModalOpen, youtubeChannels, users
+  editingShow, setEditingShow, handleSaveShow, handleDeleteShow, setIsShowModalOpen, youtubeChannels, users,
+  sponsorships, openSponsorshipModal
 }) {
   const studios = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4', 'Streamyard'];
+
+  // Find all sponsorships that have this specific show title attached to them
+  const showSponsors = (sponsorships || []).filter(sp => (sp.showTitles || []).includes(editingShow.title));
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -98,6 +102,28 @@ export default function ShowModal({
               <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><AlignLeft size={14} className="text-slate-400"/> Show Notes / Topics</label>
               <textarea rows="3" value={editingShow.notes || ''} onChange={(e) => setEditingShow({...editingShow, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Talking points, outlines, etc..." />
             </div>
+
+            {showSponsors.length > 0 && (
+               <div className="pt-4 border-t border-slate-100">
+                 <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5"><Award size={14} className="text-amber-500" /> Active Sponsors</label>
+                 <div className="flex flex-col gap-2">
+                    {showSponsors.map(sp => (
+                        <button 
+                            key={sp.id} 
+                            type="button" 
+                            onClick={() => { setIsShowModalOpen(false); openSponsorshipModal(sp); }} 
+                            className="flex items-center justify-between bg-amber-50 border border-amber-200 p-3 rounded-lg hover:bg-amber-100 transition-colors text-left group"
+                        >
+                            <div>
+                               <div className="font-bold text-amber-800 text-sm group-hover:text-amber-900">{sp.name}</div>
+                               <div className="text-[10px] text-amber-600 mt-0.5 font-semibold bg-amber-200/50 px-1.5 py-0.5 rounded w-fit">{sp.promoCode ? `Promo: ${sp.promoCode}` : 'View Deliverables'}</div>
+                            </div>
+                            <ExternalLink size={16} className="text-amber-500 group-hover:text-amber-600" />
+                        </button>
+                    ))}
+                 </div>
+               </div>
+            )}
 
           </form>
         </div>
