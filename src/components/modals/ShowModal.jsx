@@ -1,8 +1,8 @@
 import React from 'react';
-import { Tv, X, Link as LinkIcon, MapPin, AlignLeft } from 'lucide-react';
+import { Tv, X, Link as LinkIcon, MapPin, AlignLeft, Users, UserCircle, ToggleRight, ToggleLeft } from 'lucide-react';
 
 export default function ShowModal({
-  editingShow, setEditingShow, handleSaveShow, handleDeleteShow, setIsShowModalOpen, youtubeChannels
+  editingShow, setEditingShow, handleSaveShow, handleDeleteShow, setIsShowModalOpen, youtubeChannels, users
 }) {
   const studios = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4', 'Streamyard'];
 
@@ -55,7 +55,25 @@ export default function ShowModal({
               </div>
             </div>
 
-            <div className="pt-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> Show Cast / Members</label>
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                {users.map(u => (
+                  <label key={u.id} className="flex items-center gap-3 p-1.5 hover:bg-white rounded-md cursor-pointer transition-colors">
+                    <input type="checkbox" checked={editingShow.userIds?.includes(u.id) || false} onChange={(e) => {
+                       const newIds = e.target.checked 
+                          ? [...(editingShow.userIds || []), u.id]
+                          : (editingShow.userIds || []).filter(id => id !== u.id);
+                       setEditingShow({...editingShow, userIds: newIds});
+                    }} className="w-4 h-4 accent-red-600 rounded" />
+                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-6 h-6 rounded-full object-cover bg-white" /> : <UserCircle size={24} className="text-slate-400" />}
+                    <span className="text-sm font-medium text-slate-700">{u.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
               <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><LinkIcon size={14} className="text-slate-400"/> Guest Link <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
               <input type="url" value={editingShow.guestLink || ''} onChange={(e) => setEditingShow({...editingShow, guestLink: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="https://streamyard.com/..." />
             </div>
@@ -64,6 +82,22 @@ export default function ShowModal({
               <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><AlignLeft size={14} className="text-slate-400"/> Show Notes / Topics</label>
               <textarea rows="3" value={editingShow.notes || ''} onChange={(e) => setEditingShow({...editingShow, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Talking points, outlines, etc..." />
             </div>
+
+            {!editingShow.id && (
+               <div className="pt-4 border-t border-slate-100">
+                   <div className="flex items-center justify-between mb-3">
+                       <div><div className="text-sm font-bold text-slate-800">Repeat Weekly</div><div className="text-[10px] text-slate-500">Auto-generates upcoming episodes for this show.</div></div>
+                       <button type="button" onClick={() => setEditingShow({...editingShow, isRecurring: !editingShow.isRecurring})} className={`${editingShow.isRecurring ? 'text-red-600' : 'text-slate-300'} transition-colors`}>{editingShow.isRecurring ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
+                   </div>
+                   {editingShow.isRecurring && (
+                       <div className="flex items-center gap-2 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in slide-in-from-top-2">
+                           <span className="text-sm font-medium text-red-800 flex-shrink-0">Create episodes for the next</span>
+                           <input type="number" min="2" max="52" value={editingShow.repeatWeeks} onChange={(e) => setEditingShow({...editingShow, repeatWeeks: parseInt(e.target.value) || 2})} className="w-16 px-2 py-1 text-sm border border-red-200 rounded focus:outline-none focus:ring-2 focus:ring-red-500 font-bold text-center" />
+                           <span className="text-sm font-medium text-red-800 flex-shrink-0">weeks</span>
+                       </div>
+                   )}
+               </div>
+            )}
           </form>
         </div>
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">

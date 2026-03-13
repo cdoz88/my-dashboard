@@ -98,7 +98,7 @@ export default function App() {
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
-  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '' });
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, repeatWeeks: 4 });
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -713,23 +713,56 @@ export default function App() {
   };
 
   const openShowModal = (show = null) => {
-    if (show) setEditingShow({ ...show });
-    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '' });
+    if (show) setEditingShow({ ...show, userIds: show.userIds || [] });
+    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, repeatWeeks: 4 });
     setIsShowModalOpen(true);
   };
 
   const handleSaveShow = (e) => {
     e.preventDefault();
     if (!editingShow.channelId) { alert("Please select a YouTube channel."); return; }
-    const showData = editingShow.id ? editingShow : { ...editingShow, id: 'show_' + Date.now() };
     
-    if (!editingShow.id) logActivity('Shows', 'Show Scheduled', `Scheduled "${showData.title}"`);
+    const isNew = !editingShow.id;
     
-    if (editingShow.id) setShows(shows.map(s => s.id === showData.id ? showData : s));
-    else setShows([...shows, showData]);
+    if (isNew && editingShow.isRecurring && editingShow.repeatWeeks > 1) {
+        const newShows = [];
+        const baseDate = new Date(`${editingShow.showDate}T12:00:00`); 
+        
+        for (let i = 0; i < editingShow.repeatWeeks; i++) {
+            const iterDate = new Date(baseDate);
+            iterDate.setDate(iterDate.getDate() + (i * 7));
+            
+            const formattedDate = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, '0')}-${String(iterDate.getDate()).padStart(2, '0')}`;
+            
+            const showData = {
+                ...editingShow,
+                id: 'show_' + Date.now() + '_' + i,
+                showDate: formattedDate,
+            };
+            delete showData.isRecurring;
+            delete showData.repeatWeeks;
+            
+            newShows.push(showData);
+        }
+        
+        logActivity('Shows', 'Show Scheduled', `Scheduled "${editingShow.title}" for ${editingShow.repeatWeeks} consecutive weeks`);
+        setShows([...shows, ...newShows]);
+        newShows.forEach(s => sendToAPI('save_show', s));
+        
+    } else {
+        const showData = editingShow.id ? editingShow : { ...editingShow, id: 'show_' + Date.now() };
+        delete showData.isRecurring;
+        delete showData.repeatWeeks;
+
+        if (isNew) logActivity('Shows', 'Show Scheduled', `Scheduled "${showData.title}"`);
+        
+        if (editingShow.id) setShows(shows.map(s => s.id === showData.id ? showData : s));
+        else setShows([...shows, showData]);
+        
+        sendToAPI('save_show', showData);
+    }
     
     setIsShowModalOpen(false);
-    sendToAPI('save_show', showData);
   };
 
   const handleDeleteShow = (id) => {
@@ -1074,7 +1107,7 @@ export default function App() {
               activeTab === 'mytasks' ? <DashboardView tasks={visibleTasks} currentUser={currentUser} projects={visibleProjects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
               activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={visibleTasks} projects={visibleProjects} /> : 
               activeTab === 'archived' ? <ArchivedProjectsView projects={visibleProjects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
-              <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />
+              <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDragOver} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />
             ) : currentApp === 'budget' ? (
               <BudgetDashboard expenses={expenses} activeBudgetTab={activeBudgetTab} budgetDisplayMode={budgetDisplayMode} expenseSortConfig={expenseSortConfig} setExpenseSortConfig={setExpenseSortConfig} openExpenseModal={openExpenseModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />
             ) : currentApp === 'domains' ? (
@@ -1086,7 +1119,7 @@ export default function App() {
             ) : currentApp === 'youtube' ? (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
             ) : currentApp === 'shows' ? (
-              <ShowsDashboard shows={shows} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} />
+              <ShowsDashboard shows={shows} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} />
             ) : (
@@ -1110,7 +1143,7 @@ export default function App() {
       {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} />}
-      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} />}
+      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} />}
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}

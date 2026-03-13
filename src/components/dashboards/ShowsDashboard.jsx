@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Tv, Video, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Calendar, AlignLeft, Trash2 } from 'lucide-react';
+import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2, UserCircle } from 'lucide-react';
 
 export default function ShowsDashboard({ 
   shows, activeShowTab, showDisplayMode, 
-  openShowModal, handleDeleteShow, youtubeChannels 
+  openShowModal, handleDeleteShow, youtubeChannels, users 
 }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const getChannel = (id) => youtubeChannels.find(c => c.id === id);
+  const getUser = (id) => users.find(u => u.id === id);
 
   const viewShows = activeShowTab === 'overview' ? shows : shows.filter(s => s.channelId === activeShowTab);
   const currentChannel = activeShowTab === 'overview' ? null : getChannel(activeShowTab);
@@ -25,12 +26,10 @@ export default function ShowsDashboard({
 
   const renderCalendar = () => {
     const days = [];
-    // Empty cells for days before the 1st
     for (let i = 0; i < startDayOfWeek; i++) {
         days.push(<div key={`empty-${i}`} className="bg-slate-50/50 p-2 min-h-[120px] border border-slate-100"></div>);
     }
     
-    // Actual days
     for (let i = 1; i <= daysInMonth; i++) {
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
         const dayShows = viewShows.filter(s => s.showDate === dateStr).sort((a, b) => a.showTime.localeCompare(b.showTime));
@@ -49,9 +48,21 @@ export default function ShowsDashboard({
                           className={`text-left text-[10px] p-1.5 rounded-md border truncate transition-all hover:scale-[1.02] shadow-sm ${show.isLive ? 'bg-red-50 border-red-200 text-red-700' : 'bg-slate-100 border-slate-200 text-slate-700'}`}
                           title={`${show.title} - ${show.studio}`}
                        >
-                           <div className="font-bold flex items-center gap-1">
-                               {show.isLive ? <Radio size={10} className="animate-pulse" /> : <MonitorPlay size={10} />}
-                               <span className="truncate">{show.showTime ? (() => { let [h, m] = show.showTime.split(':'); let ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${m} ${ampm}`; })() : 'TBD'}</span>
+                           <div className="font-bold flex items-center justify-between gap-1">
+                               <div className="flex items-center gap-1 truncate">
+                                 {show.isLive ? <Radio size={10} className="animate-pulse" /> : <MonitorPlay size={10} />}
+                                 <span className="truncate">{show.showTime ? (() => { let [h, m] = show.showTime.split(':'); let ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${m} ${ampm}`; })() : 'TBD'}</span>
+                               </div>
+                               <div className="flex items-center -space-x-1">
+                                  {(show.userIds || []).slice(0, 3).map(id => {
+                                      const u = getUser(id);
+                                      if (!u) return null;
+                                      return u.avatarUrl 
+                                        ? <img key={id} src={u.avatarUrl} className="w-4 h-4 rounded-full border border-white" title={u.name} />
+                                        : <div key={id} className="w-4 h-4 rounded-full border border-white bg-slate-200 text-[8px] flex items-center justify-center font-bold text-slate-500" title={u.name}>{u.name.charAt(0)}</div>
+                                  })}
+                                  {(show.userIds || []).length > 3 && <div className="w-4 h-4 rounded-full border border-white bg-slate-100 text-[7px] flex items-center justify-center font-bold text-slate-500">+{show.userIds.length - 3}</div>}
+                               </div>
                            </div>
                            <div className="truncate opacity-90 mt-0.5">{show.title}</div>
                        </button>
@@ -69,13 +80,14 @@ export default function ShowsDashboard({
       return (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
              <div className="overflow-x-auto">
-                 <table className="w-full text-left min-w-[800px]">
+                 <table className="w-full text-left min-w-[900px]">
                      <thead className="bg-slate-50 border-b border-slate-200">
                          <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                             <th className="p-4">Show Info</th>
-                             <th className="p-4">Date & Time</th>
-                             <th className="p-4">Format & Studio</th>
-                             <th className="p-4">Guest Link</th>
+                             <th className="p-4 w-64">Show Info</th>
+                             <th className="p-4 w-40">Date & Time</th>
+                             <th className="p-4">Cast / Members</th>
+                             <th className="p-4 w-40">Format & Studio</th>
+                             <th className="p-4 w-32">Guest Link</th>
                              <th className="p-4 w-12 text-right"></th>
                          </tr>
                      </thead>
@@ -88,9 +100,21 @@ export default function ShowsDashboard({
                                          <div className="font-bold text-slate-800 cursor-pointer hover:text-red-600 transition-colors" onClick={() => openShowModal(show)}>{show.title}</div>
                                          {activeShowTab === 'overview' && <div className="text-[10px] text-slate-500 mt-0.5">{channel?.name || 'Unknown Channel'}</div>}
                                      </td>
-                                     <td className="p-4 text-sm font-medium text-slate-700">
+                                     <td className="p-4 text-sm font-medium text-slate-700 whitespace-nowrap">
                                          {new Date(`${show.showDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                         {show.showTime && <span className="text-slate-400 ml-2">@ {(() => { let [h, m] = show.showTime.split(':'); return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`; })()}</span>}
+                                         {show.showTime && <span className="text-slate-400 block text-xs mt-0.5">@ {(() => { let [h, m] = show.showTime.split(':'); return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`; })()}</span>}
+                                     </td>
+                                     <td className="p-4">
+                                        <div className="flex items-center -space-x-2">
+                                            {(show.userIds || []).map(id => {
+                                                const u = getUser(id);
+                                                if (!u) return null;
+                                                return u.avatarUrl 
+                                                    ? <img key={id} src={u.avatarUrl} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" title={u.name} />
+                                                    : <div key={id} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-500 shadow-sm" title={u.name}>{u.name.charAt(0)}</div>
+                                            })}
+                                            {(show.userIds || []).length === 0 && <span className="text-xs text-slate-400 italic">No members assigned</span>}
+                                        </div>
                                      </td>
                                      <td className="p-4">
                                          <div className="flex flex-col gap-1.5 items-start">
@@ -102,7 +126,7 @@ export default function ShowsDashboard({
                                      </td>
                                      <td className="p-4">
                                          {show.guestLink ? (
-                                             <a href={show.guestLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded w-fit">
+                                             <a href={show.guestLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded w-fit whitespace-nowrap">
                                                  <LinkIcon size={12} /> Join Link
                                              </a>
                                          ) : <span className="text-xs text-slate-400 italic">No link</span>}
@@ -112,7 +136,7 @@ export default function ShowsDashboard({
                                      </td>
                                  </tr>
                              )
-                         }) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500">No shows scheduled.</td></tr>)}
+                         }) : (<tr><td colSpan="6" className="p-8 text-center text-slate-500">No shows scheduled.</td></tr>)}
                      </tbody>
                  </table>
              </div>
