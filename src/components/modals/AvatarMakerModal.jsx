@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, X, Image as ImageIcon, Download, ZoomIn, MoveHorizontal, MoveVertical } from 'lucide-react';
+import { Camera, X, Image as ImageIcon, Download, ZoomIn, MoveHorizontal, MoveVertical, Wand2, RefreshCw } from 'lucide-react';
+import imglyRemoveBackground from '@imgly/background-removal';
 
 export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   const canvasRef = useRef(null);
@@ -7,6 +8,9 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   const userImgRef = useRef(new Image());
 
   const [hasUserImage, setHasUserImage] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingText, setProcessingText] = useState('');
+  
   const [scale, setScale] = useState(100);
   const [posX, setPosX] = useState(50);
   const [posY, setPosY] = useState(100);
@@ -14,6 +18,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   // Load the default background image immediately
   useEffect(() => {
     bgImgRef.current.crossOrigin = "Anonymous";
+    // NOTE: Make sure "Team Photos Background.jpg" is placed directly inside your "public" folder!
     bgImgRef.current.src = '/Team Photos Background.jpg';
     bgImgRef.current.onload = drawCanvas;
   }, []);
@@ -26,16 +31,53 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   const handleUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        userImgRef.current.src = event.target.result;
-        userImgRef.current.onload = () => {
-          setHasUserImage(true);
-          drawCanvas();
-        };
+      // This approach (Object URL) prevents the app from crashing on large file uploads!
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        userImgRef.current = img;
+        setHasUserImage(true);
+        drawCanvas();
       };
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        alert("Invalid image file. Please try another.");
+      };
+      img.src = url;
     }
+  };
+
+  const handleRemoveBackground = async () => {
+      if (!userImgRef.current || !userImgRef.current.src) return;
+      
+      setIsProcessing(true);
+      setProcessingText('Running AI Cutout... (This takes a few seconds)');
+      
+      try {
+          // Fetch the current image into a blob for the AI to read
+          const response = await fetch(userImgRef.current.src);
+          const blob = await response.blob();
+          
+          // Run the magical imgly background removal tool
+          const imageBlob = await imglyRemoveBackground(blob);
+          
+          // Load the transparent result back onto the canvas
+          const url = URL.createObjectURL(imageBlob);
+          const newImg = new Image();
+          newImg.onload = () => {
+              userImgRef.current = newImg;
+              drawCanvas();
+              setIsProcessing(false);
+          };
+          newImg.onerror = () => {
+              alert("Failed to load the processed image.");
+              setIsProcessing(false);
+          };
+          newImg.src = url;
+      } catch (error) {
+          console.error("BG Removal failed:", error);
+          alert("Background removal failed. Please try an image that already has a transparent background.");
+          setIsProcessing(false);
+      }
   };
 
   const drawCanvas = () => {
@@ -56,7 +98,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
     ctx.clip();
 
     // 1. Draw Background First
-    if (bgImgRef.current.complete && bgImgRef.current.src) {
+    if (bgImgRef.current && bgImgRef.current.complete && bgImgRef.current.width > 0) {
         ctx.drawImage(bgImgRef.current, 0, 0, w, h);
     } else {
         // Fallback color if background image isn't loaded/found
@@ -65,23 +107,25 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
     }
 
     // 2. Draw Foreground (User Image)
-    if (hasUserImage && userImgRef.current.complete) {
+    if (hasUserImage && userImgRef.current && userImgRef.current.complete) {
         const imgW = userImgRef.current.width;
         const imgH = userImgRef.current.height;
         
-        // This scaling math perfectly matches your HTML logic
-        const maxDimension = h * (scale / 100); 
-        const ratio = Math.min(maxDimension / imgW, maxDimension / imgH);
-        const dW = imgW * ratio;
-        const dH = imgH * ratio;
-        
-        const centerX = (w * (posX / 100));
-        const dx = centerX - (dW / 2);
-        
-        const bottomY = (h * (posY / 100));
-        const dy = bottomY - dH;
-        
-        ctx.drawImage(userImgRef.current, dx, dy, dW, dH);
+        // Prevent math crashes if image dimensions are missing
+        if (imgW > 0 && imgH > 0) {
+            const maxDimension = h * (Number(scale) / 100); 
+            const ratio = Math.min(maxDimension / imgW, maxDimension / imgH);
+            const dW = imgW * ratio;
+            const dH = imgH * ratio;
+            
+            const centerX = (w * (Number(posX) / 100));
+            const dx = centerX - (dW / 2);
+            
+            const bottomY = (h * (Number(posY) / 100));
+            const dy = bottomY - dH;
+            
+            ctx.drawImage(userImgRef.current, dx, dy, dW, dH);
+        }
     }
 
     // Restore context (removes clipping mask for future clearRects)
@@ -95,7 +139,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
     // Convert the canvas to a high-quality PNG
     const dataUrl = canvas.toDataURL('image/png');
     
-    // Force direct download
+    // Force direct download to the user's computer
     const link = document.createElement('a');
     link.download = `Avatar-${Date.now()}.png`;
     link.href = dataUrl;
@@ -113,8 +157,17 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
           <button onClick={() => setIsAvatarMakerModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
         </div>
 
-        <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto max-h-[70vh]">
+        <div className="p-6 flex flex-col items-center gap-6 overflow-y-auto max-h-[70vh] relative">
           
+          {/* AI Processing Overlay */}
+          {isProcessing && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm text-indigo-900 z-20 p-6 text-center">
+                  <RefreshCw size={40} className="mb-4 animate-spin text-indigo-500" />
+                  <p className="text-lg font-bold">Please Wait...</p>
+                  <p className="text-sm font-medium text-indigo-600 mt-1">{processingText}</p>
+              </div>
+          )}
+
           <div className="relative w-64 h-64 sm:w-80 sm:h-80 rounded-full border-4 border-slate-200 shadow-md overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
               {/* Internal hidden canvas (High Res for export) */}
               <canvas ref={canvasRef} width={800} height={800} className="w-full h-full object-cover" />
@@ -123,19 +176,30 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 text-white z-10 p-6 text-center">
                      <ImageIcon size={32} className="mb-2 opacity-80" />
                      <p className="text-sm font-bold">Upload your photo to start!</p>
-                     <p className="text-[10px] opacity-70 mt-1">Use an image with a transparent background for best results.</p>
+                     <p className="text-[10px] opacity-70 mt-1">Use an image with a transparent background, or use the AI Cutout tool!</p>
                   </div>
               )}
           </div>
 
           <div className="w-full space-y-5 bg-slate-50 p-5 rounded-xl border border-slate-200">
              
-             <div className="flex items-center gap-4">
-                 <label className="flex-1 bg-white border border-slate-300 hover:border-indigo-500 text-slate-700 py-2.5 px-4 rounded-lg cursor-pointer transition-colors shadow-sm font-bold text-sm text-center flex items-center justify-center gap-2">
+             <div className="flex flex-col sm:flex-row items-center gap-3">
+                 <label className="flex-1 w-full bg-white border border-slate-300 hover:border-indigo-500 text-slate-700 py-2.5 px-4 rounded-lg cursor-pointer transition-colors shadow-sm font-bold text-sm text-center flex items-center justify-center gap-2">
                      <ImageIcon size={16} className="text-indigo-600" />
                      {hasUserImage ? 'Change Photo' : 'Upload Photo'}
-                     <input type="file" accept="image/png, image/jpeg, image/webp" className="hidden" onChange={handleUpload} />
+                     <input type="file" accept="image/png, image/jpeg, image/webp" className="hidden" onChange={handleUpload} disabled={isProcessing} />
                  </label>
+                 
+                 {hasUserImage && (
+                     <button 
+                         type="button" 
+                         onClick={handleRemoveBackground}
+                         disabled={isProcessing}
+                         className="flex-1 w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white py-2.5 px-4 rounded-lg transition-colors shadow-sm font-bold text-sm text-center flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                         <Wand2 size={16} /> AI Cutout
+                     </button>
+                 )}
              </div>
 
              <div className={`space-y-4 transition-opacity duration-300 ${!hasUserImage ? 'opacity-30 pointer-events-none' : ''}`}>
@@ -144,7 +208,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
                        <span className="flex items-center gap-1.5"><ZoomIn size={14}/> Image Size</span>
                        <span className="text-indigo-600">{scale}%</span>
                     </label>
-                    <input type="range" min="10" max="300" value={scale} onChange={(e) => setScale(e.target.value)} className="w-full accent-indigo-600" />
+                    <input type="range" min="10" max="300" value={scale} onChange={(e) => setScale(Number(e.target.value))} className="w-full accent-indigo-600" disabled={isProcessing} />
                  </div>
                  
                  <div>
@@ -152,7 +216,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
                        <span className="flex items-center gap-1.5"><MoveHorizontal size={14}/> Horizontal Position</span>
                        <span className="text-indigo-600">{posX}%</span>
                     </label>
-                    <input type="range" min="0" max="100" value={posX} onChange={(e) => setPosX(e.target.value)} className="w-full accent-indigo-600" />
+                    <input type="range" min="0" max="100" value={posX} onChange={(e) => setPosX(Number(e.target.value))} className="w-full accent-indigo-600" disabled={isProcessing} />
                  </div>
 
                  <div>
@@ -160,7 +224,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
                        <span className="flex items-center gap-1.5"><MoveVertical size={14}/> Vertical Position</span>
                        <span className="text-indigo-600">{posY}%</span>
                     </label>
-                    <input type="range" min="0" max="150" value={posY} onChange={(e) => setPosY(e.target.value)} className="w-full accent-indigo-600" />
+                    <input type="range" min="0" max="150" value={posY} onChange={(e) => setPosY(Number(e.target.value))} className="w-full accent-indigo-600" disabled={isProcessing} />
                  </div>
              </div>
 
@@ -172,8 +236,8 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
           <button 
              type="button" 
              onClick={handleDownload}
-             disabled={!hasUserImage}
-             className={`px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors ${hasUserImage ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+             disabled={!hasUserImage || isProcessing}
+             className={`px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm transition-colors ${hasUserImage && !isProcessing ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
           >
              <Download size={18} /> Download Avatar
           </button>
