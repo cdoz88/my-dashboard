@@ -43,6 +43,7 @@ import OnboardingModal from './components/modals/OnboardingModal';
 import ProjectAttachmentsModal from './components/modals/ProjectAttachmentsModal';
 import ShowModal from './components/modals/ShowModal';
 import SponsorshipModal from './components/modals/SponsorshipModal';
+import AvatarMakerModal from './components/modals/AvatarMakerModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +105,7 @@ export default function App() {
   const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
+  const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
 
   // View States
   const [activeTab, setActiveTab] = useState('mytasks'); 
@@ -1188,7 +1190,7 @@ export default function App() {
             ) : currentApp === 'sponsorships' ? (
               <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} />
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}
@@ -1221,6 +1223,7 @@ export default function App() {
       {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
       {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
       {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
+      {isAvatarMakerModalOpen && <AvatarMakerModal setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />}
     </>
   );
 }

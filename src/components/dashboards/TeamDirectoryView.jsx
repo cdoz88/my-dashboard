@@ -1,10 +1,11 @@
 import React from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera } from 'lucide-react';
 
 export default function TeamDirectoryView({ 
   users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, 
   companies, visibleCompanies, activeTeamTab, globalChecklist,
-  projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding
+  projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding,
+  setIsAvatarMakerModalOpen
 }) {
   let displayedUsers = [];
   if (activeTeamTab === 'overview') {
@@ -36,15 +37,24 @@ export default function TeamDirectoryView({
           </h2>
           <p className="text-slate-500 text-sm mt-1">Contact info and roles for {currentCompany ? 'this company' : 'all team members'}.</p>
         </div>
-        {currentUser?.isAdmin && (
+        <div className="flex items-center gap-3">
           <button 
-            onClick={() => setIsOnboardingModalOpen(true)} 
-            className="flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
+            onClick={() => setIsAvatarMakerModalOpen(true)} 
+            className="flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
           >
-            <Settings size={16} className="text-slate-500" />
-            Onboarding Templates
+            <Camera size={16} />
+            Avatar Maker
           </button>
-        )}
+          {currentUser?.isAdmin && (
+            <button 
+              onClick={() => setIsOnboardingModalOpen(true)} 
+              className="flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
+            >
+              <Settings size={16} className="text-slate-500" />
+              Onboarding Templates
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
