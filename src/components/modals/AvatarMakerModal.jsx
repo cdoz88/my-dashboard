@@ -6,6 +6,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   const canvasRef = useRef(null);
   const bgImgRef = useRef(new Image());
   const userImgRef = useRef(new Image());
+  const overlayImgRef = useRef(new Image()); // Our new top layer
 
   const [hasUserImage, setHasUserImage] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -15,12 +16,17 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   const [posX, setPosX] = useState(50);
   const [posY, setPosY] = useState(100);
 
-  // Load the default background image immediately
+  // Load the background and overlay images immediately
   useEffect(() => {
+    // 1. Load Background Layer
     bgImgRef.current.crossOrigin = "Anonymous";
-    // NOTE: Make sure "Team Photos Background.png" is placed directly inside your "public" folder!
-    bgImgRef.current.src = '/Team Photos Background.png';
+    bgImgRef.current.src = '/Team Photos Background.png'; // Fixed extension to .png
     bgImgRef.current.onload = drawCanvas;
+
+    // 2. Load Top Overlay Layer (The Ring/Frame)
+    overlayImgRef.current.crossOrigin = "Anonymous";
+    overlayImgRef.current.src = '/Team Photos Instagram Post.png';
+    overlayImgRef.current.onload = drawCanvas;
   }, []);
 
   // Redraw whenever the sliders move
@@ -97,7 +103,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
     ctx.closePath();
     ctx.clip();
 
-    // 1. Draw Background First
+    // LAYER 1: Draw Background First (Bottom)
     if (bgImgRef.current && bgImgRef.current.complete && bgImgRef.current.width > 0) {
         ctx.drawImage(bgImgRef.current, 0, 0, w, h);
     } else {
@@ -106,7 +112,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
         ctx.fill();
     }
 
-    // 2. Draw Foreground (User Image)
+    // LAYER 2: Draw Foreground (User Image in Middle)
     if (hasUserImage && userImgRef.current && userImgRef.current.complete) {
         const imgW = userImgRef.current.width;
         const imgH = userImgRef.current.height;
@@ -126,6 +132,11 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
             
             ctx.drawImage(userImgRef.current, dx, dy, dW, dH);
         }
+    }
+
+    // LAYER 3: Draw Overlay Frame (Top)
+    if (overlayImgRef.current && overlayImgRef.current.complete && overlayImgRef.current.width > 0) {
+        ctx.drawImage(overlayImgRef.current, 0, 0, w, h);
     }
 
     // Restore context (removes clipping mask for future clearRects)
@@ -168,7 +179,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
               </div>
           )}
 
-          <div className="relative w-64 h-64 sm:w-80 sm:h-80 rounded-full border-4 border-slate-200 shadow-md overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
+          <div className="relative w-64 h-64 sm:w-80 sm:h-80 rounded-full shadow-md overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
               {/* Internal hidden canvas (High Res for export) */}
               <canvas ref={canvasRef} width={800} height={800} className="w-full h-full object-cover" />
               
