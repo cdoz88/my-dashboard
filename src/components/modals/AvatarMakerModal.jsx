@@ -18,8 +18,8 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   // Load the default background image immediately
   useEffect(() => {
     bgImgRef.current.crossOrigin = "Anonymous";
-    // NOTE: Make sure "Team Photos Background.jpg" is placed directly inside your "public" folder!
-    bgImgRef.current.src = '/Team Photos Background.jpg';
+    // NOTE: Make sure "Team Photos Background.png" is placed directly inside your "public" folder!
+    bgImgRef.current.src = '/Team Photos Background.png';
     bgImgRef.current.onload = drawCanvas;
   }, []);
 
