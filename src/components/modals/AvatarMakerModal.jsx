@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, X, Image as ImageIcon, Download, ZoomIn, MoveHorizontal, MoveVertical, Wand2, RefreshCw } from 'lucide-react';
-import imglyRemoveBackground from '@imgly/background-removal';
+import { removeBackground } from '@imgly/background-removal';
 
 export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
   const canvasRef = useRef(null);
@@ -58,7 +58,7 @@ export default function AvatarMakerModal({ setIsAvatarMakerModalOpen }) {
           const blob = await response.blob();
           
           // Run the magical imgly background removal tool
-          const imageBlob = await imglyRemoveBackground(blob);
+          const imageBlob = await removeBackground(blob);
           
           // Load the transparent result back onto the canvas
           const url = URL.createObjectURL(imageBlob);
