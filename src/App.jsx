@@ -49,8 +49,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Core App State
-  const [currentApp, setCurrentApp] = useState('projects'); 
+  // Core App State (Saved to Local Storage)
+  const [currentApp, setCurrentApp] = useState(() => localStorage.getItem('fyt_currentApp') || 'projects'); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -107,22 +107,38 @@ export default function App() {
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
 
-  // View States
-  const [activeTab, setActiveTab] = useState('mytasks'); 
-  const [projectDisplayMode, setProjectDisplayMode] = useState('list');
-  const [activeBudgetTab, setActiveBudgetTab] = useState('overview'); 
-  const [budgetDisplayMode, setBudgetDisplayMode] = useState('list'); 
+  // View States (Saved to Local Storage)
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('fyt_activeTab') || 'mytasks'); 
+  const [projectDisplayMode, setProjectDisplayMode] = useState(() => localStorage.getItem('fyt_projectDisplayMode') || 'list');
+  const [activeBudgetTab, setActiveBudgetTab] = useState(() => localStorage.getItem('fyt_activeBudgetTab') || 'overview'); 
+  const [budgetDisplayMode, setBudgetDisplayMode] = useState(() => localStorage.getItem('fyt_budgetDisplayMode') || 'list'); 
   const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [activeDomainTab, setActiveDomainTab] = useState('overview');
-  const [domainDisplayMode, setDomainDisplayMode] = useState('list'); 
+  const [activeDomainTab, setActiveDomainTab] = useState(() => localStorage.getItem('fyt_activeDomainTab') || 'overview');
+  const [domainDisplayMode, setDomainDisplayMode] = useState(() => localStorage.getItem('fyt_domainDisplayMode') || 'list'); 
   const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [activeEventTab, setActiveEventTab] = useState('overview');
-  const [eventDisplayMode, setEventDisplayMode] = useState('timeline');
-  const [activeShowTab, setActiveShowTab] = useState('overview');
-  const [showDisplayMode, setShowDisplayMode] = useState('calendar');
-  const [activeSponsorshipTab, setActiveSponsorshipTab] = useState('overview');
-  const [activeTeamTab, setActiveTeamTab] = useState('overview');
-  const [activeActivityTab, setActiveActivityTab] = useState('overview');
+  const [activeEventTab, setActiveEventTab] = useState(() => localStorage.getItem('fyt_activeEventTab') || 'overview');
+  const [eventDisplayMode, setEventDisplayMode] = useState(() => localStorage.getItem('fyt_eventDisplayMode') || 'timeline');
+  const [activeShowTab, setActiveShowTab] = useState(() => localStorage.getItem('fyt_activeShowTab') || 'overview');
+  const [showDisplayMode, setShowDisplayMode] = useState(() => localStorage.getItem('fyt_showDisplayMode') || 'calendar');
+  const [activeSponsorshipTab, setActiveSponsorshipTab] = useState(() => localStorage.getItem('fyt_activeSponsorshipTab') || 'overview');
+  const [activeTeamTab, setActiveTeamTab] = useState(() => localStorage.getItem('fyt_activeTeamTab') || 'overview');
+  const [activeActivityTab, setActiveActivityTab] = useState(() => localStorage.getItem('fyt_activeActivityTab') || 'overview');
+
+  // Sync memory states any time they change
+  useEffect(() => { localStorage.setItem('fyt_currentApp', currentApp); }, [currentApp]);
+  useEffect(() => { localStorage.setItem('fyt_activeTab', activeTab); }, [activeTab]);
+  useEffect(() => { localStorage.setItem('fyt_projectDisplayMode', projectDisplayMode); }, [projectDisplayMode]);
+  useEffect(() => { localStorage.setItem('fyt_activeBudgetTab', activeBudgetTab); }, [activeBudgetTab]);
+  useEffect(() => { localStorage.setItem('fyt_budgetDisplayMode', budgetDisplayMode); }, [budgetDisplayMode]);
+  useEffect(() => { localStorage.setItem('fyt_activeDomainTab', activeDomainTab); }, [activeDomainTab]);
+  useEffect(() => { localStorage.setItem('fyt_domainDisplayMode', domainDisplayMode); }, [domainDisplayMode]);
+  useEffect(() => { localStorage.setItem('fyt_activeEventTab', activeEventTab); }, [activeEventTab]);
+  useEffect(() => { localStorage.setItem('fyt_eventDisplayMode', eventDisplayMode); }, [eventDisplayMode]);
+  useEffect(() => { localStorage.setItem('fyt_activeShowTab', activeShowTab); }, [activeShowTab]);
+  useEffect(() => { localStorage.setItem('fyt_showDisplayMode', showDisplayMode); }, [showDisplayMode]);
+  useEffect(() => { localStorage.setItem('fyt_activeSponsorshipTab', activeSponsorshipTab); }, [activeSponsorshipTab]);
+  useEffect(() => { localStorage.setItem('fyt_activeTeamTab', activeTeamTab); }, [activeTeamTab]);
+  useEffect(() => { localStorage.setItem('fyt_activeActivityTab', activeActivityTab); }, [activeActivityTab]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
@@ -134,6 +150,13 @@ export default function App() {
     if (currentUser) localStorage.setItem('loggedInUserId', currentUser.id);
     else localStorage.removeItem('loggedInUserId');
   }, [currentUser]);
+
+  // Safety net: Protects the app from crashing if a memory state references a project/company that was deleted
+  useEffect(() => {
+    if (!isLoading && currentApp === 'projects' && !['mytasks', 'capacity', 'archived'].includes(activeTab)) {
+        if (!projects.some(p => p.id === activeTab)) setActiveTab('mytasks');
+    }
+  }, [isLoading, projects, currentApp, activeTab]);
 
   useEffect(() => {
     if (currentUser) {
