@@ -155,3 +155,47 @@ export const generateOnboardingData = (user, globalChecklist, companies, current
 
   return { newProject, newTasks };
 };
+
+export const generateOffboardingData = (user, globalChecklist, companies, currentUser) => {
+  const newProjId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
+  const firstCompanyId = user.companyIds?.[0] || companies[0]?.id || '';
+  
+  const newProject = {
+      id: newProjId,
+      name: `Offboarding: ${user.name}`,
+      companyId: firstCompanyId,
+      icon: 'UserMinus',
+      color: 'rose',
+      isArchived: false,
+      adminOnly: true
+  };
+
+  // Reverse the array so the last steps of onboarding are the first steps of offboarding
+  const reversedChecklist = [...globalChecklist].reverse();
+
+  const newTasks = reversedChecklist.map((item, idx) => {
+      let assignedTo = user.id;
+      if (item.assigneeType === 'admin') assignedTo = currentUser.id;
+      if (item.assigneeType === 'none') assignedTo = '';
+
+      let desc = item.description;
+      if (desc === undefined) desc = `Offboarding task for ${user.name.split(' ')[0]}.`;
+
+      return {
+          id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
+          projectId: newProjId,
+          title: `Revoke / Undo: ${item.text}`, // Adds context since the original text will say "Create account" etc.
+          description: desc,
+          status: 'todo',
+          dueDate: '',
+          assigneeId: assignedTo,
+          weight: 1,
+          tags: [], 
+          files: item.files || [], 
+          comments: [],
+          sortOrder: idx
+      };
+  });
+
+  return { newProject, newTasks };
+};

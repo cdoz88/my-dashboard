@@ -1,10 +1,10 @@
 import React from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus } from 'lucide-react';
 
 export default function TeamDirectoryView({ 
   users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, 
   companies, visibleCompanies, activeTeamTab, globalChecklist,
-  projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding,
+  projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding, handleGenerateOffboarding,
   setIsAvatarMakerModalOpen
 }) {
   let displayedUsers = [];
@@ -103,7 +103,8 @@ export default function TeamDirectoryView({
               </div>
               
               {currentUser?.isAdmin && (
-                  <div className="p-5 bg-slate-50/50 border-t border-slate-100 flex-1 flex flex-col justify-end">
+                  <div className="p-5 bg-slate-50/50 border-t border-slate-100 flex-1 flex flex-col gap-4">
+                     
                      {(() => {
                         const onboardingProject = projects.find(p => p.name === `Onboarding: ${user.name}` && p.adminOnly);
                         
@@ -116,41 +117,81 @@ export default function TeamDirectoryView({
                             
                             return (
                                 <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Onboarding Project</h4>
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${isFullyOnboarded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                        {isFullyOnboarded ? 'Complete' : `${completedCount}/${totalCount} Tasks`}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Onboarding</h4>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isFullyOnboarded ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                        {isFullyOnboarded ? 'Complete' : `${completedCount}/${totalCount}`}
                                         </span>
                                     </div>
-                                    
-                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-4">
-                                        <div 
-                                            className={`h-full transition-all duration-500 ${isFullyOnboarded ? 'bg-emerald-500' : 'bg-amber-500'}`} 
-                                            style={{ width: `${progressPercent}%` }} 
-                                        />
+                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-3">
+                                        <div className={`h-full transition-all duration-500 ${isFullyOnboarded ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${progressPercent}%` }} />
                                     </div>
                                     <button 
                                         onClick={() => { setCurrentApp('projects'); setActiveTab(onboardingProject.id); }}
-                                        className="w-full py-2 bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200 text-sm font-bold rounded-lg transition-colors border shadow-sm flex items-center justify-center gap-2"
+                                        className="w-full py-1.5 bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200 text-xs font-bold rounded-lg transition-colors border shadow-sm flex items-center justify-center gap-2"
                                     >
-                                        <FolderKanban size={16} /> Open Project
+                                        <FolderKanban size={14} /> Open Onboarding
                                     </button>
                                 </div>
                             );
                         } else {
                             return (
-                                <div className="flex flex-col items-center justify-center text-center">
-                                    <span className="text-xs text-slate-400 font-medium mb-3">No onboarding project exists for this user.</span>
+                                <div className="flex flex-col items-center justify-center text-center py-2">
+                                    <span className="text-xs text-slate-400 font-medium mb-2">No onboarding project exists.</span>
                                     <button 
                                         onClick={() => handleGenerateOnboarding(user)}
-                                        className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg transition-colors border border-indigo-200 flex items-center justify-center gap-2 shadow-sm"
+                                        className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-colors border border-indigo-200 flex items-center justify-center gap-2 shadow-sm"
                                     >
-                                        <Plus size={16} /> Generate Project
+                                        <Plus size={14} /> Generate Onboarding
                                     </button>
                                 </div>
                             );
                         }
                      })()}
+
+                     {(() => {
+                        const offboardingProject = projects.find(p => p.name === `Offboarding: ${user.name}` && p.adminOnly);
+                        
+                        if (offboardingProject) {
+                            const userTasks = tasks.filter(t => t.projectId === offboardingProject.id);
+                            const totalCount = userTasks.length;
+                            const completedCount = userTasks.filter(t => t.status === 'done').length;
+                            const progressPercent = totalCount === 0 ? 0 : (completedCount / totalCount) * 100;
+                            const isFullyOffboarded = totalCount > 0 && completedCount === totalCount;
+                            
+                            return (
+                                <div className="pt-4 border-t border-slate-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Offboarding</h4>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isFullyOffboarded ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                        {isFullyOffboarded ? 'Complete' : `${completedCount}/${totalCount}`}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-3">
+                                        <div className={`h-full transition-all duration-500 ${isFullyOffboarded ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${progressPercent}%` }} />
+                                    </div>
+                                    <button 
+                                        onClick={() => { setCurrentApp('projects'); setActiveTab(offboardingProject.id); }}
+                                        className="w-full py-1.5 bg-white hover:bg-slate-50 text-rose-600 border-rose-200 text-xs font-bold rounded-lg transition-colors border shadow-sm flex items-center justify-center gap-2"
+                                    >
+                                        <FolderKanban size={14} /> Open Offboarding
+                                    </button>
+                                </div>
+                            );
+                        } else {
+                            return (
+                                <div className="pt-4 border-t border-slate-200">
+                                    <button 
+                                        onClick={() => handleGenerateOffboarding(user)}
+                                        className="w-full py-1.5 bg-white hover:bg-rose-50 text-rose-600 text-xs font-bold rounded-lg transition-colors border border-rose-200 flex items-center justify-center gap-2 shadow-sm"
+                                    >
+                                        <UserMinus size={14} /> Generate Offboarding
+                                    </button>
+                                </div>
+                            );
+                        }
+                     })()}
+
                   </div>
               )}
             </div>

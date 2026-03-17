@@ -3,7 +3,7 @@ import { Menu, X, UserCircle } from 'lucide-react';
 
 // Utils
 import { API_URL } from './utils/constants';
-import { parseCSVToExpenses, generateOnboardingData } from './utils/helpers';
+import { parseCSVToExpenses, generateOnboardingData, generateOffboardingData } from './utils/helpers';
 
 // Shared Components
 import AuthScreen from './components/auth/AuthScreen';
@@ -359,6 +359,27 @@ export default function App() {
     
     sendToAPI('save_project', newProject);
     logActivity('Projects', 'New Project Created', `Created onboarding project for "${user.name}"`);
+
+    newTasks.forEach(t => {
+        const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
+        sendToAPI('save_task', { ...t, notifyAssignee, actorId: currentUser.id });
+        logActivity('Tasks', 'Task Added', `Created task "${t.title}"`);
+    });
+
+    setProjects(prev => [...prev, newProject]);
+    setTasks(prev => [...prev, ...newTasks]);
+  };
+
+  const handleGenerateOffboarding = (user) => {
+    if (!globalChecklist || globalChecklist.length === 0) {
+        alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
+        return;
+    }
+    
+    const { newProject, newTasks } = generateOffboardingData(user, globalChecklist, companies, currentUser);
+    
+    sendToAPI('save_project', newProject);
+    logActivity('Projects', 'New Project Created', `Created offboarding project for "${user.name}"`);
 
     newTasks.forEach(t => {
         const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
@@ -1270,7 +1291,7 @@ export default function App() {
             ) : currentApp === 'sponsorships' ? (
               <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}
