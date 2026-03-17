@@ -25,10 +25,13 @@ export default function ActivityLogView({
       return category === targetTab;
    });
 
-   const getCategoryIcon = (category) => {
+   const getCategoryIcon = (category, log) => {
        const cat = typeof category === 'string' ? category.toLowerCase() : '';
        if (cat === 'projects') return <LayoutDashboard size={16} className="text-blue-500" />;
-       if (cat === 'tasks') return <CheckCircle size={16} className="text-emerald-500" />;
+       if (cat === 'tasks') {
+           if (log?.actionType === 'Task Overdue') return <Clock size={16} className="text-red-500" />;
+           return <CheckCircle size={16} className="text-emerald-500" />;
+       }
        if (cat === 'team') return <Users size={16} className="text-indigo-500" />;
        if (cat === 'events') return <CalendarDays size={16} className="text-purple-500" />;
        if (cat === 'domains') return <Globe size={16} className="text-teal-500" />;
@@ -39,6 +42,7 @@ export default function ActivityLogView({
    // Dynamic Emoji Parser
    const getActionEmoji = (type = '') => {
        const t = type.toLowerCase();
+       if (t.includes('overdue') || t.includes('missed')) return '⚠️';
        if (t.includes('added') || t.includes('created')) return '➕';
        if (t.includes('deleted') || t.includes('removed')) return '❌';
        if (t.includes('archived')) return '📁';
@@ -116,14 +120,14 @@ export default function ActivityLogView({
                        return (
                            <div key={log.id || `log-${index}`} className="py-4 px-5 flex items-start gap-4 hover:bg-slate-50 transition-colors">
                                <div className="flex-shrink-0 bg-slate-50 p-2.5 rounded-full border border-slate-200 shadow-sm mt-0.5">
-                                   {getCategoryIcon(log.actionCategory)}
+                                   {getCategoryIcon(log.actionCategory, log)}
                                </div>
                                
                                <div className="flex-1 flex flex-col gap-2.5 min-w-0">
                                    {/* Header Row: Columnar Layout [Action | Project | User | Date] */}
                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-slate-100 pb-2.5">
                                        <div className="flex-1 min-w-0">
-                                          <span className="text-sm font-bold text-slate-800 truncate block">
+                                          <span className={`text-sm font-bold truncate block ${log.actionType === 'Task Overdue' ? 'text-red-600' : 'text-slate-800'}`}>
                                               {getActionEmoji(log.actionType)} {log.actionType || 'System Action'}
                                           </span>
                                        </div>
@@ -145,7 +149,7 @@ export default function ActivityLogView({
                                        
                                        <div className="flex items-center gap-1.5 sm:w-40 flex-shrink-0">
                                            {user?.avatarUrl ? <img src={user.avatarUrl} className="w-4 h-4 rounded-full object-cover border border-slate-200" alt="Avatar" /> : <UserCircle size={16} className="text-slate-400" />}
-                                           <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || 'System Auto-Action'}</span>
+                                           <span className="text-xs font-semibold text-slate-600 truncate">{user?.name || (log.userId === 'system' ? 'System Automations' : 'Unknown User')}</span>
                                        </div>
                                        
                                        <div className="flex items-center sm:justify-end sm:w-36 flex-shrink-0 text-xs text-slate-400 font-medium">
@@ -154,7 +158,7 @@ export default function ActivityLogView({
                                    </div>
 
                                    {/* Description: Full Width, properly rendering and italicizing all quotes */}
-                                   <span className="text-sm text-slate-600 whitespace-pre-line leading-relaxed">
+                                   <span className={`text-sm whitespace-pre-line leading-relaxed ${log.actionType === 'Task Overdue' ? 'text-red-700/80 font-medium' : 'text-slate-600'}`}>
                                        {formatDescription(log.description || 'No details provided.')}
                                    </span>
                                </div>

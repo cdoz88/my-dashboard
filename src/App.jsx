@@ -216,6 +216,7 @@ export default function App() {
             ...t, 
             tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [],
             subscribers: Array.isArray(t.subscribers) ? t.subscribers : [],
+            overdueLogged: t.overdueLogged == 1 || t.overdueLogged === true,
             sortOrder: parseInt(t.sortOrder) || 0
         })));
         
@@ -243,6 +244,53 @@ export default function App() {
       })
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
+
+  // --- AUTOMATION: Detect Overdue Tasks & Trigger Webhooks ---
+  useEffect(() => {
+    if (tasks.length > 0 && currentUser?.isAdmin) {
+        let tasksUpdated = false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const updatedTasks = tasks.map(task => {
+            // Only check tasks that aren't done, actually have a due date, and haven't already fired an alert
+            if (task.status !== 'done' && task.dueDate && !task.overdueLogged) {
+                const [year, month, day] = task.dueDate.split('-');
+                const dueDateObj = new Date(year, month - 1, day);
+                
+                if (dueDateObj < today) {
+                    const missedDateStr = new Date(`${task.dueDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    
+                    const newLog = {
+                        id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        userId: 'system',
+                        actionCategory: 'Tasks',
+                        actionType: 'Task Overdue',
+                        description: `The task "${task.title}" missed its due date (${missedDateStr}).`,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    sendToAPI('save_log', newLog);
+                    setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
+                    
+                    const updatedTask = { ...task, overdueLogged: true };
+                    // We pass notifyOverdue to tell api.php to fire the webhook!
+                    sendToAPI('save_task', { ...updatedTask, notifyOverdue: true, actorId: 'system' });
+                    
+                    tasksUpdated = true;
+                    return updatedTask;
+                }
+            }
+            return task;
+        });
+
+        // Only commit memory update if something was actually changed to prevent infinite loops
+        if (tasksUpdated) {
+            setTasks(updatedTasks);
+        }
+    }
+  }, [tasks, currentUser]);
+
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -594,6 +642,11 @@ export default function App() {
 
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
+    // Automatically reset the overdue toggle if the manager pushes the due date forward!
+    if (oldTask && oldTask.dueDate !== taskData.dueDate) {
+        taskData.overdueLogged = false;
+    }
+
     if (isNew) {
         logActivity('Tasks', 'Task Added', `Created task "${taskData.title}"`);
     } else {
