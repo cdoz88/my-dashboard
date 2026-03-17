@@ -122,6 +122,7 @@ export default function App() {
   const [showDisplayMode, setShowDisplayMode] = useState(() => localStorage.getItem('fyt_showDisplayMode') || 'calendar');
   const [activeSponsorshipTab, setActiveSponsorshipTab] = useState(() => localStorage.getItem('fyt_activeSponsorshipTab') || 'overview');
   const [activeTeamTab, setActiveTeamTab] = useState(() => localStorage.getItem('fyt_activeTeamTab') || 'overview');
+  const [teamDisplayMode, setTeamDisplayMode] = useState(() => localStorage.getItem('fyt_teamDisplayMode') || 'cards');
   const [activeActivityTab, setActiveActivityTab] = useState(() => localStorage.getItem('fyt_activeActivityTab') || 'overview');
 
   // Sync memory states any time they change
@@ -138,6 +139,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fyt_showDisplayMode', showDisplayMode); }, [showDisplayMode]);
   useEffect(() => { localStorage.setItem('fyt_activeSponsorshipTab', activeSponsorshipTab); }, [activeSponsorshipTab]);
   useEffect(() => { localStorage.setItem('fyt_activeTeamTab', activeTeamTab); }, [activeTeamTab]);
+  useEffect(() => { localStorage.setItem('fyt_teamDisplayMode', teamDisplayMode); }, [teamDisplayMode]);
   useEffect(() => { localStorage.setItem('fyt_activeActivityTab', activeActivityTab); }, [activeActivityTab]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
@@ -190,7 +192,9 @@ export default function App() {
                phone: u.phone || '',
                title: u.title || '',
                venmo: u.venmo || '',
-               webhookUrl: u.webhookUrl || ''
+               webhookUrl: u.webhookUrl || '',
+               managerId: u.managerId || '',
+               responsibilities: u.responsibilities || ''
            })));
         }
         
@@ -927,6 +931,13 @@ export default function App() {
   };
   const removeSponsorshipAsset = (indexToRemove) => setEditingSponsorship({ ...editingSponsorship, files: editingSponsorship.files.filter((_, i) => i !== indexToRemove) });
 
+  // --- NEW: CENTRALIZED TEAM MODAL HANDLER ---
+  const openTeamModal = (userToEdit = null) => {
+    if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id) });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '' });
+    setIsTeamModalOpen(true);
+  };
+
   const openCompanyModal = (companyToEdit = null) => {
     if (companyToEdit) setEditingCompany({ ...companyToEdit, userIds: companyToEdit.userIds || [currentUser?.id] });
     else setEditingCompany({ id: null, name: '', logoUrl: '', userIds: [currentUser?.id] });
@@ -1163,6 +1174,7 @@ export default function App() {
     }
     
     setEditingTeamMember(null);
+    setIsTeamModalOpen(false);
   };
 
   const handleDeleteUser = (userId) => {
@@ -1268,7 +1280,7 @@ export default function App() {
              openTaskModal={openTaskModal} openExpenseModal={openExpenseModal} openDomainModal={openDomainModal} openEventModal={openEventModal}
              handleImportCSV={handleImportCSV} handleSyncGoDaddy={handleSyncGoDaddy}
              showDisplayMode={showDisplayMode} setShowDisplayMode={setShowDisplayMode} openShowModal={openShowModal}
-             openSponsorshipModal={openSponsorshipModal}
+             openSponsorshipModal={openSponsorshipModal} openTeamModal={openTeamModal} teamDisplayMode={teamDisplayMode} setTeamDisplayMode={setTeamDisplayMode}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
@@ -1291,7 +1303,7 @@ export default function App() {
             ) : currentApp === 'sponsorships' ? (
               <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}

@@ -12,7 +12,7 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, companyIds: [], generateOnboarding: true })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, companyIds: [], generateOnboarding: true, managerId: '', responsibilities: '' })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
@@ -62,13 +62,28 @@ export default function TeamModal({
                   <input type="text" value={editingTeamMember.title || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lead Designer" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Reports To (Manager)</label>
+                  <select value={editingTeamMember.managerId || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, managerId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      <option value="">No Manager (Top Level)</option>
+                      {users.filter(u => u.id !== editingTeamMember.id).map(u => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Venmo Username</label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">@</span>
                     <input type="text" value={editingTeamMember.venmo || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, venmo: e.target.value.replace('@', '')})} className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="username" />
                   </div>
                 </div>
-                <div>
+                
+                <div className="md:col-span-2 pt-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Roles & Responsibilities</label>
+                  <textarea rows="3" value={editingTeamMember.responsibilities || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, responsibilities: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="List core duties, projects owned, etc..." />
+                </div>
+
+                <div className="md:col-span-2 pt-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> {editingTeamMember.id ? 'Reset Password' : 'Set Initial Password'}</label>
                   <input type="text" placeholder={editingTeamMember.id ? 'Leave blank to keep current password' : 'e.g. Welcome123!'} value={editingTeamMember.password || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>

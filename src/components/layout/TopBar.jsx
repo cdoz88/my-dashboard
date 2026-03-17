@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Wallet, Youtube, CalendarDays, Mic, Globe, 
   ChevronsUpDown, ListTodo, CalendarClock, Plus, Clock, ChevronDown, 
-  RefreshCw, Upload, Kanban, Contact, Activity, Tv, Award 
+  RefreshCw, Upload, Kanban, Contact, Activity, Tv, Award, Network, LayoutGrid 
 } from 'lucide-react';
 
 export default function TopBar({
@@ -18,7 +18,7 @@ export default function TopBar({
   openTaskModal, openExpenseModal, openDomainModal, openEventModal,
   handleImportCSV, handleSyncGoDaddy,
   showDisplayMode, setShowDisplayMode, openShowModal,
-  openSponsorshipModal
+  openSponsorshipModal, openTeamModal, teamDisplayMode, setTeamDisplayMode
 }) {
   const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
   const isBudgetView = currentApp === 'budget';
@@ -28,6 +28,7 @@ export default function TopBar({
   const isEventView = currentApp === 'events';
   const isSpreakerView = currentApp === 'spreaker';
   const isSponsorshipsView = currentApp === 'sponsorships';
+  const isTeamView = currentApp === 'team';
 
   return (
     <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' || currentApp === 'shows' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : currentApp === 'team' ? 'bg-indigo-600' : currentApp === 'activity' ? 'bg-slate-800' : currentApp === 'sponsorships' ? 'bg-amber-500' : 'bg-teal-500'} ${currentApp === 'spreaker' || currentApp === 'sponsorships' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
@@ -57,6 +58,19 @@ export default function TopBar({
       </div>
       
       <div className="flex items-center gap-2 sm:gap-4">
+        {isTeamView && (
+           <>
+             <div className="flex bg-indigo-700/50 rounded-lg p-1 border border-indigo-500/50 mr-2">
+                <button onClick={() => setTeamDisplayMode('cards')} className={`p-1.5 rounded-md transition-colors ${teamDisplayMode === 'cards' ? 'bg-white text-indigo-600 shadow-sm' : 'text-indigo-100 hover:text-white hover:bg-indigo-500/50'}`} title="Roster View"><LayoutGrid size={16} /></button>
+                <button onClick={() => setTeamDisplayMode('org')} className={`p-1.5 rounded-md transition-colors ${teamDisplayMode === 'org' ? 'bg-white text-indigo-600 shadow-sm' : 'text-indigo-100 hover:text-white hover:bg-indigo-500/50'}`} title="Org Chart View"><Network size={16} /></button>
+             </div>
+             {currentUser?.isAdmin && (
+                 <button onClick={() => openTeamModal()} className="bg-white text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                   <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Member</span>
+                 </button>
+             )}
+           </>
+        )}
         {isEventView && (
            <>
              <div className="flex bg-purple-700/50 rounded-lg p-1 border border-purple-500/50">
