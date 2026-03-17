@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -19,7 +19,8 @@ export default function Sidebar({
   openCompanyModal, openProjectModal, openYoutubeModal, openSpreakerModal,
   openProfileModal, setIsTeamModalOpen, setIsSwitchUserModalOpen,
   activeTeamTab, setActiveTeamTab, activeActivityTab, setActiveActivityTab,
-  activeShowTab, setActiveShowTab, activeSponsorshipTab, setActiveSponsorshipTab
+  activeShowTab, setActiveShowTab, activeSponsorshipTab, setActiveSponsorshipTab,
+  activeCRMTab, setActiveCRMTab
 }) {
 
   const getCompany = (id) => companies.find(c => c.id === id);
@@ -107,6 +108,33 @@ export default function Sidebar({
                 {visibleCompanies.map(company => (
                   <div key={company.id} className="flex items-center justify-between group/company">
                     <button onClick={() => { setActiveSponsorshipTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeSponsorshipTab === company.id ? 'bg-slate-800 text-amber-400 font-bold' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                      <span className="truncate">{company.name}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {currentApp === 'crm' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Network</p>
+              <button onClick={() => { setActiveCRMTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeCRMTab === 'overview' ? 'bg-sky-500 text-slate-900 font-bold' : 'hover:bg-slate-800 text-slate-300'}`}>
+                <BookUser size={18} /> All Contacts
+              </button>
+            </div>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company Owner</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                {visibleCompanies.map(company => (
+                  <div key={company.id} className="flex items-center justify-between group/company">
+                    <button onClick={() => { setActiveCRMTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeCRMTab === company.id ? 'bg-slate-800 text-sky-400 font-bold' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                       <CompanyLogo company={company} sizeClass="w-5 h-5" />
                       <span className="truncate">{company.name}</span>
                     </button>

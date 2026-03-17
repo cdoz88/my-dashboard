@@ -26,6 +26,7 @@ import YoutubeDashboard from './components/dashboards/YoutubeDashboard';
 import ActivityLogView from './components/dashboards/ActivityLogView';
 import ShowsDashboard from './components/dashboards/ShowsDashboard';
 import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard';
+import CRMDashboard from './components/dashboards/CRMDashboard';
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -44,6 +45,7 @@ import ProjectAttachmentsModal from './components/modals/ProjectAttachmentsModal
 import ShowModal from './components/modals/ShowModal';
 import SponsorshipModal from './components/modals/SponsorshipModal';
 import AvatarMakerModal from './components/modals/AvatarMakerModal';
+import ContactModal from './components/modals/ContactModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +65,7 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [shows, setShows] = useState([]);
   const [sponsorships, setSponsorships] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
@@ -106,6 +109,8 @@ export default function App() {
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState({ id: null, companyId: '', name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
 
   // View States (Saved to Local Storage)
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('fyt_activeTab') || 'mytasks'); 
@@ -124,6 +129,8 @@ export default function App() {
   const [activeTeamTab, setActiveTeamTab] = useState(() => localStorage.getItem('fyt_activeTeamTab') || 'overview');
   const [teamDisplayMode, setTeamDisplayMode] = useState(() => localStorage.getItem('fyt_teamDisplayMode') || 'cards');
   const [activeActivityTab, setActiveActivityTab] = useState(() => localStorage.getItem('fyt_activeActivityTab') || 'overview');
+  const [activeCRMTab, setActiveCRMTab] = useState(() => localStorage.getItem('fyt_activeCRMTab') || 'overview');
+  const [crmDisplayMode, setCRMDisplayMode] = useState(() => localStorage.getItem('fyt_crmDisplayMode') || 'list');
 
   // Sync memory states any time they change
   useEffect(() => { localStorage.setItem('fyt_currentApp', currentApp); }, [currentApp]);
@@ -141,6 +148,8 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fyt_activeTeamTab', activeTeamTab); }, [activeTeamTab]);
   useEffect(() => { localStorage.setItem('fyt_teamDisplayMode', teamDisplayMode); }, [teamDisplayMode]);
   useEffect(() => { localStorage.setItem('fyt_activeActivityTab', activeActivityTab); }, [activeActivityTab]);
+  useEffect(() => { localStorage.setItem('fyt_activeCRMTab', activeCRMTab); }, [activeCRMTab]);
+  useEffect(() => { localStorage.setItem('fyt_crmDisplayMode', crmDisplayMode); }, [crmDisplayMode]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
@@ -169,6 +178,7 @@ export default function App() {
       if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('projects');
       if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('projects');
       if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('projects');
+      if (currentApp === 'crm' && !currentUser.isAdmin && !currentUser.canViewCRM) setCurrentApp('projects');
       if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('projects');
     }
   }, [currentUser, currentApp]);
@@ -189,6 +199,7 @@ export default function App() {
                canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
                canViewShows: u.canViewShows == 1 || u.canViewShows === true || u.canViewShows === undefined,
                canViewSponsorships: u.canViewSponsorships == 1 || u.canViewSponsorships === true || u.canViewSponsorships === undefined,
+               canViewCRM: u.canViewCRM == 1 || u.canViewCRM === true || u.canViewCRM === undefined,
                phone: u.phone || '',
                title: u.title || '',
                venmo: u.venmo || '',
@@ -232,6 +243,7 @@ export default function App() {
         }
 
         if(data.sponsorships) setSponsorships(data.sponsorships);
+        if(data.contacts) setContacts(data.contacts);
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
@@ -257,14 +269,10 @@ export default function App() {
         today.setHours(0, 0, 0, 0);
 
         const updatedTasks = tasks.map(task => {
-            // STRICT DATE CHECK: Only evaluate if the task is NOT done, has NOT been logged, and has a VALID due date string!
             if (task.status !== 'done' && !task.overdueLogged && task.dueDate && task.dueDate.trim() !== '' && task.dueDate !== '0000-00-00') {
                 const [year, month, day] = task.dueDate.split('-');
-                
-                // Ensure the date actually parsed correctly into 3 chunks
                 if (year && month && day) {
                     const dueDateObj = new Date(year, month - 1, day);
-                    
                     if (dueDateObj < today) {
                         const missedDateStr = new Date(`${task.dueDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                         
@@ -281,7 +289,6 @@ export default function App() {
                         setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
                         
                         const updatedTask = { ...task, overdueLogged: true };
-                        // We pass notifyOverdue to tell api.php to fire the webhook!
                         sendToAPI('save_task', { ...updatedTask, notifyOverdue: true, actorId: 'system' });
                         
                         tasksUpdated = true;
@@ -292,7 +299,6 @@ export default function App() {
             return task;
         });
 
-        // Only commit memory update if something was actually changed to prevent infinite loops
         if (tasksUpdated) {
             setTasks(updatedTasks);
         }
@@ -931,10 +937,39 @@ export default function App() {
   };
   const removeSponsorshipAsset = (indexToRemove) => setEditingSponsorship({ ...editingSponsorship, files: editingSponsorship.files.filter((_, i) => i !== indexToRemove) });
 
-  // --- NEW: CENTRALIZED TEAM MODAL HANDLER ---
+  // --- CRM CONTACT HANDLERS ---
+  const openContactModal = (contact = null) => {
+    if (contact) setEditingContact({ ...contact });
+    else setEditingContact({ id: null, companyId: activeCRMTab !== 'overview' ? activeCRMTab : (companies[0]?.id || ''), name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
+    setIsContactModalOpen(true);
+  };
+
+  const handleSaveContact = (e) => {
+    e.preventDefault();
+    if (!editingContact.companyId) { alert("Please select a company owner."); return; }
+    const ctData = editingContact.id ? editingContact : { ...editingContact, id: 'ct_' + Date.now() };
+    
+    if (!editingContact.id) logActivity('CRM', 'Contact Added', `Added contact "${ctData.name}"`);
+    
+    if (editingContact.id) setContacts(contacts.map(c => c.id === ctData.id ? ctData : c));
+    else setContacts([...contacts, ctData]);
+    
+    setIsContactModalOpen(false);
+    sendToAPI('save_contact', ctData);
+  };
+
+  const handleDeleteContact = (id) => {
+    const ct = contacts.find(c => c.id === id);
+    if (ct) logActivity('CRM', 'Contact Deleted', `Deleted contact "${ct.name}"`);
+    setContacts(contacts.filter(c => c.id !== id));
+    setIsContactModalOpen(false);
+    sendToAPI('delete_contact', { id });
+  };
+
+  // --- TEAM HANDLERS ---
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id) });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '' });
     setIsTeamModalOpen(true);
   };
 
@@ -980,6 +1015,7 @@ export default function App() {
     if (activeDomainTab === companyId) setActiveDomainTab('overview');
     if (activeEventTab === companyId) setActiveEventTab('overview');
     if (activeSponsorshipTab === companyId) setActiveSponsorshipTab('overview');
+    if (activeCRMTab === companyId) setActiveCRMTab('overview');
     setIsCompanyModalOpen(false);
     sendToAPI('delete_company', { id: companyId });
   };
@@ -1264,6 +1300,7 @@ export default function App() {
              openProfileModal={openProfileModal} setIsTeamModalOpen={setIsTeamModalOpen} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen}
              activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab} activeActivityTab={activeActivityTab} setActiveActivityTab={setActiveActivityTab}
              activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab} activeSponsorshipTab={activeSponsorshipTab} setActiveSponsorshipTab={setActiveSponsorshipTab}
+             activeCRMTab={activeCRMTab} setActiveCRMTab={setActiveCRMTab}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -1281,6 +1318,7 @@ export default function App() {
              handleImportCSV={handleImportCSV} handleSyncGoDaddy={handleSyncGoDaddy}
              showDisplayMode={showDisplayMode} setShowDisplayMode={setShowDisplayMode} openShowModal={openShowModal}
              openSponsorshipModal={openSponsorshipModal} openTeamModal={openTeamModal} teamDisplayMode={teamDisplayMode} setTeamDisplayMode={setTeamDisplayMode}
+             crmDisplayMode={crmDisplayMode} setCRMDisplayMode={setCRMDisplayMode} openContactModal={openContactModal}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
@@ -1302,6 +1340,8 @@ export default function App() {
               <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />
             ) : currentApp === 'sponsorships' ? (
               <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
+            ) : currentApp === 'crm' ? (
+              <CRMDashboard contacts={contacts} activeCRMTab={activeCRMTab} crmDisplayMode={crmDisplayMode} openContactModal={openContactModal} handleDeleteContact={handleDeleteContact} companies={companies} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} />
             ) : (
@@ -1327,6 +1367,7 @@ export default function App() {
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
       {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
       {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
+      {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
