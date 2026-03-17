@@ -253,32 +253,36 @@ export default function App() {
         today.setHours(0, 0, 0, 0);
 
         const updatedTasks = tasks.map(task => {
-            // Only check tasks that aren't done, actually have a due date, and haven't already fired an alert
-            if (task.status !== 'done' && task.dueDate && !task.overdueLogged) {
+            // STRICT DATE CHECK: Only evaluate if the task is NOT done, has NOT been logged, and has a VALID due date string!
+            if (task.status !== 'done' && !task.overdueLogged && task.dueDate && task.dueDate.trim() !== '' && task.dueDate !== '0000-00-00') {
                 const [year, month, day] = task.dueDate.split('-');
-                const dueDateObj = new Date(year, month - 1, day);
                 
-                if (dueDateObj < today) {
-                    const missedDateStr = new Date(`${task.dueDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                // Ensure the date actually parsed correctly into 3 chunks
+                if (year && month && day) {
+                    const dueDateObj = new Date(year, month - 1, day);
                     
-                    const newLog = {
-                        id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                        userId: 'system',
-                        actionCategory: 'Tasks',
-                        actionType: 'Task Overdue',
-                        description: `The task "${task.title}" missed its due date (${missedDateStr}).`,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    sendToAPI('save_log', newLog);
-                    setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
-                    
-                    const updatedTask = { ...task, overdueLogged: true };
-                    // We pass notifyOverdue to tell api.php to fire the webhook!
-                    sendToAPI('save_task', { ...updatedTask, notifyOverdue: true, actorId: 'system' });
-                    
-                    tasksUpdated = true;
-                    return updatedTask;
+                    if (dueDateObj < today) {
+                        const missedDateStr = new Date(`${task.dueDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        
+                        const newLog = {
+                            id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                            userId: 'system',
+                            actionCategory: 'Tasks',
+                            actionType: 'Task Overdue',
+                            description: `The task "${task.title}" missed its due date (${missedDateStr}).`,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        sendToAPI('save_log', newLog);
+                        setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
+                        
+                        const updatedTask = { ...task, overdueLogged: true };
+                        // We pass notifyOverdue to tell api.php to fire the webhook!
+                        sendToAPI('save_task', { ...updatedTask, notifyOverdue: true, actorId: 'system' });
+                        
+                        tasksUpdated = true;
+                        return updatedTask;
+                    }
                 }
             }
             return task;
