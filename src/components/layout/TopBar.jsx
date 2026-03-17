@@ -71,8 +71,9 @@ export default function TopBar({
         {isShowsView && (
            <>
              <div className="flex bg-red-700/50 rounded-lg p-1 border border-red-500/50 mr-2">
-                <button onClick={() => setShowDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'list' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`}><ListTodo size={16} /></button>
-                <button onClick={() => setShowDisplayMode('calendar')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'calendar' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`}><CalendarClock size={16} /></button>
+                <button onClick={() => setShowDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'list' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`} title="Unique Shows Master List"><ListTodo size={16} /></button>
+                <button onClick={() => setShowDisplayMode('timeline')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'timeline' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`} title="Timeline View (All Instances)"><Clock size={16} /></button>
+                <button onClick={() => setShowDisplayMode('calendar')} className={`p-1.5 rounded-md transition-colors ${showDisplayMode === 'calendar' ? 'bg-white text-red-600 shadow-sm' : 'text-red-100 hover:text-white hover:bg-red-500/50'}`} title="Weekly Calendar"><CalendarClock size={16} /></button>
              </div>
              <button onClick={() => openShowModal()} className="bg-white text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
                <Plus size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Show</span>

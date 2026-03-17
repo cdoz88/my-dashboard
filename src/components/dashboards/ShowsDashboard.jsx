@@ -113,7 +113,7 @@ export default function ShowsDashboard({
     });
   };
 
-  const renderList = () => {
+  const renderTimeline = () => {
       const sortedShows = [...viewShows].sort((a, b) => new Date(`${a.showDate}T${a.showTime || '00:00'}`) - new Date(`${b.showDate}T${b.showTime || '00:00'}`));
 
       return (
@@ -189,6 +189,89 @@ export default function ShowsDashboard({
       );
   };
 
+  const renderList = () => {
+      // Create a unique array by grabbing the very first instance of each show title
+      const uniqueMap = new Map();
+      viewShows.forEach(s => {
+          if (!uniqueMap.has(s.title)) {
+              uniqueMap.set(s.title, s);
+          }
+      });
+      const uniqueShows = Array.from(uniqueMap.values()).sort((a, b) => a.title.localeCompare(b.title));
+
+      return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+             <div className="overflow-x-auto">
+                 <table className="w-full text-left min-w-[900px]">
+                     <thead className="bg-slate-50 border-b border-slate-200">
+                         <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                             <th className="p-4 w-64">Show Info</th>
+                             <th className="p-4 w-40">Typical Time</th>
+                             <th className="p-4">Cast / Members</th>
+                             <th className="p-4 w-40">Format & Studio</th>
+                             <th className="p-4 w-32">Guest Link</th>
+                             <th className="p-4 w-12 text-right"></th>
+                         </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                         {uniqueShows.length > 0 ? uniqueShows.map(show => {
+                             const channel = getChannel(show.channelId);
+                             const cColor = channel?.color || 'slate';
+                             const hasSponsor = sponsorships.some(sp => (sp.showTitles || []).includes(show.title));
+
+                             return (
+                                 <tr key={show.id} className="hover:bg-slate-50 transition-colors group">
+                                     <td className="p-4">
+                                         <div className="font-bold text-slate-800 cursor-pointer hover:text-red-600 transition-colors flex items-center gap-1.5" onClick={() => openShowModal(show)}>
+                                            <span className="truncate">{show.title}</span>
+                                            {hasSponsor && <Award size={14} className="text-amber-500 flex-shrink-0" title="Sponsored Show" />}
+                                         </div>
+                                         {activeShowTab === 'overview' && <div className="text-[10px] text-slate-500 mt-0.5">{channel?.name || 'Unknown Channel'}</div>}
+                                     </td>
+                                     <td className="p-4 text-sm font-medium text-slate-700 whitespace-nowrap">
+                                         <span className="text-slate-400 block text-xs mb-0.5">Time:</span>
+                                         {show.showTime ? (() => { let [h, m] = show.showTime.split(':'); return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`; })() : 'TBD'}
+                                     </td>
+                                     <td className="p-4">
+                                        <div className="flex items-center -space-x-2">
+                                            {(show.userIds || []).map(id => {
+                                                const u = getUser(id);
+                                                if (!u) return null;
+                                                return u.avatarUrl 
+                                                    ? <img key={id} src={u.avatarUrl} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" title={u.name} />
+                                                    : <div key={id} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-500 shadow-sm" title={u.name}>{u.name.charAt(0)}</div>
+                                            })}
+                                            {(show.userIds || []).length === 0 && <span className="text-xs text-slate-400 italic">No members assigned</span>}
+                                        </div>
+                                     </td>
+                                     <td className="p-4">
+                                         <div className="flex flex-col gap-1.5 items-start">
+                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border ${colorStyles[cColor]?.bg} ${colorStyles[cColor]?.border} ${colorStyles[cColor]?.text}`}>
+                                                 {show.isLive ? <Radio size={10} /> : <MonitorPlay size={10} />} {show.isLive ? 'LIVE' : 'PRE-RECORDED'}
+                                             </span>
+                                             <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{show.studio}</span>
+                                         </div>
+                                     </td>
+                                     <td className="p-4">
+                                         {show.guestLink ? (
+                                             <a href={show.guestLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded w-fit whitespace-nowrap">
+                                                 <LinkIcon size={12} /> Join Link
+                                             </a>
+                                         ) : <span className="text-xs text-slate-400 italic">No link</span>}
+                                     </td>
+                                     <td className="p-4 text-right">
+                                         <button onClick={() => handleDeleteShow(show.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 size={16}/></button>
+                                     </td>
+                                 </tr>
+                             )
+                         }) : (<tr><td colSpan="6" className="p-8 text-center text-slate-500">No shows recorded yet.</td></tr>)}
+                     </tbody>
+                 </table>
+             </div>
+          </div>
+      );
+  };
+
   return (
     <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
@@ -214,7 +297,7 @@ export default function ShowsDashboard({
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col">
-        {showDisplayMode === 'calendar' ? (
+        {showDisplayMode === 'calendar' && (
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col flex-1 min-h-[600px] overflow-hidden">
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
                     <h3 className="text-lg font-bold text-slate-800">
@@ -230,7 +313,9 @@ export default function ShowsDashboard({
                     {renderWeeklyCalendar()}
                 </div>
             </div>
-        ) : renderList()}
+        )}
+        {showDisplayMode === 'timeline' && renderTimeline()}
+        {showDisplayMode === 'list' && renderList()}
       </div>
     </div>
   );
