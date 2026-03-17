@@ -12,7 +12,7 @@ export default function ContactModal({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-sky-500">
         <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
           <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><BookUser className="text-sky-500" size={20} />{editingContact.id ? 'Edit Contact' : 'Add Contact'}</h3>
-          <button onClick={() => setIsContactModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+          <button type="button" onClick={() => setIsContactModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-6">
           <form id="contactForm" onSubmit={handleSaveContact} className="space-y-5">
@@ -65,4 +65,10 @@ export default function ContactModal({
         </div>
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
           {editingContact.id && <button type="button" onClick={() => handleDeleteContact(editingContact.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete</button>}
-          <button type="button" onClick={() => setIsContactModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200
+          <button type="button" onClick={() => setIsContactModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
+          <button type="submit" form="contactForm" className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors font-bold shadow-sm">{editingContact.id ? 'Save Changes' : 'Add Contact'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
