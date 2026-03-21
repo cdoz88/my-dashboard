@@ -697,6 +697,7 @@ export default function App() {
 
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
+    // Automatically reset the overdue toggle if the manager pushes the due date forward!
     if (oldTask && oldTask.dueDate !== taskData.dueDate) {
         taskData.overdueLogged = false;
     }
@@ -916,6 +917,7 @@ export default function App() {
     sendToAPI('delete_show', { id });
   };
 
+  // --- SPONSORSHIP HANDLERS ---
   const openSponsorshipModal = (sponsorship = null) => {
     if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [], eventTitles: sponsorship.eventTitles || [], files: sponsorship.files || [] });
     else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
@@ -1347,6 +1349,7 @@ export default function App() {
              activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab} activeActivityTab={activeActivityTab} setActiveActivityTab={setActiveActivityTab}
              activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab} activeSponsorshipTab={activeSponsorshipTab} setActiveSponsorshipTab={setActiveSponsorshipTab}
              activeCRMTab={activeCRMTab} setActiveCRMTab={setActiveCRMTab} canViewPasswordsApp={canViewPasswordsApp}
+             activePasswordTab={activePasswordTab} setActivePasswordTab={setActivePasswordTab}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">

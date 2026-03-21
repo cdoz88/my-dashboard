@@ -20,7 +20,8 @@ export default function Sidebar({
   openProfileModal, setIsTeamModalOpen, setIsSwitchUserModalOpen,
   activeTeamTab, setActiveTeamTab, activeActivityTab, setActiveActivityTab,
   activeShowTab, setActiveShowTab, activeSponsorshipTab, setActiveSponsorshipTab,
-  activeCRMTab, setActiveCRMTab, canViewPasswordsApp
+  activeCRMTab, setActiveCRMTab, canViewPasswordsApp,
+  activePasswordTab, setActivePasswordTab
 }) {
 
   const getCompany = (id) => companies.find(c => c.id === id);
@@ -172,13 +173,29 @@ export default function Sidebar({
           </>
         )}
 
-        {currentApp === 'passwords' && (
+        {currentApp === 'passwords' && canViewPasswordsApp && (
           <>
             <div className="px-4 mb-6">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Security</p>
-              <button onClick={() => { setActiveTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors bg-slate-800 text-white`}>
+              <button onClick={() => { setActivePasswordTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activePasswordTab === 'overview' ? 'bg-slate-800 text-white font-bold' : 'hover:bg-slate-800 text-slate-300'}`}>
                 <Lock size={18} /> Password Vault
               </button>
+            </div>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                {visibleCompanies.map(company => (
+                  <div key={company.id} className="flex items-center justify-between group/company">
+                    <button onClick={() => { setActivePasswordTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activePasswordTab === company.id ? 'bg-slate-800 text-slate-300 font-bold' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                      <span className="truncate">{company.name}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
