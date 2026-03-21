@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, Link as LinkIcon, Copy, Trash2, Eye, EyeOff, Users, Pencil, CheckCircle } from 'lucide-react';
+import { Lock, Link as LinkIcon, Copy, Trash2, Eye, EyeOff, Users, Pencil, CheckCircle, FolderTree } from 'lucide-react';
+import CompanyLogo from '../shared/CompanyLogo';
 
 export default function PasswordsDashboard({ 
   passwords, activePasswordTab, openPasswordModal, handleDeletePassword, companies, currentUser 
@@ -35,6 +36,17 @@ export default function PasswordsDashboard({
       });
   };
 
+  // Group the passwords by category for the table view
+  const categoriesList = ['Company', 'Shop', 'Content Creation', 'Content Distribution', 'Social Media', 'Website', 'Mobile App', 'Other', 'Uncategorized'];
+  const groupedPasswords = {};
+  categoriesList.forEach(c => groupedPasswords[c] = []);
+  
+  tabPasswords.forEach(pw => {
+      const cat = pw.category || 'Uncategorized';
+      if (groupedPasswords[cat]) groupedPasswords[cat].push(pw);
+      else groupedPasswords['Uncategorized'].push(pw);
+  });
+
   return (
     <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
@@ -61,78 +73,93 @@ export default function PasswordsDashboard({
                          </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
-                         {tabPasswords.sort((a,b) => a.platform.localeCompare(b.platform)).map(pw => {
-                             const company = getCompany(pw.companyId);
-                             const isRevealed = revealedPasswords.has(pw.id);
+                         {categoriesList.map(cat => {
+                             if (groupedPasswords[cat].length === 0) return null;
                              
                              return (
-                                 <tr key={pw.id} className="hover:bg-slate-50 transition-colors group">
-                                     <td className="p-4">
-                                         <div 
-                                             className="font-bold text-slate-800 cursor-pointer hover:text-slate-600 transition-colors flex items-center gap-2" 
-                                             onClick={() => currentUser?.isAdmin ? openPasswordModal(pw) : null}
-                                         >
-                                             {pw.platform}
-                                         </div>
-                                         {pw.url && (
-                                            <a 
-                                                href={pw.url.startsWith('http') ? pw.url : `https://${pw.url}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer" 
-                                                className="text-[10px] text-blue-500 hover:underline mt-0.5 flex items-center gap-1 w-fit"
-                                            >
-                                                <LinkIcon size={10} /> {pw.url.replace(/^https?:\/\//, '')}
-                                            </a>
-                                         )}
-                                         {activePasswordTab === 'overview' && <div className="text-[10px] text-slate-500 mt-1">{company?.name || 'Unknown Company'}</div>}
-                                     </td>
-                                     <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-slate-700 font-mono">{pw.username || '--'}</span>
-                                            {pw.username && (
-                                                <button onClick={() => copyToClipboard(pw.username, 'user', pw.id)} className="text-slate-300 hover:text-slate-600 transition-colors" title="Copy Username">
-                                                    {copyFeedback === `${pw.id}-user` ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                </button>
-                                            )}
-                                        </div>
-                                     </td>
-                                     <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-slate-700 font-mono tracking-wider">
-                                                {isRevealed ? pw.password : '••••••••••••'}
-                                            </span>
-                                            {pw.password && (
-                                                <div className="flex items-center gap-1 ml-2">
-                                                    <button onClick={() => toggleVisibility(pw.id)} className="text-slate-300 hover:text-slate-600 transition-colors p-1" title={isRevealed ? "Hide Password" : "Show Password"}>
-                                                        {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
-                                                    </button>
-                                                    <button onClick={() => copyToClipboard(pw.password, 'pass', pw.id)} className="text-slate-300 hover:text-slate-600 transition-colors p-1" title="Copy Password">
-                                                        {copyFeedback === `${pw.id}-pass` ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                     </td>
-                                     <td className="p-4">
-                                        <div className="flex flex-col gap-1.5 items-start">
-                                            <span className="text-xs text-slate-500">{pw.notes || '--'}</span>
-                                            {currentUser?.isAdmin && (pw.sharedWith || []).length > 0 && (
-                                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded w-fit flex items-center gap-1 mt-1">
-                                                    <Users size={10} /> Shared with {(pw.sharedWith || []).length} members
-                                                </span>
-                                            )}
-                                        </div>
-                                     </td>
-                                     {currentUser?.isAdmin && (
-                                         <td className="p-4 text-right">
-                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                 <button onClick={() => openPasswordModal(pw)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors" title="Edit"><Pencil size={16}/></button>
-                                                 <button onClick={() => handleDeletePassword(pw.id)} className="text-slate-400 hover:text-red-500 p-1 transition-colors" title="Delete"><Trash2 size={16}/></button>
-                                             </div>
+                                 <React.Fragment key={cat}>
+                                     {/* Group Header Row */}
+                                     <tr>
+                                         <td colSpan={currentUser?.isAdmin ? "5" : "4"} className="bg-slate-100/50 text-slate-600 text-xs font-bold uppercase tracking-wider p-3 px-4 border-y border-slate-200">
+                                            <div className="flex items-center gap-1.5"><FolderTree size={14}/> {cat}</div>
                                          </td>
-                                     )}
-                                 </tr>
-                             )
+                                     </tr>
+                                     {/* Map through passwords in this category */}
+                                     {groupedPasswords[cat].sort((a,b) => a.platform.localeCompare(b.platform)).map(pw => {
+                                         const company = getCompany(pw.companyId);
+                                         const isRevealed = revealedPasswords.has(pw.id);
+                                         
+                                         return (
+                                             <tr key={pw.id} className="hover:bg-slate-50 transition-colors group">
+                                                 <td className="p-4">
+                                                     <div 
+                                                         className="font-bold text-slate-800 cursor-pointer hover:text-slate-600 transition-colors flex items-center gap-2" 
+                                                         onClick={() => currentUser?.isAdmin ? openPasswordModal(pw) : null}
+                                                     >
+                                                         {pw.platform}
+                                                     </div>
+                                                     {pw.url && (
+                                                        <a 
+                                                            href={pw.url.startsWith('http') ? pw.url : `https://${pw.url}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            className="text-[10px] text-blue-500 hover:underline mt-0.5 flex items-center gap-1 w-fit"
+                                                        >
+                                                            <LinkIcon size={10} /> {pw.url.replace(/^https?:\/\//, '')}
+                                                        </a>
+                                                     )}
+                                                     {activePasswordTab === 'overview' && <div className="text-[10px] text-slate-500 mt-1">{company?.name || 'Unknown Company'}</div>}
+                                                 </td>
+                                                 <td className="p-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-slate-700 font-mono">{pw.username || '--'}</span>
+                                                        {pw.username && (
+                                                            <button onClick={() => copyToClipboard(pw.username, 'user', pw.id)} className="text-slate-300 hover:text-slate-600 transition-colors" title="Copy Username">
+                                                                {copyFeedback === `${pw.id}-user` ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                 </td>
+                                                 <td className="p-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-slate-700 font-mono tracking-wider">
+                                                            {isRevealed ? pw.password : '••••••••••••'}
+                                                        </span>
+                                                        {pw.password && (
+                                                            <div className="flex items-center gap-1 ml-2">
+                                                                <button onClick={() => toggleVisibility(pw.id)} className="text-slate-300 hover:text-slate-600 transition-colors p-1" title={isRevealed ? "Hide Password" : "Show Password"}>
+                                                                    {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                                </button>
+                                                                <button onClick={() => copyToClipboard(pw.password, 'pass', pw.id)} className="text-slate-300 hover:text-slate-600 transition-colors p-1" title="Copy Password">
+                                                                    {copyFeedback === `${pw.id}-pass` ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                 </td>
+                                                 <td className="p-4">
+                                                    <div className="flex flex-col gap-1.5 items-start">
+                                                        <span className="text-xs text-slate-500">{pw.notes || '--'}</span>
+                                                        {currentUser?.isAdmin && (pw.sharedWith || []).length > 0 && (
+                                                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded w-fit flex items-center gap-1 mt-1">
+                                                                <Users size={10} /> Shared with {(pw.sharedWith || []).length} members
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                 </td>
+                                                 {currentUser?.isAdmin && (
+                                                     <td className="p-4 text-right">
+                                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                             <button onClick={() => openPasswordModal(pw)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors" title="Edit"><Pencil size={16}/></button>
+                                                             <button onClick={() => handleDeletePassword(pw.id)} className="text-slate-400 hover:text-red-500 p-1 transition-colors" title="Delete"><Trash2 size={16}/></button>
+                                                         </div>
+                                                     </td>
+                                                 )}
+                                             </tr>
+                                         );
+                                     })}
+                                 </React.Fragment>
+                             );
                          })}
                          {tabPasswords.length === 0 && <tr><td colSpan={currentUser?.isAdmin ? "5" : "4"} className="p-8 text-center text-slate-500">No passwords found in this view.</td></tr>}
                      </tbody>

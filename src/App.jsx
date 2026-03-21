@@ -115,7 +115,7 @@ export default function App() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState({ id: null, companyId: '', name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [] });
+  const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
 
   // View States (Saved to Local Storage)
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('fyt_activeTab') || 'mytasks'); 
@@ -987,8 +987,8 @@ export default function App() {
 
   // --- PASSWORDS HANDLERS ---
   const openPasswordModal = (password = null) => {
-    if (password) setEditingPassword({ ...password, sharedWith: password.sharedWith || [] });
-    else setEditingPassword({ id: null, companyId: activePasswordTab !== 'overview' ? activePasswordTab : (companies[0]?.id || ''), platform: '', url: '', username: '', password: '', notes: '', sharedWith: [] });
+    if (password) setEditingPassword({ ...password, sharedWith: password.sharedWith || [], category: password.category || 'Uncategorized' });
+    else setEditingPassword({ id: null, companyId: activePasswordTab !== 'overview' ? activePasswordTab : (companies[0]?.id || ''), platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
     setIsPasswordModalOpen(true);
   };
 

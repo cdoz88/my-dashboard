@@ -1,10 +1,12 @@
 import React from 'react';
-import { Lock, X, Globe, User, Key, AlignLeft, Users } from 'lucide-react';
+import { Lock, X, Globe, User, Key, AlignLeft, Users, FolderTree } from 'lucide-react';
 
 export default function PasswordModal({
   editingPassword, setEditingPassword, handleSavePassword, handleDeletePassword, 
   setIsPasswordModalOpen, visibleCompanies, users, currentUser
 }) {
+  const categories = ['Company', 'Shop', 'Content Creation', 'Content Distribution', 'Social Media', 'Website', 'Mobile App', 'Other', 'Uncategorized'];
+
   const toggleSharedUser = (userId) => {
       const current = editingPassword.sharedWith || [];
       const updated = current.includes(userId) ? current.filter(id => id !== userId) : [...current, userId];
@@ -22,7 +24,7 @@ export default function PasswordModal({
           <form id="passwordForm" onSubmit={handleSavePassword} className="space-y-5">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Platform / Service Name</label>
                   <input required type="text" value={editingPassword.platform} onChange={(e) => setEditingPassword({...editingPassword, platform: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800" placeholder="e.g., Mailchimp" />
                 </div>
@@ -32,6 +34,13 @@ export default function PasswordModal({
                   <select required value={editingPassword.companyId} onChange={(e) => setEditingPassword({...editingPassword, companyId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 bg-slate-50">
                     <option value="" disabled>Select internal owner</option>
                     {visibleCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><FolderTree size={14} className="text-slate-400" /> Category</label>
+                  <select required value={editingPassword.category || 'Uncategorized'} onChange={(e) => setEditingPassword({...editingPassword, category: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 bg-white">
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
             </div>

@@ -118,6 +118,8 @@ export const parseCSVToExpenses = (text, companyId, isDomain) => {
 export const parseCSVToPasswords = (text, companyId) => {
   const lines = text.split('\n');
   const newPasswords = [];
+  let currentCategory = 'Uncategorized';
+  const validCategories = ['Company', 'Shop', 'Content Creation', 'Content Distribution', 'Social Media', 'Website', 'Mobile App', 'Other', 'Uncategorized'];
   
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -125,6 +127,18 @@ export const parseCSVToPasswords = (text, companyId) => {
     
     const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
     const cols = line.split(regex).map(col => col.replace(/^"|"$/g, '').trim());
+    
+    // Automatically detect Category headers if they exist alone on a line!
+    if (cols.length === 1 || (cols[0] && !cols[1] && !cols[2] && !cols[3])) {
+        const possibleCat = cols[0];
+        if (validCategories.includes(possibleCat)) {
+            currentCategory = possibleCat;
+        } else if (possibleCat === 'Socials') {
+            currentCategory = 'Social Media'; // Map 'Socials' to 'Social Media'
+        }
+        continue;
+    }
+
     if (cols.length < 2) continue; 
     
     const platform = cols[0];
@@ -137,7 +151,7 @@ export const parseCSVToPasswords = (text, companyId) => {
     
     newPasswords.push({ 
       id: 'pw_' + Date.now() + Math.random().toString(36).substr(2, 5) + i, 
-      companyId, platform, url, username, password, notes, sharedWith: [] 
+      companyId, platform, url, username, password, notes, sharedWith: [], category: currentCategory
     });
   }
   return newPasswords;
