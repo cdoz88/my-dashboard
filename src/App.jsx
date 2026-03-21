@@ -3,7 +3,7 @@ import { Menu, X, UserCircle } from 'lucide-react';
 
 // Utils
 import { API_URL } from './utils/constants';
-import { parseCSVToExpenses, generateOnboardingData, generateOffboardingData } from './utils/helpers';
+import { parseCSVToExpenses, parseCSVToPasswords, generateOnboardingData, generateOffboardingData } from './utils/helpers';
 
 // Shared Components
 import AuthScreen from './components/auth/AuthScreen';
@@ -27,6 +27,7 @@ import ActivityLogView from './components/dashboards/ActivityLogView';
 import ShowsDashboard from './components/dashboards/ShowsDashboard';
 import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard';
 import CRMDashboard from './components/dashboards/CRMDashboard';
+import PasswordsDashboard from './components/dashboards/PasswordsDashboard';
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -46,6 +47,7 @@ import ShowModal from './components/modals/ShowModal';
 import SponsorshipModal from './components/modals/SponsorshipModal';
 import AvatarMakerModal from './components/modals/AvatarMakerModal';
 import ContactModal from './components/modals/ContactModal';
+import PasswordModal from './components/modals/PasswordModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +68,7 @@ export default function App() {
   const [shows, setShows] = useState([]);
   const [sponsorships, setSponsorships] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [passwords, setPasswords] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
@@ -111,6 +114,8 @@ export default function App() {
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState({ id: null, companyId: '', name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [] });
 
   // View States (Saved to Local Storage)
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('fyt_activeTab') || 'mytasks'); 
@@ -131,6 +136,7 @@ export default function App() {
   const [activeActivityTab, setActiveActivityTab] = useState(() => localStorage.getItem('fyt_activeActivityTab') || 'overview');
   const [activeCRMTab, setActiveCRMTab] = useState(() => localStorage.getItem('fyt_activeCRMTab') || 'overview');
   const [crmDisplayMode, setCRMDisplayMode] = useState(() => localStorage.getItem('fyt_crmDisplayMode') || 'list');
+  const [activePasswordTab, setActivePasswordTab] = useState(() => localStorage.getItem('fyt_activePasswordTab') || 'overview');
 
   // Sync memory states any time they change
   useEffect(() => { localStorage.setItem('fyt_currentApp', currentApp); }, [currentApp]);
@@ -150,12 +156,16 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fyt_activeActivityTab', activeActivityTab); }, [activeActivityTab]);
   useEffect(() => { localStorage.setItem('fyt_activeCRMTab', activeCRMTab); }, [activeCRMTab]);
   useEffect(() => { localStorage.setItem('fyt_crmDisplayMode', crmDisplayMode); }, [crmDisplayMode]);
+  useEffect(() => { localStorage.setItem('fyt_activePasswordTab', activePasswordTab); }, [activePasswordTab]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
 
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
+
+  // Determine if the Passwords App should be accessible to this user
+  const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
   useEffect(() => {
     if (currentUser) localStorage.setItem('loggedInUserId', currentUser.id);
@@ -179,9 +189,10 @@ export default function App() {
       if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('projects');
       if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('projects');
       if (currentApp === 'crm' && !currentUser.isAdmin && !currentUser.canViewCRM) setCurrentApp('projects');
+      if (currentApp === 'passwords' && !canViewPasswordsApp) setCurrentApp('projects');
       if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('projects');
     }
-  }, [currentUser, currentApp]);
+  }, [currentUser, currentApp, canViewPasswordsApp]);
 
   useEffect(() => {
     fetch(`${API_URL}?action=get_all`)
@@ -244,6 +255,7 @@ export default function App() {
 
         if(data.sponsorships) setSponsorships(data.sponsorships);
         if(data.contacts) setContacts(data.contacts);
+        if(data.passwords) setPasswords(data.passwords);
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
@@ -620,21 +632,29 @@ export default function App() {
     setIsLoading(false);
   };
 
-  const handleImportCSV = (e, companyId, isDomain = false) => {
+  const handleImportCSV = (e, companyId, type = 'expenses') => {
     const file = e.target.files[0];
     if (!file || !companyId) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target.result;
       
-      const newExpenses = parseCSVToExpenses(text, companyId, isDomain);
-      
-      setExpenses(prev => [...prev, ...newExpenses]);
-      for (const expenseData of newExpenses) {
-          await sendToAPI('save_expense', expenseData);
+      if (type === 'passwords') {
+          const newPws = parseCSVToPasswords(text, companyId);
+          setPasswords(prev => [...prev, ...newPws]);
+          for (const pw of newPws) {
+              await sendToAPI('save_password', pw);
+          }
+          alert(`Successfully imported ${newPws.length} passwords from the CSV!`);
+      } else {
+          const isDomain = type === 'domains';
+          const newExpenses = parseCSVToExpenses(text, companyId, isDomain);
+          setExpenses(prev => [...prev, ...newExpenses]);
+          for (const expenseData of newExpenses) {
+              await sendToAPI('save_expense', expenseData);
+          }
+          alert(`Successfully imported ${newExpenses.length} items from the CSV!`);
       }
-      
-      alert(`Successfully imported ${newExpenses.length} items from the CSV!`);
       e.target.value = null; 
     };
     reader.readAsText(file);
@@ -677,7 +697,6 @@ export default function App() {
 
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
-    // Automatically reset the overdue toggle if the manager pushes the due date forward!
     if (oldTask && oldTask.dueDate !== taskData.dueDate) {
         taskData.overdueLogged = false;
     }
@@ -897,7 +916,6 @@ export default function App() {
     sendToAPI('delete_show', { id });
   };
 
-  // --- SPONSORSHIP HANDLERS ---
   const openSponsorshipModal = (sponsorship = null) => {
     if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [], eventTitles: sponsorship.eventTitles || [], files: sponsorship.files || [] });
     else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
@@ -937,7 +955,6 @@ export default function App() {
   };
   const removeSponsorshipAsset = (indexToRemove) => setEditingSponsorship({ ...editingSponsorship, files: editingSponsorship.files.filter((_, i) => i !== indexToRemove) });
 
-  // --- CRM CONTACT HANDLERS ---
   const openContactModal = (contact = null) => {
     if (contact) setEditingContact({ ...contact });
     else setEditingContact({ id: null, companyId: activeCRMTab !== 'overview' ? activeCRMTab : (companies[0]?.id || ''), name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
@@ -966,7 +983,35 @@ export default function App() {
     sendToAPI('delete_contact', { id });
   };
 
-  // --- TEAM HANDLERS ---
+  // --- PASSWORDS HANDLERS ---
+  const openPasswordModal = (password = null) => {
+    if (password) setEditingPassword({ ...password, sharedWith: password.sharedWith || [] });
+    else setEditingPassword({ id: null, companyId: activePasswordTab !== 'overview' ? activePasswordTab : (companies[0]?.id || ''), platform: '', url: '', username: '', password: '', notes: '', sharedWith: [] });
+    setIsPasswordModalOpen(true);
+  };
+
+  const handleSavePassword = (e) => {
+    e.preventDefault();
+    if (!editingPassword.companyId) { alert("Please select a company owner."); return; }
+    const pwData = editingPassword.id ? editingPassword : { ...editingPassword, id: 'pw_' + Date.now() };
+    
+    if (!editingPassword.id) logActivity('Passwords', 'Password Added', `Added password for "${pwData.platform}"`);
+    
+    if (editingPassword.id) setPasswords(passwords.map(p => p.id === pwData.id ? pwData : p));
+    else setPasswords([...passwords, pwData]);
+    
+    setIsPasswordModalOpen(false);
+    sendToAPI('save_password', pwData);
+  };
+
+  const handleDeletePassword = (id) => {
+    const pw = passwords.find(p => p.id === id);
+    if (pw) logActivity('Passwords', 'Password Deleted', `Deleted password for "${pw.platform}"`);
+    setPasswords(passwords.filter(p => p.id !== id));
+    setIsPasswordModalOpen(false);
+    sendToAPI('delete_password', { id });
+  };
+
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id) });
     else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '' });
@@ -1016,6 +1061,7 @@ export default function App() {
     if (activeEventTab === companyId) setActiveEventTab('overview');
     if (activeSponsorshipTab === companyId) setActiveSponsorshipTab('overview');
     if (activeCRMTab === companyId) setActiveCRMTab('overview');
+    if (activePasswordTab === companyId) setActivePasswordTab('overview');
     setIsCompanyModalOpen(false);
     sendToAPI('delete_company', { id: companyId });
   };
@@ -1300,7 +1346,7 @@ export default function App() {
              openProfileModal={openProfileModal} setIsTeamModalOpen={setIsTeamModalOpen} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen}
              activeTeamTab={activeTeamTab} setActiveTeamTab={setActiveTeamTab} activeActivityTab={activeActivityTab} setActiveActivityTab={setActiveActivityTab}
              activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab} activeSponsorshipTab={activeSponsorshipTab} setActiveSponsorshipTab={setActiveSponsorshipTab}
-             activeCRMTab={activeCRMTab} setActiveCRMTab={setActiveCRMTab}
+             activeCRMTab={activeCRMTab} setActiveCRMTab={setActiveCRMTab} canViewPasswordsApp={canViewPasswordsApp}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -1318,7 +1364,7 @@ export default function App() {
              handleImportCSV={handleImportCSV} handleSyncGoDaddy={handleSyncGoDaddy}
              showDisplayMode={showDisplayMode} setShowDisplayMode={setShowDisplayMode} openShowModal={openShowModal}
              openSponsorshipModal={openSponsorshipModal} openTeamModal={openTeamModal} teamDisplayMode={teamDisplayMode} setTeamDisplayMode={setTeamDisplayMode}
-             crmDisplayMode={crmDisplayMode} setCRMDisplayMode={setCRMDisplayMode} openContactModal={openContactModal}
+             crmDisplayMode={crmDisplayMode} setCRMDisplayMode={setCRMDisplayMode} openContactModal={openContactModal} openPasswordModal={openPasswordModal} canViewPasswordsApp={canViewPasswordsApp} activePasswordTab={activePasswordTab}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
@@ -1342,6 +1388,8 @@ export default function App() {
               <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'crm' ? (
               <CRMDashboard contacts={contacts} activeCRMTab={activeCRMTab} crmDisplayMode={crmDisplayMode} openContactModal={openContactModal} handleDeleteContact={handleDeleteContact} companies={companies} />
+            ) : currentApp === 'passwords' ? (
+              <PasswordsDashboard passwords={passwords} activePasswordTab={activePasswordTab} openPasswordModal={openPasswordModal} handleDeletePassword={handleDeletePassword} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} />
             ) : (
@@ -1368,6 +1416,7 @@ export default function App() {
       {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
       {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
       {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
+      {isPasswordModalOpen && <PasswordModal editingPassword={editingPassword} setEditingPassword={setEditingPassword} handleSavePassword={handleSavePassword} handleDeletePassword={handleDeletePassword} setIsPasswordModalOpen={setIsPasswordModalOpen} visibleCompanies={visibleCompanies} users={users} currentUser={currentUser} />}
       {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
       {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
       {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}

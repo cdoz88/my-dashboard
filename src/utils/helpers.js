@@ -115,6 +115,34 @@ export const parseCSVToExpenses = (text, companyId, isDomain) => {
   return newExpenses;
 };
 
+export const parseCSVToPasswords = (text, companyId) => {
+  const lines = text.split('\n');
+  const newPasswords = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    const cols = line.split(regex).map(col => col.replace(/^"|"$/g, '').trim());
+    if (cols.length < 2) continue; 
+    
+    const platform = cols[0];
+    if (!platform || platform === 'Account' || platform === 'Company' || platform === 'Socials') continue;
+    
+    const url = cols[1] || '';
+    const username = cols[2] || '';
+    const password = cols[3] || '';
+    const notes = cols[4] || '';
+    
+    newPasswords.push({ 
+      id: 'pw_' + Date.now() + Math.random().toString(36).substr(2, 5) + i, 
+      companyId, platform, url, username, password, notes, sharedWith: [] 
+    });
+  }
+  return newPasswords;
+};
+
 export const generateOnboardingData = (user, globalChecklist, companies, currentUser) => {
   const newProjId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
   const firstCompanyId = user.companyIds?.[0] || companies[0]?.id || '';
