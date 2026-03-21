@@ -198,7 +198,6 @@ export const generateOffboardingData = (user, globalChecklist, companies, curren
       adminOnly: true
   };
 
-  // Reverse the array so the last steps of onboarding are the first steps of offboarding
   const reversedChecklist = [...globalChecklist].reverse();
 
   const newTasks = reversedChecklist.map((item, idx) => {
@@ -212,7 +211,7 @@ export const generateOffboardingData = (user, globalChecklist, companies, curren
       return {
           id: 't' + Date.now() + idx + Math.random().toString(36).substr(2, 5),
           projectId: newProjId,
-          title: `Revoke / Undo: ${item.text}`, // Adds context since the original text will say "Create account" etc.
+          title: `Revoke / Undo: ${item.text}`,
           description: desc,
           status: 'todo',
           dueDate: '',
