@@ -1,5 +1,6 @@
-import React from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search } from 'lucide-react';
+import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamDirectoryView({ 
   users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, 
@@ -7,6 +8,8 @@ export default function TeamDirectoryView({
   projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding, handleGenerateOffboarding,
   setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal
 }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
   let displayedUsers = [];
   if (activeTeamTab === 'overview') {
       if (currentUser?.isAdmin) {
@@ -25,12 +28,25 @@ export default function TeamDirectoryView({
       }
   }
 
+  const filteredUsers = displayedUsers.filter(u => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+          (u.name && u.name.toLowerCase().includes(q)) ||
+          (u.title && u.title.toLowerCase().includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.phone && u.phone.toLowerCase().includes(q)) ||
+          (u.venmo && u.venmo.toLowerCase().includes(q)) ||
+          (u.responsibilities && u.responsibilities.toLowerCase().includes(q))
+      );
+  });
+
   const currentCompany = activeTeamTab === 'overview' ? null : companies.find(c => c.id === activeTeamTab);
 
   // --- ORG CHART RENDER LOGIC ---
   const renderOrgNode = (user, depth = 0) => {
-      // Find all users who report directly to this user
-      const directReports = displayedUsers.filter(u => u.managerId === user.id);
+      // Find all users who report directly to this user (we filter from the FULL displayed list so branches aren't randomly severed by search)
+      const directReports = filteredUsers.filter(u => u.managerId === user.id);
       
       return (
           <div key={user.id} className="relative flex flex-col">
@@ -71,7 +87,7 @@ export default function TeamDirectoryView({
 
   return (
     <div className="p-4 sm:p-8 h-full overflow-y-auto w-full bg-slate-50/50 relative">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Contact className="text-indigo-600" size={28} />
@@ -79,29 +95,46 @@ export default function TeamDirectoryView({
           </h2>
           <p className="text-slate-500 text-sm mt-1">Contact info and roles for {currentCompany ? 'this company' : 'all team members'}.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsAvatarMakerModalOpen(true)} 
-            className="flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
-          >
-            <Camera size={16} />
-            Avatar Maker
-          </button>
-          {currentUser?.isAdmin && (
-            <button 
-              onClick={() => setIsOnboardingModalOpen(true)} 
-              className="flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
-            >
-              <Settings size={16} className="text-slate-500" />
-              Onboarding Templates
-            </button>
-          )}
+        
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-64">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-slate-400" />
+              </div>
+              <input 
+                  type="text" 
+                  placeholder="Search team..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              />
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button 
+                onClick={() => setIsAvatarMakerModalOpen(true)} 
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
+              >
+                <Camera size={16} />
+                Avatar Maker
+              </button>
+              {currentUser?.isAdmin && (
+                <button 
+                  onClick={() => setIsOnboardingModalOpen(true)} 
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
+                >
+                  <Settings size={16} className="text-slate-500" />
+                  Templates
+                </button>
+              )}
+          </div>
         </div>
       </div>
 
       {teamDisplayMode === 'cards' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {displayedUsers.map(user => {
+            {filteredUsers.map(user => {
               return (
                 <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:border-indigo-300 transition-colors">
                   <div 
@@ -246,10 +279,10 @@ export default function TeamDirectoryView({
                 </div>
               )
             })}
-            {displayedUsers.length === 0 && (
+            {filteredUsers.length === 0 && (
                 <div className="col-span-full p-12 text-center flex flex-col items-center bg-white rounded-xl border border-slate-200 border-dashed">
                     <Users size={32} className="text-slate-300 mb-3" />
-                    <p className="text-slate-500 font-medium">No team members found in this view.</p>
+                    <p className="text-slate-500 font-medium">No team members match your search.</p>
                 </div>
             )}
           </div>
@@ -259,14 +292,14 @@ export default function TeamDirectoryView({
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 overflow-x-auto">
              <div className="min-w-fit">
                  {/* Top Level Roots: People who have NO manager, OR whose manager isn't in this specific filtered view */}
-                 {displayedUsers.filter(u => !u.managerId || !displayedUsers.some(du => du.id === u.managerId)).map(rootUser => (
+                 {filteredUsers.filter(u => !u.managerId || !filteredUsers.some(du => du.id === u.managerId)).map(rootUser => (
                      renderOrgNode(rootUser)
                  ))}
                  
-                 {displayedUsers.length === 0 && (
+                 {filteredUsers.length === 0 && (
                     <div className="p-12 text-center flex flex-col items-center text-slate-500">
                         <Users size={32} className="text-slate-300 mb-3" />
-                        <p className="font-medium">No team members found.</p>
+                        <p className="font-medium">No team members match your search.</p>
                     </div>
                  )}
              </div>

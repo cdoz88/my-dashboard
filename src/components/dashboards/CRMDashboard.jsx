@@ -1,16 +1,31 @@
-import React from 'react';
-import { BookUser, Mail, Phone, Building2, UserCircle, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { BookUser, Mail, Phone, Building2, UserCircle, Trash2, Search } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function CRMDashboard({ 
   contacts, activeCRMTab, crmDisplayMode, 
   openContactModal, handleDeleteContact, companies 
 }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
   const getCompany = (id) => companies.find(c => c.id === id);
 
   const viewContacts = activeCRMTab === 'overview' 
     ? contacts 
     : contacts.filter(c => c.companyId === activeCRMTab);
+
+  const filteredContacts = viewContacts.filter(ct => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+          (ct.name && ct.name.toLowerCase().includes(q)) ||
+          (ct.organization && ct.organization.toLowerCase().includes(q)) ||
+          (ct.email && ct.email.toLowerCase().includes(q)) ||
+          (ct.phone && ct.phone.toLowerCase().includes(q)) ||
+          (ct.notes && ct.notes.toLowerCase().includes(q)) ||
+          (ct.contactType && ct.contactType.toLowerCase().includes(q))
+      );
+  });
 
   const currentCompany = activeCRMTab === 'overview' ? null : getCompany(activeCRMTab);
 
@@ -35,6 +50,20 @@ export default function CRMDashboard({
           </h2>
           <p className="text-slate-500 text-sm mt-1">Manage sponsors, guests, vendors, and leads.</p>
         </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-72">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-slate-400" />
+            </div>
+            <input 
+                type="text" 
+                placeholder="Search contacts..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm"
+            />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col">
@@ -52,7 +81,7 @@ export default function CRMDashboard({
                            </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100">
-                           {viewContacts.sort((a,b) => a.name.localeCompare(b.name)).map(ct => {
+                           {filteredContacts.sort((a,b) => a.name.localeCompare(b.name)).map(ct => {
                                const company = getCompany(ct.companyId);
                                return (
                                    <tr key={ct.id} className="hover:bg-slate-50 transition-colors group">
@@ -84,7 +113,7 @@ export default function CRMDashboard({
                                    </tr>
                                )
                            })}
-                           {viewContacts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500">No contacts exist in this view.</td></tr>}
+                           {filteredContacts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500">No contacts found.</td></tr>}
                        </tbody>
                    </table>
                </div>
@@ -93,7 +122,7 @@ export default function CRMDashboard({
 
          {crmDisplayMode === 'cards' && (
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                 {viewContacts.sort((a,b) => a.name.localeCompare(b.name)).map(ct => {
+                 {filteredContacts.sort((a,b) => a.name.localeCompare(b.name)).map(ct => {
                      const company = getCompany(ct.companyId);
                      return (
                          <div key={ct.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:border-sky-300 transition-colors">
@@ -118,7 +147,7 @@ export default function CRMDashboard({
                          </div>
                      )
                  })}
-                 {viewContacts.length === 0 && <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">No contacts exist in this view.</div>}
+                 {filteredContacts.length === 0 && <div className="col-span-full p-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">No contacts found.</div>}
              </div>
          )}
       </div>
