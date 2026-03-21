@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Link as LinkIcon, Copy, Trash2, Eye, EyeOff, Users, Pencil, CheckCircle, FolderTree } from 'lucide-react';
+import { Lock, Link as LinkIcon, Copy, Trash2, Eye, EyeOff, Users, Pencil, CheckCircle, FolderTree, Search } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function PasswordsDashboard({ 
@@ -7,6 +7,7 @@ export default function PasswordsDashboard({
 }) {
   const [revealedPasswords, setRevealedPasswords] = useState(new Set());
   const [copyFeedback, setCopyFeedback] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const getCompany = (id) => companies.find(c => c.id === id);
 
@@ -18,6 +19,18 @@ export default function PasswordsDashboard({
   const tabPasswords = activePasswordTab === 'overview' 
       ? viewablePasswords 
       : viewablePasswords.filter(p => p.companyId === activePasswordTab);
+
+  // Apply the live search filter
+  const filteredPasswords = tabPasswords.filter(pw => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+          (pw.platform && pw.platform.toLowerCase().includes(q)) ||
+          (pw.username && pw.username.toLowerCase().includes(q)) ||
+          (pw.url && pw.url.toLowerCase().includes(q)) ||
+          (pw.notes && pw.notes.toLowerCase().includes(q))
+      );
+  });
 
   const currentCompany = activePasswordTab === 'overview' ? null : getCompany(activePasswordTab);
 
@@ -36,12 +49,18 @@ export default function PasswordsDashboard({
       });
   };
 
-  // Group the passwords by category for the table view
+  const confirmDelete = (id, platform) => {
+      if (window.confirm(`Are you sure you want to permanently delete the password for ${platform}?`)) {
+          handleDeletePassword(id);
+      }
+  };
+
+  // Group the filtered passwords by category for the table view
   const categoriesList = ['Company', 'Shop', 'Content Creation', 'Content Distribution', 'Social Media', 'Website', 'Mobile App', 'Other', 'Uncategorized'];
   const groupedPasswords = {};
   categoriesList.forEach(c => groupedPasswords[c] = []);
   
-  tabPasswords.forEach(pw => {
+  filteredPasswords.forEach(pw => {
       const cat = pw.category || 'Uncategorized';
       if (groupedPasswords[cat]) groupedPasswords[cat].push(pw);
       else groupedPasswords['Uncategorized'].push(pw);
@@ -56,6 +75,20 @@ export default function PasswordsDashboard({
              {activePasswordTab === 'overview' ? 'Shared Vault' : `${currentCompany?.name} Vault`}
           </h2>
           <p className="text-slate-500 text-sm mt-1">Securely manage and share account credentials.</p>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-72">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-slate-400" />
+            </div>
+            <input 
+                type="text" 
+                placeholder="Search vault..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 shadow-sm"
+            />
         </div>
       </div>
 
@@ -78,10 +111,10 @@ export default function PasswordsDashboard({
                              
                              return (
                                  <React.Fragment key={cat}>
-                                     {/* Group Header Row */}
+                                     {/* Group Header Row - Updated Contrast */}
                                      <tr>
-                                         <td colSpan={currentUser?.isAdmin ? "5" : "4"} className="bg-slate-100/50 text-slate-600 text-xs font-bold uppercase tracking-wider p-3 px-4 border-y border-slate-200">
-                                            <div className="flex items-center gap-1.5"><FolderTree size={14}/> {cat}</div>
+                                         <td colSpan={currentUser?.isAdmin ? "5" : "4"} className="bg-slate-200 text-slate-800 text-xs font-bold uppercase tracking-wider p-3 px-4 border-y border-slate-300">
+                                            <div className="flex items-center gap-1.5"><FolderTree size={14} className="text-slate-500" /> {cat}</div>
                                          </td>
                                      </tr>
                                      {/* Map through passwords in this category */}
@@ -151,7 +184,8 @@ export default function PasswordsDashboard({
                                                      <td className="p-4 text-right">
                                                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                              <button onClick={() => openPasswordModal(pw)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors" title="Edit"><Pencil size={16}/></button>
-                                                             <button onClick={() => handleDeletePassword(pw.id)} className="text-slate-400 hover:text-red-500 p-1 transition-colors" title="Delete"><Trash2 size={16}/></button>
+                                                             {/* Updated to use the confirmDelete function */}
+                                                             <button onClick={() => confirmDelete(pw.id, pw.platform)} className="text-slate-400 hover:text-red-500 p-1 transition-colors" title="Delete"><Trash2 size={16}/></button>
                                                          </div>
                                                      </td>
                                                  )}
@@ -161,7 +195,7 @@ export default function PasswordsDashboard({
                                  </React.Fragment>
                              );
                          })}
-                         {tabPasswords.length === 0 && <tr><td colSpan={currentUser?.isAdmin ? "5" : "4"} className="p-8 text-center text-slate-500">No passwords found in this view.</td></tr>}
+                         {filteredPasswords.length === 0 && <tr><td colSpan={currentUser?.isAdmin ? "5" : "4"} className="p-8 text-center text-slate-500">No passwords found in this view.</td></tr>}
                      </tbody>
                  </table>
              </div>
