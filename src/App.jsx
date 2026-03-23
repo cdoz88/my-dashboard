@@ -281,10 +281,14 @@ export default function App() {
         today.setHours(0, 0, 0, 0);
 
         const updatedTasks = tasks.map(task => {
+            // STRICT DATE CHECK: Only evaluate if the task is NOT done, has NOT been logged, and has a VALID due date string!
             if (task.status !== 'done' && !task.overdueLogged && task.dueDate && task.dueDate.trim() !== '' && task.dueDate !== '0000-00-00') {
                 const [year, month, day] = task.dueDate.split('-');
+                
+                // Ensure the date actually parsed correctly into 3 chunks
                 if (year && month && day) {
                     const dueDateObj = new Date(year, month - 1, day);
+                    
                     if (dueDateObj < today) {
                         const missedDateStr = new Date(`${task.dueDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                         
@@ -301,6 +305,7 @@ export default function App() {
                         setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
                         
                         const updatedTask = { ...task, overdueLogged: true };
+                        // We pass notifyOverdue to tell api.php to fire the webhook!
                         sendToAPI('save_task', { ...updatedTask, notifyOverdue: true, actorId: 'system' });
                         
                         tasksUpdated = true;
@@ -311,6 +316,7 @@ export default function App() {
             return task;
         });
 
+        // Only commit memory update if something was actually changed to prevent infinite loops
         if (tasksUpdated) {
             setTasks(updatedTasks);
         }
@@ -1394,7 +1400,7 @@ export default function App() {
             ) : currentApp === 'passwords' ? (
               <PasswordsDashboard passwords={passwords} activePasswordTab={activePasswordTab} openPasswordModal={openPasswordModal} handleDeletePassword={handleDeletePassword} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} />
+              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} shows={shows} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamDirectoryView({ 
   users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, 
   companies, visibleCompanies, activeTeamTab, globalChecklist,
   projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding, handleGenerateOffboarding,
-  setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal
+  setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal, shows
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -48,6 +48,9 @@ export default function TeamDirectoryView({
       // Find all users who report directly to this user (we filter from the FULL displayed list so branches aren't randomly severed by search)
       const directReports = filteredUsers.filter(u => u.managerId === user.id);
       
+      // Calculate shows for this specific user
+      const userShows = Array.from(new Set((shows || []).filter(s => s.userIds?.includes(user.id)).map(s => s.title))).sort();
+
       return (
           <div key={user.id} className="relative flex flex-col">
               {/* Card */}
@@ -66,6 +69,16 @@ export default function TeamDirectoryView({
                         {user.isAdmin && <Shield size={12} className="text-amber-500 flex-shrink-0" />}
                      </div>
                      <div className="text-xs text-slate-500 truncate">{user.title || 'Team Member'}</div>
+                     
+                     {userShows.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                            {userShows.map(title => (
+                                <span key={title} className="text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 px-1 rounded flex items-center gap-0.5 truncate max-w-full" title={title}>
+                                    <Tv size={8} className="flex-shrink-0" /> <span className="truncate">{title}</span>
+                                </span>
+                            ))}
+                        </div>
+                     )}
                  </div>
               </div>
 
@@ -135,6 +148,8 @@ export default function TeamDirectoryView({
       {teamDisplayMode === 'cards' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredUsers.map(user => {
+              const userShows = Array.from(new Set((shows || []).filter(s => s.userIds?.includes(user.id)).map(s => s.title))).sort();
+
               return (
                 <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:border-indigo-300 transition-colors">
                   <div 
@@ -184,6 +199,16 @@ export default function TeamDirectoryView({
                             </div>
                           )}
                       </div>
+
+                      {userShows.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1">
+                              {userShows.map(title => (
+                                  <span key={title} className="text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1 truncate max-w-full" title={title}>
+                                      <Tv size={9} className="flex-shrink-0" /> <span className="truncate">{title}</span>
+                                  </span>
+                              ))}
+                          </div>
+                      )}
                     </div>
                   </div>
                   
