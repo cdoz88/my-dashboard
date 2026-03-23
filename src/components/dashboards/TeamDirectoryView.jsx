@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
+import { colorStyles } from '../../utils/constants';
 
 export default function TeamDirectoryView({ 
   users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, 
   companies, visibleCompanies, activeTeamTab, globalChecklist,
   projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding, handleGenerateOffboarding,
-  setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal, shows
+  setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal, shows, youtubeChannels
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -48,8 +49,16 @@ export default function TeamDirectoryView({
       // Find all users who report directly to this user (we filter from the FULL displayed list so branches aren't randomly severed by search)
       const directReports = filteredUsers.filter(u => u.managerId === user.id);
       
-      // Calculate shows for this specific user
-      const userShows = Array.from(new Set((shows || []).filter(s => s.userIds?.includes(user.id)).map(s => s.title))).sort();
+      // Calculate shows for this specific user, storing the channel ID so we can get its color
+      const userUniqueShowsMap = new Map();
+      (shows || []).filter(s => s.userIds?.includes(user.id)).forEach(s => {
+          if (!userUniqueShowsMap.has(s.title)) {
+              userUniqueShowsMap.set(s.title, s.channelId);
+          }
+      });
+      const userShows = Array.from(userUniqueShowsMap.entries())
+          .map(([title, channelId]) => ({ title, channelId }))
+          .sort((a, b) => a.title.localeCompare(b.title));
 
       return (
           <div key={user.id} className="relative flex flex-col">
@@ -72,11 +81,17 @@ export default function TeamDirectoryView({
                      
                      {userShows.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
-                            {userShows.map(title => (
-                                <span key={title} className="text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 px-1 rounded flex items-center gap-0.5 truncate max-w-full" title={title}>
-                                    <Tv size={8} className="flex-shrink-0" /> <span className="truncate">{title}</span>
-                                </span>
-                            ))}
+                            {userShows.map(show => {
+                                const channel = youtubeChannels?.find(c => c.id === show.channelId);
+                                const cColor = channel?.color || 'slate';
+                                const colorClasses = colorStyles[cColor] ? `${colorStyles[cColor].bg} ${colorStyles[cColor].text} ${colorStyles[cColor].border}` : 'bg-slate-50 text-slate-600 border-slate-200';
+                                
+                                return (
+                                    <span key={show.title} className={`text-[9px] font-bold border px-1 rounded flex items-center gap-0.5 truncate max-w-full ${colorClasses}`} title={show.title}>
+                                        <Tv size={8} className="flex-shrink-0" /> <span className="truncate">{show.title}</span>
+                                    </span>
+                                );
+                            })}
                         </div>
                      )}
                  </div>
@@ -148,7 +163,16 @@ export default function TeamDirectoryView({
       {teamDisplayMode === 'cards' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredUsers.map(user => {
-              const userShows = Array.from(new Set((shows || []).filter(s => s.userIds?.includes(user.id)).map(s => s.title))).sort();
+              
+              const userUniqueShowsMap = new Map();
+              (shows || []).filter(s => s.userIds?.includes(user.id)).forEach(s => {
+                  if (!userUniqueShowsMap.has(s.title)) {
+                      userUniqueShowsMap.set(s.title, s.channelId);
+                  }
+              });
+              const userShows = Array.from(userUniqueShowsMap.entries())
+                  .map(([title, channelId]) => ({ title, channelId }))
+                  .sort((a, b) => a.title.localeCompare(b.title));
 
               return (
                 <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:border-indigo-300 transition-colors">
@@ -202,11 +226,17 @@ export default function TeamDirectoryView({
 
                       {userShows.length > 0 && (
                           <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1">
-                              {userShows.map(title => (
-                                  <span key={title} className="text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1 truncate max-w-full" title={title}>
-                                      <Tv size={9} className="flex-shrink-0" /> <span className="truncate">{title}</span>
-                                  </span>
-                              ))}
+                              {userShows.map(show => {
+                                  const channel = youtubeChannels?.find(c => c.id === show.channelId);
+                                  const cColor = channel?.color || 'slate';
+                                  const colorClasses = colorStyles[cColor] ? `${colorStyles[cColor].bg} ${colorStyles[cColor].text} ${colorStyles[cColor].border}` : 'bg-slate-50 text-slate-600 border-slate-200';
+                                  
+                                  return (
+                                      <span key={show.title} className={`text-[9px] font-bold border px-1.5 py-0.5 rounded flex items-center gap-1 truncate max-w-full ${colorClasses}`} title={show.title}>
+                                          <Tv size={9} className="flex-shrink-0" /> <span className="truncate">{show.title}</span>
+                                      </span>
+                                  );
+                              })}
                           </div>
                       )}
                     </div>
