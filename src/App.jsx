@@ -353,43 +353,76 @@ export default function App() {
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
-  // --- NEW: GEMINI AI BUSINESS CARD SCANNER ---
+  // --- NEW: GEMINI AI BUSINESS CARD SCANNER (FRONTEND BYPASS) ---
   const handleScanBusinessCard = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
       setIsUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
 
-      try {
-          const response = await fetch(`${API_URL}?action=scan_business_card`, {
-              method: 'POST',
-              body: formData
-          });
-          const data = await response.json();
-          
-          if (data.error) {
-              alert("Scan failed: " + data.error);
-          } else if (data.success && data.data) {
-              setEditingContact({
-                  id: null,
-                  companyId: activeCRMTab !== 'overview' ? activeCRMTab : (companies[0]?.id || ''),
-                  name: data.data.name || '',
-                  email: data.data.email || '',
-                  phone: data.data.phone || '',
-                  organization: data.data.organization || '',
-                  contactType: 'Lead',
-                  notes: 'Imported via Business Card Scanner'
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+          try {
+              // Extract just the raw base64 string
+              const base64Data = reader.result.split(',')[1];
+              const mimeType = file.type || 'image/jpeg';
+              
+              // Your explicit Gemini API Key
+              const GEMINI_API_KEY = 'AIzaSyADB0wAbhSROwnY6J8bdd2pv2vN72g3qf4';
+
+              // Call Google Directly from React!
+              const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      contents: [{
+                          parts: [
+                              { text: "Analyze this business card. Extract the contact info and return it strictly as a JSON object with these exact keys: 'name', 'organization', 'email', 'phone'. Do not include markdown formatting or any other text. If a piece of information is missing, leave the string empty." },
+                              { inlineData: { mimeType: mimeType, data: base64Data } }
+                          ]
+                      }],
+                      generationConfig: {
+                          responseMimeType: "application/json",
+                          temperature: 0.1
+                      }
+                  })
               });
-              setIsContactModalOpen(true);
+
+              const data = await response.json();
+              
+              if (data.error) {
+                  alert("Google AI Error: " + data.error.message);
+              } else if (data.candidates && data.candidates[0].content.parts[0].text) {
+                  let text = data.candidates[0].content.parts[0].text;
+                  // Strip Markdown formatting if Gemini accidentally included it
+                  text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                  
+                  const parsed = JSON.parse(text);
+
+                  setEditingContact({
+                      id: null,
+                      companyId: activeCRMTab !== 'overview' ? activeCRMTab : (companies[0]?.id || ''),
+                      name: parsed.name || '',
+                      email: parsed.email || '',
+                      phone: parsed.phone || '',
+                      organization: parsed.organization || '',
+                      contactType: 'Lead',
+                      notes: 'Imported via Business Card Scanner'
+                  });
+                  setIsContactModalOpen(true);
+              } else {
+                  alert("Failed to read the card data. Please try again.");
+              }
+          } catch (err) {
+              alert("Scanner error. Check your browser console.");
+              console.error(err);
+          } finally {
+              setIsUploading(false);
+              e.target.value = null; 
           }
-      } catch (err) {
-          alert("Scanner error. Check console.");
-          console.error(err);
-      }
-      setIsUploading(false);
-      e.target.value = null; 
+      };
+      
+      reader.readAsDataURL(file);
   };
 
   const logActivity = (category, type, description) => {
