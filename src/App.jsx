@@ -319,7 +319,7 @@ export default function App() {
 
 
   useEffect(() => {
-    const urlParams = newSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const taskIdParam = urlParams.get('task');
     
     if (taskIdParam && tasks.length > 0 && projects.length > 0 && !isTaskModalOpen) {
@@ -772,7 +772,7 @@ export default function App() {
     const isNowDone = task.status !== 'done';
     const newStatus = isNowDone ? 'done' : 'todo';
     
-    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new DatetoISOString() : null, completedBy: isNowDone ? currentUser.id : null };
+    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
     
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
@@ -955,6 +955,7 @@ export default function App() {
     sendToAPI('delete_show', { id });
   };
 
+  // --- SPONSORSHIP HANDLERS ---
   const openSponsorshipModal = (sponsorship = null) => {
     if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [], eventTitles: sponsorship.eventTitles || [], files: sponsorship.files || [] });
     else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
@@ -1022,6 +1023,7 @@ export default function App() {
     sendToAPI('delete_contact', { id });
   };
 
+  // --- PASSWORDS HANDLERS ---
   const openPasswordModal = (password = null) => {
     if (password) setEditingPassword({ ...password, sharedWith: password.sharedWith || [], category: password.category || 'Uncategorized' });
     else setEditingPassword({ id: null, companyId: activePasswordTab !== 'overview' ? activePasswordTab : (companies[0]?.id || ''), platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
