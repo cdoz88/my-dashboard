@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Wallet, Youtube, CalendarDays, Mic, Globe, 
   ChevronsUpDown, ListTodo, CalendarClock, Plus, Clock, ChevronDown, 
-  RefreshCw, Upload, Kanban, Contact, Activity, Tv, Award, Network, LayoutGrid, BookUser, LayoutPanelTop, Lock
+  RefreshCw, Upload, Kanban, Contact, Activity, Tv, Award, Network, LayoutGrid, BookUser, LayoutPanelTop, Lock, Camera
 } from 'lucide-react';
 
 export default function TopBar({
@@ -19,7 +19,8 @@ export default function TopBar({
   handleImportCSV, handleSyncGoDaddy,
   showDisplayMode, setShowDisplayMode, openShowModal,
   openSponsorshipModal, openTeamModal, teamDisplayMode, setTeamDisplayMode,
-  crmDisplayMode, setCRMDisplayMode, openContactModal, openPasswordModal, canViewPasswordsApp, activePasswordTab
+  crmDisplayMode, setCRMDisplayMode, openContactModal, openPasswordModal, canViewPasswordsApp, activePasswordTab,
+  handleScanBusinessCard, isUploading
 }) {
   const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
   const isBudgetView = currentApp === 'budget';
@@ -106,6 +107,11 @@ export default function TopBar({
         )}
         {isCRMView && (
            <>
+             <label className={`${isUploading ? 'opacity-50 cursor-wait bg-slate-100' : 'cursor-pointer hover:bg-slate-200 bg-white'} text-slate-800 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors border border-slate-200 mr-1`} title="Upload or snap a photo of a business card">
+                 {isUploading ? <RefreshCw size={18} className="animate-spin text-sky-500" strokeWidth={2.5} /> : <Camera size={18} strokeWidth={2.5} className="text-sky-500" />} 
+                 <span className="hidden md:inline">{isUploading ? 'Scanning...' : 'Scan Card'}</span>
+                 <input type="file" accept="image/*" capture="environment" className="hidden" disabled={isUploading} onChange={handleScanBusinessCard} />
+             </label>
              <div className="flex bg-sky-700/50 rounded-lg p-1 border border-sky-500/50 mr-2">
                 <button onClick={() => setCRMDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${crmDisplayMode === 'list' ? 'bg-white text-sky-600 shadow-sm' : 'text-sky-100 hover:text-white hover:bg-sky-500/50'}`} title="Table View"><ListTodo size={16} /></button>
                 <button onClick={() => setCRMDisplayMode('cards')} className={`p-1.5 rounded-md transition-colors ${crmDisplayMode === 'cards' ? 'bg-white text-sky-600 shadow-sm' : 'text-sky-100 hover:text-white hover:bg-sky-500/50'}`} title="Card View"><LayoutPanelTop size={16} /></button>

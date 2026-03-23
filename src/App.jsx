@@ -319,7 +319,7 @@ export default function App() {
 
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = newSearchParams(window.location.search);
     const taskIdParam = urlParams.get('task');
     
     if (taskIdParam && tasks.length > 0 && projects.length > 0 && !isTaskModalOpen) {
@@ -351,6 +351,45 @@ export default function App() {
       alert('Upload failed: ' + data.error);
       return null;
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
+  };
+
+  // --- NEW: GEMINI AI BUSINESS CARD SCANNER ---
+  const handleScanBusinessCard = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+          const response = await fetch(`${API_URL}?action=scan_business_card`, {
+              method: 'POST',
+              body: formData
+          });
+          const data = await response.json();
+          
+          if (data.error) {
+              alert("Scan failed: " + data.error);
+          } else if (data.success && data.data) {
+              setEditingContact({
+                  id: null,
+                  companyId: activeCRMTab !== 'overview' ? activeCRMTab : (companies[0]?.id || ''),
+                  name: data.data.name || '',
+                  email: data.data.email || '',
+                  phone: data.data.phone || '',
+                  organization: data.data.organization || '',
+                  contactType: 'Lead',
+                  notes: 'Imported via Business Card Scanner'
+              });
+              setIsContactModalOpen(true);
+          }
+      } catch (err) {
+          alert("Scanner error. Check console.");
+          console.error(err);
+      }
+      setIsUploading(false);
+      e.target.value = null; 
   };
 
   const logActivity = (category, type, description) => {
@@ -697,7 +736,6 @@ export default function App() {
 
     const taskData = currentTask.id ? currentTask : { ...currentTask, id: 't' + Date.now(), projectId: currentTask.projectId || activeTab };
     
-    // Automatically reset the overdue toggle if the manager pushes the due date forward!
     if (oldTask && oldTask.dueDate !== taskData.dueDate) {
         taskData.overdueLogged = false;
     }
@@ -734,7 +772,7 @@ export default function App() {
     const isNowDone = task.status !== 'done';
     const newStatus = isNowDone ? 'done' : 'todo';
     
-    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new Date().toISOString() : null, completedBy: isNowDone ? currentUser.id : null };
+    const updatedTask = { ...task, status: newStatus, completedAt: isNowDone ? new DatetoISOString() : null, completedBy: isNowDone ? currentUser.id : null };
     logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
     
     setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
@@ -917,7 +955,6 @@ export default function App() {
     sendToAPI('delete_show', { id });
   };
 
-  // --- SPONSORSHIP HANDLERS ---
   const openSponsorshipModal = (sponsorship = null) => {
     if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [], eventTitles: sponsorship.eventTitles || [], files: sponsorship.files || [] });
     else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
@@ -985,7 +1022,6 @@ export default function App() {
     sendToAPI('delete_contact', { id });
   };
 
-  // --- PASSWORDS HANDLERS ---
   const openPasswordModal = (password = null) => {
     if (password) setEditingPassword({ ...password, sharedWith: password.sharedWith || [], category: password.category || 'Uncategorized' });
     else setEditingPassword({ id: null, companyId: activePasswordTab !== 'overview' ? activePasswordTab : (companies[0]?.id || ''), platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
@@ -1368,6 +1404,7 @@ export default function App() {
              showDisplayMode={showDisplayMode} setShowDisplayMode={setShowDisplayMode} openShowModal={openShowModal}
              openSponsorshipModal={openSponsorshipModal} openTeamModal={openTeamModal} teamDisplayMode={teamDisplayMode} setTeamDisplayMode={setTeamDisplayMode}
              crmDisplayMode={crmDisplayMode} setCRMDisplayMode={setCRMDisplayMode} openContactModal={openContactModal} openPasswordModal={openPasswordModal} canViewPasswordsApp={canViewPasswordsApp} activePasswordTab={activePasswordTab}
+             handleScanBusinessCard={handleScanBusinessCard} isUploading={isUploading}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'projects' ? (
