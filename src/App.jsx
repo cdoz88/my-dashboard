@@ -367,8 +367,8 @@ export default function App() {
               const base64Data = reader.result.split(',')[1];
               const mimeType = file.type || 'image/jpeg';
               
-              // Your explicit Gemini API Key
-              const GEMINI_API_KEY = 'AIzaSyADB0wAbhSROwnY6J8bdd2pv2vN72g3qf4';
+              // Your explicit Gemini API Key embedded securely on the frontend!
+              const GEMINI_API_KEY = 'AIzaSyA-qKimYCmwAPdVNpPcNRd383OoYcZt5p8';
 
               // Call Google Directly from React!
               const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
