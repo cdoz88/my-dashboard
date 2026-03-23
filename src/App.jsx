@@ -353,7 +353,7 @@ export default function App() {
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
-  // --- NEW: GEMINI AI BUSINESS CARD SCANNER (FRONTEND BYPASS) ---
+  // --- NEW: GEMINI AI BUSINESS CARD SCANNER (ENVIRONMENT VARIABLE BYPASS) ---
   const handleScanBusinessCard = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -367,8 +367,14 @@ export default function App() {
               const base64Data = reader.result.split(',')[1];
               const mimeType = file.type || 'image/jpeg';
               
-              // Your explicit Gemini API Key embedded securely on the frontend!
-              const GEMINI_API_KEY = 'AIzaSyA-qKimYCmwAPdVNpPcNRd383OoYcZt5p8';
+              // Pull the API key securely from Vercel's environment variables
+              const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+              
+              if (!GEMINI_API_KEY) {
+                  alert("API Key is missing! Please add VITE_GEMINI_API_KEY to your Vercel Environment Variables.");
+                  setIsUploading(false);
+                  return;
+              }
 
               // Call Google Directly from React!
               const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
