@@ -28,6 +28,7 @@ import ShowsDashboard from './components/dashboards/ShowsDashboard';
 import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard';
 import CRMDashboard from './components/dashboards/CRMDashboard';
 import PasswordsDashboard from './components/dashboards/PasswordsDashboard';
+import LedgerDashboard from './components/dashboards/LedgerDashboard';
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -48,6 +49,7 @@ import SponsorshipModal from './components/modals/SponsorshipModal';
 import AvatarMakerModal from './components/modals/AvatarMakerModal';
 import ContactModal from './components/modals/ContactModal';
 import PasswordModal from './components/modals/PasswordModal';
+import PayoutModal from './components/modals/PayoutModal';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +119,11 @@ export default function App() {
   const [editingContact, setEditingContact] = useState({ id: null, companyId: '', name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
+  
+  // Ledger/Payout State
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: '', paymentMethod: '', paymentAccount: '', notes: '' });
+  const [isSyncingLedger, setIsSyncingLedger] = useState(false);
 
   // View States (Saved to Local Storage)
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('fyt_activeTab') || 'mytasks'); 
@@ -738,6 +745,33 @@ export default function App() {
       e.target.value = null; 
     };
     reader.readAsText(file);
+  };
+
+  // --- PAYOUT LEDGER HANDLERS ---
+  const openPayoutModal = (payout = null) => {
+    if (payout) setEditingPayout({ ...payout });
+    else setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '' });
+    setIsPayoutModalOpen(true);
+  };
+
+  const handleSavePayout = (e) => {
+    e.preventDefault();
+    if (!editingPayout.showId) { alert("Please select a show."); return; }
+    const payoutData = editingPayout.id ? editingPayout : { ...editingPayout, id: 'pay_' + Date.now(), timestamp: new Date().toISOString() };
+    
+    if (!editingPayout.id) logActivity('Payouts', 'Payment Logged', `Logged payment of $${payoutData.amount} for show ID ${payoutData.showId}`);
+    
+    if (editingPayout.id) setPayouts(payouts.map(p => p.id === payoutData.id ? payoutData : p));
+    else setPayouts([payoutData, ...payouts]);
+    
+    setIsPayoutModalOpen(false);
+    sendToAPI('save_payout', payoutData);
+  };
+
+  const handleSyncLedger = async () => {
+    setIsSyncingLedger(true);
+    await handleSyncYoutube('lifetime'); // Re-sync all youtube stats to get fresh totals
+    setIsSyncingLedger(false);
   };
 
   const openTaskModal = (task = null, projectId = '', status = 'todo') => {
@@ -1475,6 +1509,8 @@ export default function App() {
               <PasswordsDashboard passwords={passwords} activePasswordTab={activePasswordTab} openPasswordModal={openPasswordModal} handleDeletePassword={handleDeletePassword} companies={companies} currentUser={currentUser} />
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} shows={shows} youtubeChannels={youtubeChannels} />
+            ) : currentApp === 'ledger' ? (
+              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}
@@ -1510,6 +1546,7 @@ export default function App() {
       {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
       {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
       {isAvatarMakerModalOpen && <AvatarMakerModal setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />}
+      {isPayoutModalOpen && <PayoutModal editingPayout={editingPayout} setEditingPayout={setEditingPayout} handleSavePayout={handleSavePayout} setIsPayoutModalOpen={setIsPayoutModalOpen} shows={shows} />}
     </>
   );
 }

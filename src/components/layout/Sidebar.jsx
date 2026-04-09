@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -196,6 +196,20 @@ export default function Sidebar({
                   </div>
                 ))}
               </div>
+            </div>
+          </>
+        )}
+
+        {currentApp === 'ledger' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Payouts</p>
+              <div className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-600 text-white shadow-sm">
+                <Calculator size={18} /> Creator Ledger
+              </div>
+            </div>
+            <div className="px-4 mb-4 text-center">
+               <p className="text-xs text-slate-500 italic bg-slate-800/50 p-3 rounded-lg border border-slate-700">Navigate within the dashboard tabs to view current balances or payment history.</p>
             </div>
           </>
         )}
