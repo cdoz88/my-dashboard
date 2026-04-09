@@ -3,7 +3,7 @@ import { Tv, X, Link as LinkIcon, MapPin, AlignLeft, Users, UserCircle, ToggleRi
 
 export default function ShowModal({
   editingShow, setEditingShow, handleSaveShow, handleDeleteShow, setIsShowModalOpen, youtubeChannels, users,
-  sponsorships, openSponsorshipModal
+  sponsorships, openSponsorshipModal, currentUser
 }) {
   const studios = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4', 'Streamyard'];
 
@@ -130,6 +130,48 @@ export default function ShowModal({
               <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><AlignLeft size={14} className="text-slate-400"/> Show Notes / Topics</label>
               <textarea rows="3" value={editingShow.notes || ''} onChange={(e) => setEditingShow({...editingShow, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Talking points, outlines, etc..." />
             </div>
+
+            {currentUser?.isAdmin && (
+              <div className="pt-4 border-t border-slate-100">
+                <h4 className="text-sm font-bold text-slate-800 mb-3">Admin-Only Payment Settings</h4>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Base Pay ($)</label>
+                    <input type="number" step="0.01" min="0" value={editingShow.basePay || ''} onChange={(e) => setEditingShow({...editingShow, basePay: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Pay Per Watch Hour ($)</label>
+                    <input type="number" step="0.01" min="0" value={editingShow.payPerHour || ''} onChange={(e) => setEditingShow({...editingShow, payPerHour: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Start Date</label>
+                    <input type="date" value={editingShow.paymentStartDate || ''} onChange={(e) => setEditingShow({...editingShow, paymentStartDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
+                    <select value={editingShow.paymentMethod || ''} onChange={(e) => setEditingShow({...editingShow, paymentMethod: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
+                      <option value="">Select Method</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Venmo">Venmo</option>
+                      <option value="Zelle">Zelle</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Other">Other...</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 truncate">
+                      {editingShow.paymentMethod === 'PayPal' ? 'PayPal Email' : 
+                       editingShow.paymentMethod === 'Venmo' ? 'Venmo Username (@)' : 
+                       editingShow.paymentMethod === 'Zelle' ? 'Zelle Phone/Email' : 
+                       'Account Details'}
+                    </label>
+                    <input type="text" value={editingShow.paymentAccount || ''} onChange={(e) => setEditingShow({...editingShow, paymentAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Username, Email, etc." />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {showSponsors.length > 0 && (
                <div className="pt-4 border-t border-slate-100">

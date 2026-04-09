@@ -69,6 +69,7 @@ export default function App() {
   const [sponsorships, setSponsorships] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [passwords, setPasswords] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
@@ -108,7 +109,7 @@ export default function App() {
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
-  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '' });
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
@@ -256,6 +257,7 @@ export default function App() {
         if(data.sponsorships) setSponsorships(data.sponsorships);
         if(data.contacts) setContacts(data.contacts);
         if(data.passwords) setPasswords(data.passwords);
+        if(data.payouts) setPayouts(data.payouts);
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
@@ -934,7 +936,7 @@ export default function App() {
 
   const openShowModal = (show = null) => {
     if (show) setEditingShow({ ...show, userIds: show.userIds || [] });
-    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1 });
+    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '' });
     setIsShowModalOpen(true);
   };
 
@@ -1494,7 +1496,7 @@ export default function App() {
       {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
-      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
+      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} currentUser={currentUser} />}
       {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
       {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
       {isPasswordModalOpen && <PasswordModal editingPassword={editingPassword} setEditingPassword={setEditingPassword} handleSavePassword={handleSavePassword} handleDeletePassword={handleDeletePassword} setIsPasswordModalOpen={setIsPasswordModalOpen} visibleCompanies={visibleCompanies} users={users} currentUser={currentUser} />}
