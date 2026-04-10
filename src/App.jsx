@@ -983,7 +983,9 @@ export default function App() {
     if (isNew && editingShow.isRecurring) {
         const newShows = [];
         const baseDate = new Date(`${editingShow.showDate}T12:00:00`); 
-        const numOccurrences = parseInt(editingShow.occurrences) === 0 ? 52 : (parseInt(editingShow.occurrences) || 1);
+        
+        // 260 weeks = 5 years of shows (acts as "indefinitely" for scheduling)
+        const numOccurrences = parseInt(editingShow.occurrences) === 0 ? 260 : (parseInt(editingShow.occurrences) || 1);
         
         for (let i = 0; i < numOccurrences; i++) {
             const iterDate = new Date(baseDate);

@@ -81,7 +81,7 @@ export default function ShowModal({
                        <div className="flex items-center gap-2 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in slide-in-from-top-2">
                            <span className="text-sm font-medium text-red-800 flex-shrink-0">Occurrences:</span>
                            <input type="number" min="0" value={editingShow.occurrences} onChange={(e) => setEditingShow({...editingShow, occurrences: parseInt(e.target.value) || 0})} className="w-16 px-2 py-1 text-sm border border-red-200 rounded focus:outline-none focus:ring-2 focus:ring-red-500 font-bold text-center" />
-                           <span className="text-xs font-medium text-red-600 flex-shrink-0">(0 = 1 Year / 52 Weeks)</span>
+                           <span className="text-xs font-medium text-red-600 flex-shrink-0">(0 = Indefinitely)</span>
                        </div>
                    )}
                </div>
