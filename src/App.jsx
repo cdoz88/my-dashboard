@@ -691,6 +691,9 @@ export default function App() {
             setYoutubeChannels(freshData.youtube_channels);
             if(freshData.youtube_channels.length > 0 && !activeYoutubeChannelId) setActiveYoutubeChannelId(freshData.youtube_channels[0].id);
         }
+        if(freshData.shows) {
+            setShows(freshData.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
+        }
       }
     } catch (err) { alert("An error occurred during sync. Check your server connection."); }
     setIsLoading(false);
@@ -984,7 +987,7 @@ export default function App() {
     const nonSeriesShows = shows.filter(s => s.title !== title);
     setShows([...nonSeriesShows, ...updatedEpisodes]);
     
-    updatedEpisodes.forEach(ep => sendToAPI('save_show', ep));
+    sendToAPI('save_shows_batch', { shows: updatedEpisodes });
     logActivity('Shows', 'Series Archived', `Archived series "${title}"`);
     setIsShowModalOpen(false);
   };
@@ -1023,7 +1026,7 @@ export default function App() {
         
         logActivity('Shows', 'Show Scheduled', `Scheduled "${editingShow.title}" for ${numOccurrences} consecutive weeks`);
         setShows(prev => [...prev, ...newShows]);
-        newShows.forEach(s => sendToAPI('save_show', s));
+        sendToAPI('save_shows_batch', { shows: newShows });
         
     } else if (!isNew && editingShow.editScope === 'series') {
         // BULK UPDATE ENTIRE SERIES
@@ -1048,7 +1051,7 @@ export default function App() {
         
         const nonSeriesShows = shows.filter(s => s.title !== editingShow.originalTitle);
         setShows([...nonSeriesShows, ...updatedEpisodes]);
-        updatedEpisodes.forEach(ep => sendToAPI('save_show', ep));
+        sendToAPI('save_shows_batch', { shows: updatedEpisodes });
         logActivity('Shows', 'Series Updated', `Bulk updated series "${editingShow.title}"`);
 
     } else {
