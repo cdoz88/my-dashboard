@@ -111,7 +111,7 @@ export default function App() {
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
-  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '' });
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
@@ -968,10 +968,25 @@ export default function App() {
     sendToAPI('delete_event', { id: eventId });
   };
 
-  const openShowModal = (show = null) => {
-    if (show) setEditingShow({ ...show, userIds: show.userIds || [] });
-    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '' });
+  // --- SHOWS HANDLERS (BULK EDIT AND ARCHIVE) ---
+  const openShowModal = (show = null, scope = 'episode') => {
+    if (show) setEditingShow({ ...show, userIds: show.userIds || [], editScope: scope, originalTitle: show.title });
+    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
     setIsShowModalOpen(true);
+  };
+
+  const handleArchiveSeries = (title) => {
+    if (!window.confirm(`Are you sure you want to end/archive "${title}"? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
+    
+    const episodesToArchive = shows.filter(s => s.title === title);
+    const updatedEpisodes = episodesToArchive.map(ep => ({ ...ep, status: 'Archived' }));
+    
+    const nonSeriesShows = shows.filter(s => s.title !== title);
+    setShows([...nonSeriesShows, ...updatedEpisodes]);
+    
+    updatedEpisodes.forEach(ep => sendToAPI('save_show', ep));
+    logActivity('Shows', 'Series Archived', `Archived series "${title}"`);
+    setIsShowModalOpen(false);
   };
 
   const handleSaveShow = (e) => {
@@ -1000,6 +1015,8 @@ export default function App() {
             };
             delete showData.isRecurring;
             delete showData.occurrences;
+            delete showData.editScope;
+            delete showData.originalTitle;
             
             newShows.push(showData);
         }
@@ -1008,10 +1025,39 @@ export default function App() {
         setShows(prev => [...prev, ...newShows]);
         newShows.forEach(s => sendToAPI('save_show', s));
         
+    } else if (!isNew && editingShow.editScope === 'series') {
+        // BULK UPDATE ENTIRE SERIES
+        const episodesToUpdate = shows.filter(s => s.title === editingShow.originalTitle);
+        const updatedEpisodes = episodesToUpdate.map(ep => ({
+            ...ep,
+            channelId: editingShow.channelId,
+            title: editingShow.title,
+            showTime: editingShow.showTime,
+            isLive: editingShow.isLive,
+            studio: editingShow.studio,
+            guestLink: editingShow.guestLink,
+            notes: editingShow.notes,
+            userIds: editingShow.userIds,
+            basePay: editingShow.basePay,
+            payPerHour: editingShow.payPerHour,
+            paymentStartDate: editingShow.paymentStartDate,
+            paymentMethod: editingShow.paymentMethod,
+            paymentAccount: editingShow.paymentAccount,
+            playlistId: editingShow.playlistId
+        }));
+        
+        const nonSeriesShows = shows.filter(s => s.title !== editingShow.originalTitle);
+        setShows([...nonSeriesShows, ...updatedEpisodes]);
+        updatedEpisodes.forEach(ep => sendToAPI('save_show', ep));
+        logActivity('Shows', 'Series Updated', `Bulk updated series "${editingShow.title}"`);
+
     } else {
+        // SINGLE EPISODE UPDATE OR NEW SINGLE EPISODE
         const showData = editingShow.id ? editingShow : { ...editingShow, id: 'show_' + Date.now() };
         delete showData.isRecurring;
         delete showData.occurrences;
+        delete showData.editScope;
+        delete showData.originalTitle;
 
         if (isNew) logActivity('Shows', 'Show Scheduled', `Scheduled "${showData.title}"`);
         
@@ -1026,7 +1072,7 @@ export default function App() {
 
   const handleDeleteShow = (id) => {
     const show = shows.find(s => s.id === id);
-    if (show) logActivity('Shows', 'Show Deleted', `Deleted show "${show.title}"`);
+    if (show) logActivity('Shows', 'Show Deleted', `Deleted single episode of "${show.title}"`);
     setShows(shows.filter(s => s.id !== id));
     setIsShowModalOpen(false);
     sendToAPI('delete_show', { id });
@@ -1534,7 +1580,7 @@ export default function App() {
       {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
       {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
       {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
-      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} currentUser={currentUser} />}
+      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} handleArchiveSeries={handleArchiveSeries} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} currentUser={currentUser} />}
       {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
       {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
       {isPasswordModalOpen && <PasswordModal editingPassword={editingPassword} setEditingPassword={setEditingPassword} handleSavePassword={handleSavePassword} handleDeletePassword={handleDeletePassword} setIsPasswordModalOpen={setIsPasswordModalOpen} visibleCompanies={visibleCompanies} users={users} currentUser={currentUser} />}

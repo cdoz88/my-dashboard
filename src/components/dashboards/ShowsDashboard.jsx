@@ -13,6 +13,10 @@ export default function ShowsDashboard({
   const getUser = (id) => users.find(u => u.id === id);
 
   let viewShows = activeShowTab === 'overview' ? shows : shows.filter(s => s.channelId === activeShowTab);
+  
+  // Exclude archived series from the schedule view
+  viewShows = viewShows.filter(s => s.status !== 'Archived');
+
   if (studioFilter !== 'All') {
       viewShows = viewShows.filter(s => s.studio === studioFilter);
   }
@@ -80,7 +84,7 @@ export default function ShowsDashboard({
                        return (
                            <button 
                               key={show.id} 
-                              onClick={() => openShowModal(show)} 
+                              onClick={() => openShowModal(show, 'episode')} 
                               className={`text-left p-2.5 rounded-xl border transition-all hover:-translate-y-0.5 hover:shadow-md shadow-sm bg-white relative ${colorClasses} group`}
                            >
                                <div className="font-bold flex items-center justify-between gap-1 mb-1.5">
@@ -139,7 +143,7 @@ export default function ShowsDashboard({
                              return (
                                  <tr key={show.id} className="hover:bg-slate-50 transition-colors group">
                                      <td className="p-4">
-                                         <div className="font-bold text-slate-800 cursor-pointer hover:text-red-600 transition-colors flex items-center gap-1.5" onClick={() => openShowModal(show)}>
+                                         <div className="font-bold text-slate-800 cursor-pointer hover:text-red-600 transition-colors flex items-center gap-1.5" onClick={() => openShowModal(show, 'episode')}>
                                             <span className="truncate">{show.title}</span>
                                             {hasSponsor && <Award size={14} className="text-amber-500 flex-shrink-0" title="Sponsored Show" />}
                                          </div>
@@ -193,7 +197,7 @@ export default function ShowsDashboard({
       // Create a unique array by grabbing the very first instance of each show Title + Time + Format combination
       const uniqueMap = new Map();
       viewShows.forEach(s => {
-          // Changed uniqueness key to include Title + Time + Format so different schedules don't get merged out of the UI
+          // Uniqueness key includes Title + Time + Format so different schedules don't get merged out of the UI
           const scheduleKey = `${s.title}|${s.showTime}|${s.isLive}`;
           if (!uniqueMap.has(scheduleKey)) {
               uniqueMap.set(scheduleKey, s);
@@ -224,7 +228,7 @@ export default function ShowsDashboard({
                              return (
                                  <tr key={show.id} className="hover:bg-slate-50 transition-colors group">
                                      <td className="p-4">
-                                         <div className="font-bold text-slate-800 cursor-pointer hover:text-red-600 transition-colors flex items-center gap-1.5" onClick={() => openShowModal(show)}>
+                                         <div className="font-bold text-slate-800 cursor-pointer hover:text-red-600 transition-colors flex items-center gap-1.5" onClick={() => openShowModal(show, 'series')}>
                                             <span className="truncate">{show.title}</span>
                                             {hasSponsor && <Award size={14} className="text-amber-500 flex-shrink-0" title="Sponsored Show" />}
                                          </div>
@@ -262,7 +266,7 @@ export default function ShowsDashboard({
                                          ) : <span className="text-xs text-slate-400 italic">No link</span>}
                                      </td>
                                      <td className="p-4 text-right">
-                                         <button onClick={() => handleDeleteShow(show.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 size={16}/></button>
+                                         <div className="text-[10px] text-slate-400 italic">Click Title to Edit</div>
                                      </td>
                                  </tr>
                              )
