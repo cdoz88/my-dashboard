@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 export default function LedgerDashboard({
   shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger
 }) {
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
+  const [historyModalShow, setHistoryModalShow] = useState(null); // Tracks which show's history to display
 
   // Filter out shows that don't have payment tracking enabled
   const eligibleShows = shows.filter(s => s.paymentStartDate);
@@ -78,7 +79,7 @@ export default function LedgerDashboard({
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
           <div className="text-slate-500 text-sm font-medium mb-1">Current Outstanding Balance</div>
-          <div className="text-3xl font-bold text-emerald-600">{formatCurrency(Math.max(0, grandTotalOwed))}</div>
+          <div className={`text-3xl font-bold ${grandTotalOwed < 0 ? 'text-red-500' : 'text-emerald-600'}`}>{formatCurrency(grandTotalOwed)}</div>
         </div>
       </div>
 
@@ -99,7 +100,7 @@ export default function LedgerDashboard({
                                <th className="p-4 w-40 text-center">Eligible YT Stats<br/><span className="text-[9px] font-normal normal-case">(Since Start Date)</span></th>
                                <th className="p-4 w-32 text-right">Total Earned</th>
                                <th className="p-4 w-32 text-right">Total Paid/Deducted</th>
-                               <th className="p-4 w-32 text-right bg-emerald-50/50 text-emerald-800">Current Balance</th>
+                               <th className="p-4 w-32 text-right bg-slate-50">Current Balance</th>
                                <th className="p-4 w-12 text-center"></th>
                            </tr>
                        </thead>
@@ -113,7 +114,7 @@ export default function LedgerDashboard({
                                return (
                                    <tr key={show.id} className="hover:bg-slate-50 transition-colors">
                                        <td className="p-4">
-                                           <div className="font-bold text-slate-800">{show.title}</div>
+                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalShow(show)} title="View Payment History">{show.title}</div>
                                            <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                                                <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
                                            </div>
@@ -133,9 +134,11 @@ export default function LedgerDashboard({
                                            {formatCurrency(paid)}
                                            {deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(deducted)} (Fines)</div>}
                                        </td>
-                                       <td className="p-4 text-right font-bold text-emerald-600 bg-emerald-50/30">{formatCurrency(Math.max(0, balance))}</td>
+                                       <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-emerald-600 bg-emerald-50/30'}`}>
+                                           {formatCurrency(balance)}
+                                       </td>
                                        <td className="p-4 text-center">
-                                           <button onClick={() => openPayoutModal({ showId: show.id, amount: Math.max(0, balance), paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                           <button onClick={() => openPayoutModal({ showId: show.id, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
                                                Pay Now
                                            </button>
                                        </td>
@@ -197,6 +200,74 @@ export default function LedgerDashboard({
                    </table>
                </div>
             </div>
+         )}
+
+         {/* HISTORY MODAL OVERLAY */}
+         {historyModalShow && (
+           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
+               <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+                 <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                        <Wallet size={20} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg text-slate-800 leading-tight">Payment History</h3>
+                        <p className="text-xs text-slate-500 font-medium">History for "{historyModalShow.title}"</p>
+                    </div>
+                 </div>
+                 <button onClick={() => setHistoryModalShow(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+               </div>
+               
+               <div className="overflow-y-auto flex-1 bg-slate-50">
+                  <table className="w-full text-left">
+                     <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                         <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                             <th className="p-4">Date Logged</th>
+                             <th className="p-4 text-right">Amount</th>
+                             <th className="p-4">Type / Account</th>
+                             <th className="p-4">Memo</th>
+                         </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                         {payouts.filter(p => p.showId === historyModalShow.id).length > 0 ? payouts.filter(p => p.showId === historyModalShow.id).map(p => (
+                             <tr key={p.id} className="hover:bg-white transition-colors cursor-pointer group" onClick={() => { setHistoryModalShow(null); openPayoutModal(p); }}>
+                                 <td className="p-4 text-sm font-medium text-slate-700">
+                                    {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
+                                 </td>
+                                 <td className="p-4 text-right font-bold">
+                                     {p.transactionType === 'Deduction' ? (
+                                         <span className="text-red-500">-{formatCurrency(p.amount)}</span>
+                                     ) : (
+                                         <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
+                                     )}
+                                 </td>
+                                 <td className="p-4">
+                                     {p.transactionType === 'Deduction' ? (
+                                         <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
+                                     ) : (
+                                         <>
+                                             <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
+                                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
+                                         </>
+                                     )}
+                                 </td>
+                                 <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
+                                     {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
+                                 </td>
+                             </tr>
+                         )) : (
+                             <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this show yet.</td></tr>
+                         )}
+                     </tbody>
+                  </table>
+               </div>
+               
+               <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0 bg-white">
+                 <button type="button" onClick={() => setHistoryModalShow(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
+               </div>
+             </div>
+           </div>
          )}
       </div>
     </div>
