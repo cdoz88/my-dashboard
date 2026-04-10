@@ -111,7 +111,7 @@ export default function App() {
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
-  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '' });
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '' });
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
@@ -122,7 +122,7 @@ export default function App() {
   
   // Ledger/Payout State
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
-  const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: '', paymentMethod: '', paymentAccount: '', notes: '' });
+  const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: '', paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
   const [isSyncingLedger, setIsSyncingLedger] = useState(false);
 
   // View States (Saved to Local Storage)
@@ -750,7 +750,7 @@ export default function App() {
   // --- PAYOUT LEDGER HANDLERS ---
   const openPayoutModal = (payout = null) => {
     if (payout) setEditingPayout({ ...payout });
-    else setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '' });
+    else setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
     setIsPayoutModalOpen(true);
   };
 
@@ -970,7 +970,7 @@ export default function App() {
 
   const openShowModal = (show = null) => {
     if (show) setEditingShow({ ...show, userIds: show.userIds || [] });
-    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '' });
+    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '' });
     setIsShowModalOpen(true);
   };
 
