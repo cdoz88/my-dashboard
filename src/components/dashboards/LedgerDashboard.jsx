@@ -8,8 +8,14 @@ export default function LedgerDashboard({
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
   const [historyModalShow, setHistoryModalShow] = useState(null); // Tracks which show's history to display
 
-  // Filter out shows that don't have payment tracking enabled
-  const eligibleShows = shows.filter(s => s.paymentStartDate);
+  // Filter out shows that don't have payment tracking enabled, and group by TITLE to combine recurring episodes
+  const uniqueEligibleShowsMap = new Map();
+  shows.filter(s => s.paymentStartDate).forEach(s => {
+      if (!uniqueEligibleShowsMap.has(s.title)) {
+          uniqueEligibleShowsMap.set(s.title, s);
+      }
+  });
+  const eligibleShows = Array.from(uniqueEligibleShowsMap.values());
 
   // Math Helpers
   const calculateTotalEarned = (show) => {
@@ -20,15 +26,18 @@ export default function LedgerDashboard({
       return baseTotal + hourlyTotal;
   };
 
-  const calculateTotalPaid = (showId) => {
+  // We find ALL show IDs that match the title, so recurring episodes are combined in the ledger
+  const calculateTotalPaid = (showTitle) => {
+      const relatedShowIds = shows.filter(s => s.title === showTitle).map(s => s.id);
       return payouts
-          .filter(p => p.showId === showId && p.transactionType === 'Payment')
+          .filter(p => relatedShowIds.includes(p.showId) && p.transactionType === 'Payment')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
   
-  const calculateTotalDeducted = (showId) => {
+  const calculateTotalDeducted = (showTitle) => {
+      const relatedShowIds = shows.filter(s => s.title === showTitle).map(s => s.id);
       return payouts
-          .filter(p => p.showId === showId && p.transactionType === 'Deduction')
+          .filter(p => relatedShowIds.includes(p.showId) && p.transactionType === 'Deduction')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
@@ -107,8 +116,8 @@ export default function LedgerDashboard({
                        <tbody className="divide-y divide-slate-100">
                            {eligibleShows.sort((a,b) => a.title.localeCompare(b.title)).map(show => {
                                const earned = calculateTotalEarned(show);
-                               const paid = calculateTotalPaid(show.id);
-                               const deducted = calculateTotalDeducted(show.id);
+                               const paid = calculateTotalPaid(show.title);
+                               const deducted = calculateTotalDeducted(show.title);
                                const balance = earned - paid - deducted;
                                
                                return (
@@ -230,35 +239,42 @@ export default function LedgerDashboard({
                          </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
-                         {payouts.filter(p => p.showId === historyModalShow.id).length > 0 ? payouts.filter(p => p.showId === historyModalShow.id).map(p => (
-                             <tr key={p.id} className="hover:bg-white transition-colors cursor-pointer group" onClick={() => { setHistoryModalShow(null); openPayoutModal(p); }}>
-                                 <td className="p-4 text-sm font-medium text-slate-700">
-                                    {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
-                                 </td>
-                                 <td className="p-4 text-right font-bold">
-                                     {p.transactionType === 'Deduction' ? (
-                                         <span className="text-red-500">-{formatCurrency(p.amount)}</span>
-                                     ) : (
-                                         <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
-                                     )}
-                                 </td>
-                                 <td className="p-4">
-                                     {p.transactionType === 'Deduction' ? (
-                                         <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
-                                     ) : (
-                                         <>
-                                             <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
-                                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
-                                         </>
-                                     )}
-                                 </td>
-                                 <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
-                                     {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
-                                 </td>
-                             </tr>
-                         )) : (
-                             <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this show yet.</td></tr>
-                         )}
+                         {(() => {
+                             const relatedShowIds = shows.filter(s => s.title === historyModalShow.title).map(s => s.id);
+                             const filteredPayouts = payouts.filter(p => relatedShowIds.includes(p.showId));
+                             
+                             if (filteredPayouts.length === 0) {
+                                 return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this show yet.</td></tr>;
+                             }
+                             
+                             return filteredPayouts.map(p => (
+                                 <tr key={p.id} className="hover:bg-white transition-colors cursor-pointer group" onClick={() => { setHistoryModalShow(null); openPayoutModal(p); }}>
+                                     <td className="p-4 text-sm font-medium text-slate-700">
+                                        {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
+                                     </td>
+                                     <td className="p-4 text-right font-bold">
+                                         {p.transactionType === 'Deduction' ? (
+                                             <span className="text-red-500">-{formatCurrency(p.amount)}</span>
+                                         ) : (
+                                             <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
+                                         )}
+                                     </td>
+                                     <td className="p-4">
+                                         {p.transactionType === 'Deduction' ? (
+                                             <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
+                                         ) : (
+                                             <>
+                                                 <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
+                                                 <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
+                                             </>
+                                         )}
+                                     </td>
+                                     <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
+                                         {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
+                                     </td>
+                                 </tr>
+                             ));
+                         })()}
                      </tbody>
                   </table>
                </div>

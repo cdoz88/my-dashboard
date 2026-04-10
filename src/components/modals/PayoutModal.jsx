@@ -18,6 +18,15 @@ export default function PayoutModal({
     });
   };
 
+  // Create a unique list of shows by title for the dropdown so recurring episodes aren't duplicated
+  const uniqueShowsMap = new Map();
+  shows.filter(s => s.paymentStartDate).forEach(s => {
+    if (!uniqueShowsMap.has(s.title)) {
+      uniqueShowsMap.set(s.title, s);
+    }
+  });
+  const eligibleUniqueShows = Array.from(uniqueShowsMap.values());
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
@@ -43,7 +52,7 @@ export default function PayoutModal({
               <label className="block text-sm font-medium text-slate-700 mb-1">Show / Creator</label>
               <select required value={editingPayout.showId} onChange={handleShowChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
                 <option value="" disabled>Select a show</option>
-                {shows.filter(s => s.paymentStartDate).map(s => (
+                {eligibleUniqueShows.map(s => (
                   <option key={s.id} value={s.id}>{s.title}</option>
                 ))}
               </select>
