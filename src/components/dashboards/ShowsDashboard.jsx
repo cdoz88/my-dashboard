@@ -190,11 +190,13 @@ export default function ShowsDashboard({
   };
 
   const renderList = () => {
-      // Create a unique array by grabbing the very first instance of each show title
+      // Create a unique array by grabbing the very first instance of each show Title + Time + Format combination
       const uniqueMap = new Map();
       viewShows.forEach(s => {
-          if (!uniqueMap.has(s.title)) {
-              uniqueMap.set(s.title, s);
+          // Changed uniqueness key to include Title + Time + Format so different schedules don't get merged out of the UI
+          const scheduleKey = `${s.title}|${s.showTime}|${s.isLive}`;
+          if (!uniqueMap.has(scheduleKey)) {
+              uniqueMap.set(scheduleKey, s);
           }
       });
       const uniqueShows = Array.from(uniqueMap.values()).sort((a, b) => a.title.localeCompare(b.title));
