@@ -4,28 +4,28 @@ import { CreditCard, X, DollarSign, FileText, Calendar, Wallet } from 'lucide-re
 export default function PayoutModal({
   editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, shows
 }) {
-  const activeShow = shows.find(s => s.id === editingPayout.showId);
 
-  // Auto-fill defaults if the show is selected and has default payment info
-  const handleShowChange = (e) => {
-    const showId = e.target.value;
-    const show = shows.find(s => s.id === showId);
-    setEditingPayout({
-      ...editingPayout,
-      showId: showId,
-      paymentMethod: show?.paymentMethod || '',
-      paymentAccount: show?.paymentAccount || ''
-    });
-  };
-
-  // Create a unique list of shows by title for the dropdown so recurring episodes aren't duplicated
-  const uniqueShowsMap = new Map();
-  shows.filter(s => s.paymentStartDate).forEach(s => {
-    if (!uniqueShowsMap.has(s.title)) {
-      uniqueShowsMap.set(s.title, s);
+  // Create a unique list of Playlists for the dropdown
+  const uniquePlaylistsMap = new Map();
+  shows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
+    if (!uniquePlaylistsMap.has(s.playlistId)) {
+      uniquePlaylistsMap.set(s.playlistId, s);
     }
   });
-  const eligibleUniqueShows = Array.from(uniqueShowsMap.values());
+  const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
+
+  const activePlaylist = eligiblePlaylists.find(s => s.playlistId === editingPayout.showId);
+
+  const handlePlaylistChange = (e) => {
+    const playlistId = e.target.value;
+    const playlistRep = eligiblePlaylists.find(s => s.playlistId === playlistId);
+    setEditingPayout({
+      ...editingPayout,
+      showId: playlistId,
+      paymentMethod: playlistRep?.paymentMethod || '',
+      paymentAccount: playlistRep?.paymentAccount || ''
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -49,11 +49,11 @@ export default function PayoutModal({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Show / Creator</label>
-              <select required value={editingPayout.showId} onChange={handleShowChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                <option value="" disabled>Select a show</option>
-                {eligibleUniqueShows.map(s => (
-                  <option key={s.id} value={s.id}>{s.title}</option>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Playlist / Target</label>
+              <select required value={editingPayout.showId} onChange={handlePlaylistChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                <option value="" disabled>Select a playlist</option>
+                {eligiblePlaylists.map(s => (
+                  <option key={s.playlistId} value={s.playlistId}>{s.playlistName || s.title}</option>
                 ))}
               </select>
             </div>
@@ -89,9 +89,9 @@ export default function PayoutModal({
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Account Details Sent To</label>
                     <input required type="text" value={editingPayout.paymentAccount} onChange={(e) => setEditingPayout({...editingPayout, paymentAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Username, Email, Account #" />
-                    {activeShow && activeShow.paymentMethod && (
+                    {activePlaylist && activePlaylist.paymentMethod && (
                        <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                          💡 Default method for this show: <b>{activeShow.paymentMethod} ({activeShow.paymentAccount})</b>
+                          💡 Default method for this playlist: <b>{activePlaylist.paymentMethod} ({activePlaylist.paymentAccount})</b>
                        </p>
                     )}
                 </div>

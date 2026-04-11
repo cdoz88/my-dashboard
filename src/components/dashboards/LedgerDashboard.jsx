@@ -3,48 +3,60 @@ import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X,
 import { formatCurrency } from '../../utils/helpers';
 
 export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser
 }) {
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
-  const [historyModalShow, setHistoryModalShow] = useState(null); // Tracks which show's history to display
+  const [historyModalPlaylist, setHistoryModalPlaylist] = useState(null);
 
-  // Filter out shows that don't have payment tracking enabled, and group by TITLE to combine recurring episodes
-  const uniqueEligibleShowsMap = new Map();
-  shows.filter(s => s.paymentStartDate).forEach(s => {
-      if (!uniqueEligibleShowsMap.has(s.title)) {
-          uniqueEligibleShowsMap.set(s.title, s);
+  // 1. Determine which shows this user is allowed to see.
+  // Admins see all shows. Non-admins only see shows where they are a cast member.
+  const allowedShows = shows.filter(s => 
+      currentUser?.isAdmin || (s.userIds || []).includes(currentUser?.id)
+  );
+
+  // 2. Filter out shows that don't have tracking enabled, and group completely by Playlist ID
+  const uniquePlaylistsMap = new Map();
+  allowedShows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
+      if (!uniquePlaylistsMap.has(s.playlistId)) {
+          // Store the very first show record found for this playlist as the representative
+          uniquePlaylistsMap.set(s.playlistId, s);
       }
   });
-  const eligibleShows = Array.from(uniqueEligibleShowsMap.values());
+  const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
+
+  // 3. Filter payouts so non-admins only see payouts for their allowed playlists
+  const allowedPlaylistIds = eligiblePlaylists.map(s => s.playlistId);
+  const visiblePayouts = payouts.filter(p => allowedPlaylistIds.includes(p.showId));
 
   // Math Helpers
   const calculateTotalEarned = (show) => {
       const videos = parseInt(show.ledgerVideos || 0);
       const hours = parseFloat(show.ledgerHours || 0);
+      // It aggregates perfectly because the API fetches total videos & total hours for the entire Playlist
       const baseTotal = videos * parseFloat(show.basePay || 0);
       const hourlyTotal = hours * parseFloat(show.payPerHour || 0);
       return baseTotal + hourlyTotal;
   };
 
-  // We find ALL show IDs that match the title, so recurring episodes are combined in the ledger
-  const calculateTotalPaid = (showTitle) => {
-      const relatedShowIds = shows.filter(s => s.title === showTitle).map(s => s.id);
-      return payouts
-          .filter(p => relatedShowIds.includes(p.showId) && p.transactionType === 'Payment')
+  const calculateTotalPaid = (playlistId) => {
+      // Find all raw show IDs that share this playlistId (to support legacy payout records)
+      const relatedShowIds = allowedShows.filter(s => s.playlistId === playlistId).map(s => s.id);
+      return visiblePayouts
+          .filter(p => (p.showId === playlistId || relatedShowIds.includes(p.showId)) && p.transactionType === 'Payment')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
   
-  const calculateTotalDeducted = (showTitle) => {
-      const relatedShowIds = shows.filter(s => s.title === showTitle).map(s => s.id);
-      return payouts
-          .filter(p => relatedShowIds.includes(p.showId) && p.transactionType === 'Deduction')
+  const calculateTotalDeducted = (playlistId) => {
+      const relatedShowIds = allowedShows.filter(s => s.playlistId === playlistId).map(s => s.id);
+      return visiblePayouts
+          .filter(p => (p.showId === playlistId || relatedShowIds.includes(p.showId)) && p.transactionType === 'Deduction')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
   // Grand Totals for top cards
-  const grandTotalEarned = eligibleShows.reduce((sum, s) => sum + calculateTotalEarned(s), 0);
-  const grandTotalPaid = payouts.filter(p => p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-  const grandTotalDeducted = payouts.filter(p => p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  const grandTotalEarned = eligiblePlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
+  const grandTotalPaid = visiblePayouts.filter(p => p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  const grandTotalDeducted = visiblePayouts.filter(p => p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   const grandTotalOwed = grandTotalEarned - grandTotalPaid - grandTotalDeducted;
 
   return (
@@ -55,26 +67,32 @@ export default function LedgerDashboard({
              <Calculator className="text-emerald-600" size={28} />
              Creator Payout Ledger
           </h2>
-          <p className="text-slate-500 text-sm mt-1">Running balance calculator driven by YouTube watch hours.</p>
+          <p className="text-slate-500 text-sm mt-1">
+             {currentUser?.isAdmin 
+                 ? "Running balance calculator driven by YouTube watch hours." 
+                 : "Your personal earnings calculator driven by YouTube watch hours."}
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-           <button 
-             onClick={handleSyncLedger} 
-             disabled={isSyncingLedger}
-             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${isSyncingLedger ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-           >
-             <RefreshCw size={16} className={isSyncingLedger ? 'animate-spin' : ''} />
-             {isSyncingLedger ? 'Syncing YouTube Data...' : 'Sync Latest Data'}
-           </button>
+        {currentUser?.isAdmin && (
+            <div className="flex items-center gap-3">
+               <button 
+                 onClick={handleSyncLedger} 
+                 disabled={isSyncingLedger}
+                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${isSyncingLedger ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+               >
+                 <RefreshCw size={16} className={isSyncingLedger ? 'animate-spin' : ''} />
+                 {isSyncingLedger ? 'Syncing YouTube Data...' : 'Sync Latest Data'}
+               </button>
 
-           <button 
-             onClick={() => openPayoutModal()} 
-             className="bg-slate-900 text-emerald-400 hover:bg-slate-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-           >
-             <Plus size={16} strokeWidth={2.5} /> Log Transaction
-           </button>
-        </div>
+               <button 
+                 onClick={() => openPayoutModal()} 
+                 className="bg-slate-900 text-emerald-400 hover:bg-slate-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+               >
+                 <Plus size={16} strokeWidth={2.5} /> Log Transaction
+               </button>
+            </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
@@ -104,26 +122,27 @@ export default function LedgerDashboard({
                    <table className="w-full text-left min-w-[1000px]">
                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                            <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                               <th className="p-4 w-56">Show Name</th>
+                               <th className="p-4 w-56">Playlist / Show Name</th>
                                <th className="p-4 w-32">Pay Rates</th>
                                <th className="p-4 w-40 text-center">Eligible YT Stats<br/><span className="text-[9px] font-normal normal-case">(Since Start Date)</span></th>
                                <th className="p-4 w-32 text-right">Total Earned</th>
                                <th className="p-4 w-32 text-right">Total Paid/Deducted</th>
                                <th className="p-4 w-32 text-right bg-slate-50">Current Balance</th>
-                               <th className="p-4 w-12 text-center"></th>
+                               {currentUser?.isAdmin && <th className="p-4 w-12 text-center"></th>}
                            </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100">
-                           {eligibleShows.sort((a,b) => a.title.localeCompare(b.title)).map(show => {
+                           {eligiblePlaylists.map(show => {
+                               const displayName = show.playlistName || show.title;
                                const earned = calculateTotalEarned(show);
-                               const paid = calculateTotalPaid(show.title);
-                               const deducted = calculateTotalDeducted(show.title);
+                               const paid = calculateTotalPaid(show.playlistId);
+                               const deducted = calculateTotalDeducted(show.playlistId);
                                const balance = earned - paid - deducted;
                                
                                return (
-                                   <tr key={show.id} className="hover:bg-slate-50 transition-colors">
+                                   <tr key={show.playlistId} className="hover:bg-slate-50 transition-colors">
                                        <td className="p-4">
-                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalShow(show)} title="View Payment History">{show.title}</div>
+                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalPlaylist(show)} title="View Payment History">{displayName}</div>
                                            <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                                                <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
                                            </div>
@@ -146,15 +165,17 @@ export default function LedgerDashboard({
                                        <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-emerald-600 bg-emerald-50/30'}`}>
                                            {formatCurrency(balance)}
                                        </td>
-                                       <td className="p-4 text-center">
-                                           <button onClick={() => openPayoutModal({ showId: show.id, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
-                                               Pay Now
-                                           </button>
-                                       </td>
+                                       {currentUser?.isAdmin && (
+                                           <td className="p-4 text-center">
+                                               <button onClick={() => openPayoutModal({ showId: show.playlistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                                   Pay Now
+                                               </button>
+                                           </td>
+                                       )}
                                    </tr>
                                )
                            })}
-                           {eligibleShows.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-500">No shows currently have payment tracking enabled. Go to the Shows app to configure payment settings for a show.</td></tr>}
+                           {eligiblePlaylists.length === 0 && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows currently available on the ledger.</td></tr>}
                        </tbody>
                    </table>
                </div>
@@ -166,21 +187,24 @@ export default function LedgerDashboard({
                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                            <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                <th className="p-4">Date Logged</th>
-                               <th className="p-4">Show / Creator</th>
+                               <th className="p-4">Playlist / Target</th>
                                <th className="p-4 text-right">Amount</th>
                                <th className="p-4">Type / Account</th>
                                <th className="p-4">Memo</th>
                            </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100">
-                           {payouts.map(p => {
-                               const show = shows.find(s => s.id === p.showId);
+                           {visiblePayouts.map(p => {
+                               // Check if it matches a playlistId or legacy show.id
+                               const playlist = eligiblePlaylists.find(s => s.playlistId === p.showId || s.id === p.showId);
+                               const displayName = playlist ? (playlist.playlistName || playlist.title) : 'Unknown Playlist';
+                               
                                return (
-                                   <tr key={p.id} className="hover:bg-slate-50 transition-colors cursor-pointer group" onClick={() => openPayoutModal(p)}>
+                                   <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) openPayoutModal(p); }}>
                                        <td className="p-4 text-sm font-medium text-slate-700">
                                           {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
                                        </td>
-                                       <td className="p-4 font-bold text-slate-800">{show?.title || 'Unknown Show'}</td>
+                                       <td className="p-4 font-bold text-slate-800">{displayName}</td>
                                        <td className="p-4 text-right font-bold">
                                            {p.transactionType === 'Deduction' ? (
                                                <span className="text-red-500">-{formatCurrency(p.amount)}</span>
@@ -204,7 +228,7 @@ export default function LedgerDashboard({
                                    </tr>
                                )
                            })}
-                           {payouts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged yet.</td></tr>}
+                           {visiblePayouts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged yet.</td></tr>}
                        </tbody>
                    </table>
                </div>
@@ -212,7 +236,7 @@ export default function LedgerDashboard({
          )}
 
          {/* HISTORY MODAL OVERLAY */}
-         {historyModalShow && (
+         {historyModalPlaylist && (
            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
              <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
                <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
@@ -222,10 +246,10 @@ export default function LedgerDashboard({
                     </div>
                     <div>
                         <h3 className="font-bold text-lg text-slate-800 leading-tight">Payment History</h3>
-                        <p className="text-xs text-slate-500 font-medium">History for "{historyModalShow.title}"</p>
+                        <p className="text-xs text-slate-500 font-medium">History for "{historyModalPlaylist.playlistName || historyModalPlaylist.title}"</p>
                     </div>
                  </div>
-                 <button onClick={() => setHistoryModalShow(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+                 <button onClick={() => setHistoryModalPlaylist(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
                </div>
                
                <div className="overflow-y-auto flex-1 bg-slate-50">
@@ -240,15 +264,15 @@ export default function LedgerDashboard({
                      </thead>
                      <tbody className="divide-y divide-slate-100">
                          {(() => {
-                             const relatedShowIds = shows.filter(s => s.title === historyModalShow.title).map(s => s.id);
-                             const filteredPayouts = payouts.filter(p => relatedShowIds.includes(p.showId));
+                             const relatedShowIds = allowedShows.filter(s => s.playlistId === historyModalPlaylist.playlistId).map(s => s.id);
+                             const filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalPlaylist.playlistId || relatedShowIds.includes(p.showId));
                              
                              if (filteredPayouts.length === 0) {
-                                 return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this show yet.</td></tr>;
+                                 return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this playlist yet.</td></tr>;
                              }
                              
                              return filteredPayouts.map(p => (
-                                 <tr key={p.id} className="hover:bg-white transition-colors cursor-pointer group" onClick={() => { setHistoryModalShow(null); openPayoutModal(p); }}>
+                                 <tr key={p.id} className={`hover:bg-white transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) { setHistoryModalPlaylist(null); openPayoutModal(p); } }}>
                                      <td className="p-4 text-sm font-medium text-slate-700">
                                         {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
                                      </td>
@@ -280,7 +304,7 @@ export default function LedgerDashboard({
                </div>
                
                <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0 bg-white">
-                 <button type="button" onClick={() => setHistoryModalShow(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
+                 <button type="button" onClick={() => setHistoryModalPlaylist(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
                </div>
              </div>
            </div>

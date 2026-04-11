@@ -194,11 +194,12 @@ export default function ShowsDashboard({
   };
 
   const renderList = () => {
-      // Create a unique array by grabbing the very first instance of each show Title + Time + Format combination
+      // Group by Title AND Time AND Day of Week so different schedules of the same show aren't merged together!
       const uniqueMap = new Map();
       viewShows.forEach(s => {
-          // Uniqueness key includes Title + Time + Format so different schedules don't get merged out of the UI
-          const scheduleKey = `${s.title}|${s.showTime}|${s.isLive}`;
+          const dateObj = new Date(`${s.showDate}T12:00:00`);
+          const dayOfWeek = dateObj.getDay();
+          const scheduleKey = `${s.title}|${s.showTime}|${dayOfWeek}`;
           if (!uniqueMap.has(scheduleKey)) {
               uniqueMap.set(scheduleKey, s);
           }
@@ -224,6 +225,7 @@ export default function ShowsDashboard({
                              const channel = getChannel(show.channelId);
                              const cColor = channel?.color || 'slate';
                              const hasSponsor = sponsorships.some(sp => (sp.showTitles || []).includes(show.title));
+                             const dayName = dayNames[new Date(`${show.showDate}T12:00:00`).getDay()];
 
                              return (
                                  <tr key={show.id} className="hover:bg-slate-50 transition-colors group">
@@ -235,7 +237,7 @@ export default function ShowsDashboard({
                                          {activeShowTab === 'overview' && <div className="text-[10px] text-slate-500 mt-0.5">{channel?.name || 'Unknown Channel'}</div>}
                                      </td>
                                      <td className="p-4 text-sm font-medium text-slate-700 whitespace-nowrap">
-                                         <span className="text-slate-400 block text-xs mb-0.5">Time:</span>
+                                         <span className="text-slate-400 block text-xs mb-0.5">{dayName}s at</span>
                                          {show.showTime ? (() => { let [h, m] = show.showTime.split(':'); return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`; })() : 'TBD'}
                                      </td>
                                      <td className="p-4">

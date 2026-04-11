@@ -973,22 +973,43 @@ export default function App() {
 
   // --- SHOWS HANDLERS (BULK EDIT AND ARCHIVE) ---
   const openShowModal = (show = null, scope = 'episode') => {
-    if (show) setEditingShow({ ...show, userIds: show.userIds || [], editScope: scope, originalTitle: show.title });
-    else setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
+    if (show) {
+        // Compute original day of week so we can safely edit recurring series even if they share the same name
+        const dayOfWeek = new Date(`${show.showDate}T12:00:00`).getDay();
+        setEditingShow({ 
+            ...show, 
+            userIds: show.userIds || [], 
+            editScope: scope, 
+            originalTitle: show.title,
+            originalShowTime: show.showTime,
+            originalDayOfWeek: dayOfWeek
+        });
+    } else {
+        setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
+    }
     setIsShowModalOpen(true);
   };
 
-  const handleArchiveSeries = (title) => {
-    if (!window.confirm(`Are you sure you want to end/archive "${title}"? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
+  const handleArchiveSeries = (showToArchive) => {
+    if (!window.confirm(`Are you sure you want to end/archive this series? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
     
-    const episodesToArchive = shows.filter(s => s.title === title);
+    const episodesToArchive = shows.filter(s => {
+        if (s.title !== showToArchive.originalTitle) return false;
+        if (s.showTime !== showToArchive.originalShowTime) return false;
+        const sDay = new Date(`${s.showDate}T12:00:00`).getDay();
+        if (sDay !== showToArchive.originalDayOfWeek) return false;
+        return true;
+    });
+
     const updatedEpisodes = episodesToArchive.map(ep => ({ ...ep, status: 'Archived' }));
     
-    const nonSeriesShows = shows.filter(s => s.title !== title);
+    // Non-series shows are everything else (including shows with same name but different day/time)
+    const nonSeriesShows = shows.filter(s => !episodesToArchive.some(ep => ep.id === s.id));
+    
     setShows([...nonSeriesShows, ...updatedEpisodes]);
     
     sendToAPI('save_shows_batch', { shows: updatedEpisodes });
-    logActivity('Shows', 'Series Archived', `Archived series "${title}"`);
+    logActivity('Shows', 'Series Archived', `Archived series "${showToArchive.originalTitle}"`);
     setIsShowModalOpen(false);
   };
 
@@ -1020,6 +1041,8 @@ export default function App() {
             delete showData.occurrences;
             delete showData.editScope;
             delete showData.originalTitle;
+            delete showData.originalShowTime;
+            delete showData.originalDayOfWeek;
             
             newShows.push(showData);
         }
@@ -1029,8 +1052,15 @@ export default function App() {
         sendToAPI('save_shows_batch', { shows: newShows });
         
     } else if (!isNew && editingShow.editScope === 'series') {
-        // BULK UPDATE ENTIRE SERIES
-        const episodesToUpdate = shows.filter(s => s.title === editingShow.originalTitle);
+        // BULK UPDATE ENTIRE SERIES based on Title + Time + DayOfWeek match
+        const episodesToUpdate = shows.filter(s => {
+            if (s.title !== editingShow.originalTitle) return false;
+            if (s.showTime !== editingShow.originalShowTime) return false;
+            const sDay = new Date(`${s.showDate}T12:00:00`).getDay();
+            if (sDay !== editingShow.originalDayOfWeek) return false;
+            return true;
+        });
+
         const updatedEpisodes = episodesToUpdate.map(ep => ({
             ...ep,
             channelId: editingShow.channelId,
@@ -1049,7 +1079,7 @@ export default function App() {
             playlistId: editingShow.playlistId
         }));
         
-        const nonSeriesShows = shows.filter(s => s.title !== editingShow.originalTitle);
+        const nonSeriesShows = shows.filter(s => !episodesToUpdate.some(ep => ep.id === s.id));
         setShows([...nonSeriesShows, ...updatedEpisodes]);
         sendToAPI('save_shows_batch', { shows: updatedEpisodes });
         logActivity('Shows', 'Series Updated', `Bulk updated series "${editingShow.title}"`);
@@ -1061,6 +1091,8 @@ export default function App() {
         delete showData.occurrences;
         delete showData.editScope;
         delete showData.originalTitle;
+        delete showData.originalShowTime;
+        delete showData.originalDayOfWeek;
 
         if (isNew) logActivity('Shows', 'Show Scheduled', `Scheduled "${showData.title}"`);
         
@@ -1561,7 +1593,7 @@ export default function App() {
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} shows={shows} youtubeChannels={youtubeChannels} />
             ) : currentApp === 'ledger' ? (
-              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} />
+              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} currentUser={currentUser} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}
