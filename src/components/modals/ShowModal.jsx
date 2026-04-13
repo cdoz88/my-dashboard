@@ -11,7 +11,6 @@ export default function ShowModal({
 
   const showSponsors = (sponsorships || []).filter(sp => (sp.showTitles || []).includes(editingShow.title));
 
-  // Time parsing logic to switch from generic 24hr picker to custom 15-minute intervals
   const timeParts = editingShow.showTime ? editingShow.showTime.split(':') : ['12', '00'];
   let showH = parseInt(timeParts[0], 10);
   const showM = timeParts[1] || '00';
@@ -153,8 +152,8 @@ export default function ShowModal({
                     <input type="number" step="0.01" min="0" value={editingShow.basePay || ''} onChange={(e) => setEditingShow({...editingShow, basePay: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Pay Per Watch Hour ($)</label>
-                    <input type="number" step="0.01" min="0" value={editingShow.payPerHour || ''} onChange={(e) => setEditingShow({...editingShow, payPerHour: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Revenue Share (%)</label>
+                    <input type="number" step="1" min="0" max="100" value={editingShow.revShare ?? 100} onChange={(e) => setEditingShow({...editingShow, revShare: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="100" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -186,7 +185,7 @@ export default function ShowModal({
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">YouTube Playlist ID / URL</label>
                   <input type="text" value={editingShow.playlistId || ''} onChange={(e) => setEditingShow({...editingShow, playlistId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., PLxxxxxx or full playlist URL" />
-                  <p className="text-[10px] text-slate-500 mt-1">Required to automatically pull watch hours for this show.</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Required to automatically pull revenue statistics for this show.</p>
                 </div>
               </div>
             )}

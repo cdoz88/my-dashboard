@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
-// Helper to extract just the pure Playlist ID from a URL or messy string
 const normalizePlaylistId = (input) => {
     if (!input) return '';
     let id = input.trim();
@@ -24,7 +23,6 @@ export default function LedgerDashboard({
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
   const [historyModalItem, setHistoryModalItem] = useState(null);
 
-  // Default the filter to 'all' if it's an unrecognized tab (like 'mytasks' from initial load)
   const currentFilter = ['all', 'youtube', 'wordpress'].includes(activeTab) ? activeTab : 'all';
 
   // --- 1. YOUTUBE SHOWS LOGIC ---
@@ -43,10 +41,11 @@ export default function LedgerDashboard({
 
   const calculateTotalEarned = (show) => {
       const videos = parseInt(show.ledgerVideos || 0);
-      const hours = parseFloat(show.ledgerHours || 0);
+      const revenue = parseFloat(show.ledgerRevenue || 0);
       const baseTotal = videos * parseFloat(show.basePay || 0);
-      const hourlyTotal = hours * parseFloat(show.payPerHour || 0);
-      return baseTotal + hourlyTotal;
+      const revSharePct = parseFloat(show.revShare ?? 100) / 100;
+      const revShareTotal = revenue * revSharePct;
+      return baseTotal + revShareTotal;
   };
 
   const calculateTotalPaid = (normalizedPlaylistId) => {
@@ -102,15 +101,12 @@ export default function LedgerDashboard({
   const allowedFilteredWpShowIds = filteredWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
   
   const visiblePayouts = payouts.filter(p => {
-      // If filtering by YouTube, only show YT payouts
       if (currentFilter === 'youtube') {
           return allowedFilteredPlaylistIds.includes(p.showId) || rawAllowedFilteredPlaylistIds.includes(p.showId);
       }
-      // If filtering by WordPress, only show WP payouts
       if (currentFilter === 'wordpress') {
           return allowedFilteredWpShowIds.includes(p.showId);
       }
-      // Otherwise show all allowed payouts
       return (
           allowedFilteredPlaylistIds.includes(p.showId) || 
           rawAllowedFilteredPlaylistIds.includes(p.showId) || 
@@ -137,8 +133,8 @@ export default function LedgerDashboard({
           </h2>
           <p className="text-slate-500 text-sm mt-1">
              {currentUser?.isAdmin 
-                 ? "Running balance calculator driven by YouTube watch hours and WordPress articles." 
-                 : "Your personal earnings calculator driven by YouTube watch hours and WordPress articles."}
+                 ? "Running balance calculator driven by YouTube video revenue and WordPress articles." 
+                 : "Your personal earnings calculator driven by YouTube video revenue and WordPress articles."}
           </p>
         </div>
 
@@ -218,12 +214,12 @@ export default function LedgerDashboard({
                                        </td>
                                        <td className="p-4 text-xs font-medium text-slate-600">
                                            <div>Base: {formatCurrency(show.basePay)}/ep</div>
-                                           <div className="mt-1">Watch: {formatCurrency(show.payPerHour)}/hr</div>
+                                           <div className="mt-1">Rev Share: {show.revShare ?? 100}%</div>
                                        </td>
                                        <td className="p-4">
                                            <div className="flex justify-center gap-4 text-xs">
                                                <div className="text-center"><div className="font-bold text-slate-800">{show.ledgerVideos || 0}</div><div className="text-[9px] text-slate-400 uppercase">Videos</div></div>
-                                               <div className="text-center"><div className="font-bold text-slate-800">{parseFloat(show.ledgerHours || 0).toLocaleString()}</div><div className="text-[9px] text-slate-400 uppercase">Hours</div></div>
+                                               <div className="text-center"><div className="font-bold text-emerald-600">{formatCurrency(show.ledgerRevenue || 0)}</div><div className="text-[9px] text-slate-400 uppercase">Total Rev</div></div>
                                            </div>
                                        </td>
                                        <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>

@@ -113,8 +113,11 @@ export default function App() {
   const [paymentMode, setPaymentMode] = useState('single');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
+  
+  // NOTE: Changed default state to include `revShare: 100` instead of just payPerHour
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
-  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
+  const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, revShare: 100, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
+  
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
@@ -286,7 +289,7 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- FETCH WORDPRESS LEDGER DATA (WITH CACHE BUSTER) ---
+  // --- FETCH WORDPRESS LEDGER DATA ---
   useEffect(() => {
      if (currentUser) {
          fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`)
@@ -582,6 +585,7 @@ export default function App() {
      }
   }, [events, currentUser]); 
 
+  // --- OAUTH REDIRECT HANDLER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -790,7 +794,6 @@ export default function App() {
     setIsSyncingLedger(true);
     await handleSyncYoutube('lifetime'); 
     
-    // NEW: Sync WordPress Ledger Data
     try {
         const res = await fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`);
         const data = await res.json();
@@ -1005,10 +1008,11 @@ export default function App() {
             editScope: scope, 
             originalTitle: show.title,
             originalShowTime: show.showTime,
-            originalDayOfWeek: dayOfWeek
+            originalDayOfWeek: dayOfWeek,
+            revShare: show.revShare ?? 100
         });
     } else {
-        setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
+        setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, revShare: 100, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
     }
     setIsShowModalOpen(true);
   };
@@ -1090,7 +1094,7 @@ export default function App() {
             notes: editingShow.notes,
             userIds: editingShow.userIds,
             basePay: editingShow.basePay,
-            payPerHour: editingShow.payPerHour,
+            revShare: editingShow.revShare,
             paymentStartDate: editingShow.paymentStartDate,
             paymentMethod: editingShow.paymentMethod,
             paymentAccount: editingShow.paymentAccount,
@@ -1227,7 +1231,7 @@ export default function App() {
 
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id), wpUserId: userToEdit.wpUserId || '' });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
     setIsTeamModalOpen(true);
   };
 
@@ -1409,16 +1413,15 @@ export default function App() {
 
   const openProfileModal = () => {
     if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', password: '', avatarUrl: currentUser.avatarUrl, webhookUrl: currentUser.webhookUrl || '' });
+      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', avatarUrl: currentUser.avatarUrl, webhookUrl: currentUser.webhookUrl || '' });
       setIsProfileModalOpen(true);
     }
   };
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, password: profileForm.password, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
+    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
     const localUser = { ...updatedUser };
-    delete localUser.password;
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
     else setUsers([...users, localUser]);
     setIsProfileModalOpen(false);
@@ -1435,7 +1438,6 @@ export default function App() {
     delete userToSave.generateOnboarding; 
     
     const localUser = { ...userToSave };
-    delete localUser.password; 
 
     if (isNew) {
         logActivity('Team', 'New Member Added', `Added "${userToSave.name}" to the team directory.`);
