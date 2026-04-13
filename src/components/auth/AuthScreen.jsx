@@ -40,7 +40,7 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
   }, []);
 
   const handleWordPressLogin = () => {
-     // Redirect the user to the WordPress site's SSO portal
+     // Point directly to the root with our flag, let WP handle the custom login routing
      window.location.href = "https://admin.fsan.com/?fsan_sso=1";
   };
 
