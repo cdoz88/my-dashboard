@@ -2,6 +2,22 @@ import React, { useState } from 'react';
 import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
+// Helper to extract just the pure Playlist ID from a URL or messy string
+const normalizePlaylistId = (input) => {
+    if (!input) return '';
+    let id = input.trim();
+    const match = id.match(/[?&]list=([^&]+)/) || id.match(/^list=([^&]+)/);
+    if (match) return match[1];
+    if (id.includes('http')) {
+        try {
+            const url = new URL(id);
+            const params = new URLSearchParams(url.search);
+            if (params.has('list')) return params.get('list');
+        } catch(e) {}
+    }
+    return id;
+};
+
 export default function LedgerDashboard({
   shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users
 }) {
@@ -13,10 +29,12 @@ export default function LedgerDashboard({
       currentUser?.isAdmin || (s.userIds || []).includes(currentUser?.id)
   );
 
+  // Group completely by the CLEAN Playlist ID to prevent duplicate rows from messy user inputs
   const uniquePlaylistsMap = new Map();
   allowedShows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
-      if (!uniquePlaylistsMap.has(s.playlistId)) {
-          uniquePlaylistsMap.set(s.playlistId, s);
+      const cleanId = normalizePlaylistId(s.playlistId);
+      if (!uniquePlaylistsMap.has(cleanId)) {
+          uniquePlaylistsMap.set(cleanId, { ...s, normalizedPlaylistId: cleanId });
       }
   });
   const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
@@ -29,17 +47,30 @@ export default function LedgerDashboard({
       return baseTotal + hourlyTotal;
   };
 
-  const calculateTotalPaid = (playlistId) => {
-      const relatedShowIds = allowedShows.filter(s => s.playlistId === playlistId).map(s => s.id);
+  const calculateTotalPaid = (normalizedPlaylistId) => {
+      // Find all raw show IDs that share this clean playlistId (to support legacy payout records & raw inputs)
+      const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.id);
+      const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.playlistId);
+      
       return payouts
-          .filter(p => (p.showId === playlistId || relatedShowIds.includes(p.showId)) && p.transactionType === 'Payment')
+          .filter(p => (
+              p.showId === normalizedPlaylistId || 
+              rawPlaylistIds.includes(p.showId) || 
+              relatedShowIds.includes(p.showId)
+          ) && p.transactionType === 'Payment')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
   
-  const calculateTotalDeducted = (playlistId) => {
-      const relatedShowIds = allowedShows.filter(s => s.playlistId === playlistId).map(s => s.id);
+  const calculateTotalDeducted = (normalizedPlaylistId) => {
+      const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.id);
+      const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.playlistId);
+      
       return payouts
-          .filter(p => (p.showId === playlistId || relatedShowIds.includes(p.showId)) && p.transactionType === 'Deduction')
+          .filter(p => (
+              p.showId === normalizedPlaylistId || 
+              rawPlaylistIds.includes(p.showId) || 
+              relatedShowIds.includes(p.showId)
+          ) && p.transactionType === 'Deduction')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
@@ -63,9 +94,15 @@ export default function LedgerDashboard({
   };
 
   // --- 3. AGGREGATING PAYOUTS FOR HISTORY TAB ---
-  const allowedPlaylistIds = eligiblePlaylists.map(s => s.playlistId);
+  const allowedPlaylistIds = eligiblePlaylists.map(s => s.normalizedPlaylistId);
+  const rawAllowedPlaylistIds = eligiblePlaylists.map(s => s.playlistId);
   const allowedWpShowIds = visibleWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
-  const visiblePayouts = payouts.filter(p => allowedPlaylistIds.includes(p.showId) || allowedWpShowIds.includes(p.showId));
+  
+  const visiblePayouts = payouts.filter(p => 
+      allowedPlaylistIds.includes(p.showId) || 
+      rawAllowedPlaylistIds.includes(p.showId) || 
+      allowedWpShowIds.includes(p.showId)
+  );
 
   // --- 4. GRAND TOTALS ---
   const ytTotalEarned = eligiblePlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
@@ -153,14 +190,14 @@ export default function LedgerDashboard({
                            {eligiblePlaylists.map(show => {
                                const displayName = show.playlistName || show.title;
                                const earned = calculateTotalEarned(show);
-                               const paid = calculateTotalPaid(show.playlistId);
-                               const deducted = calculateTotalDeducted(show.playlistId);
+                               const paid = calculateTotalPaid(show.normalizedPlaylistId);
+                               const deducted = calculateTotalDeducted(show.normalizedPlaylistId);
                                const balance = earned - paid - deducted;
                                
                                return (
-                                   <tr key={show.playlistId} className="hover:bg-slate-50 transition-colors">
+                                   <tr key={show.normalizedPlaylistId} className="hover:bg-slate-50 transition-colors">
                                        <td className="p-4">
-                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: show.playlistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
+                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: show.normalizedPlaylistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
                                            <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                                                <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
                                            </div>
@@ -185,7 +222,7 @@ export default function LedgerDashboard({
                                        </td>
                                        {currentUser?.isAdmin && (
                                            <td className="p-4 text-center">
-                                               <button onClick={() => openPayoutModal({ showId: show.playlistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                               <button onClick={() => openPayoutModal({ showId: show.normalizedPlaylistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
                                                    Pay Now
                                                </button>
                                            </td>
@@ -212,7 +249,7 @@ export default function LedgerDashboard({
                                            </div>
                                        </td>
                                        <td className="p-4 text-xs font-medium text-slate-400 italic">
-                                           Variable rates
+                                           Rates on Wordpress
                                        </td>
                                        <td className="p-4">
                                            <div className="flex justify-center gap-4 text-xs">
@@ -264,7 +301,7 @@ export default function LedgerDashboard({
                                    const wpUser = visibleWpLedger.find(u => u.wp_user_id == wpId);
                                    if (wpUser) displayName = `Articles: ${wpUser.name}`;
                                } else {
-                                   const playlist = eligiblePlaylists.find(s => s.playlistId === p.showId || s.id === p.showId);
+                                   const playlist = eligiblePlaylists.find(s => s.normalizedPlaylistId === p.showId || s.playlistId === p.showId || s.id === p.showId);
                                    if (playlist) displayName = playlist.playlistName || playlist.title;
                                }
                                
@@ -335,8 +372,9 @@ export default function LedgerDashboard({
                          {(() => {
                              let filteredPayouts = [];
                              if (historyModalItem.type === 'youtube') {
-                                 const relatedShowIds = allowedShows.filter(s => s.playlistId === historyModalItem.id).map(s => s.id);
-                                 filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || relatedShowIds.includes(p.showId));
+                                 const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.id);
+                                 const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.playlistId);
+                                 filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || rawPlaylistIds.includes(p.showId) || relatedShowIds.includes(p.showId));
                              } else if (historyModalItem.type === 'wordpress') {
                                  filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id);
                              }

@@ -1,31 +1,64 @@
 import React from 'react';
 import { CreditCard, X, DollarSign, FileText, Calendar, Wallet } from 'lucide-react';
 
+const normalizePlaylistId = (input) => {
+    if (!input) return '';
+    let id = input.trim();
+    const match = id.match(/[?&]list=([^&]+)/) || id.match(/^list=([^&]+)/);
+    if (match) return match[1];
+    if (id.includes('http')) {
+        try {
+            const url = new URL(id);
+            const params = new URLSearchParams(url.search);
+            if (params.has('list')) return params.get('list');
+        } catch(e) {}
+    }
+    return id;
+};
+
 export default function PayoutModal({
-  editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, shows
+  editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, shows, wpLedgerData, currentUser
 }) {
 
   // Create a unique list of Playlists for the dropdown
   const uniquePlaylistsMap = new Map();
   shows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
-    if (!uniquePlaylistsMap.has(s.playlistId)) {
-      uniquePlaylistsMap.set(s.playlistId, s);
+    const cleanId = normalizePlaylistId(s.playlistId);
+    if (!uniquePlaylistsMap.has(cleanId)) {
+      uniquePlaylistsMap.set(cleanId, { ...s, normalizedPlaylistId: cleanId });
     }
   });
   const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
 
-  const activePlaylist = eligiblePlaylists.find(s => s.playlistId === editingPayout.showId);
+  const visibleWpLedger = wpLedgerData.filter(wpRecord => {
+      if (currentUser?.isAdmin) return true;
+      return wpRecord.wp_user_id == currentUser?.wpUserId;
+  });
 
-  const handlePlaylistChange = (e) => {
-    const playlistId = e.target.value;
-    const playlistRep = eligiblePlaylists.find(s => s.playlistId === playlistId);
-    setEditingPayout({
-      ...editingPayout,
-      showId: playlistId,
-      paymentMethod: playlistRep?.paymentMethod || '',
-      paymentAccount: playlistRep?.paymentAccount || ''
-    });
+  const handleTargetChange = (e) => {
+    const targetId = e.target.value;
+    
+    // Automatically set default payment method if it's a YouTube show
+    const playlistRep = eligiblePlaylists.find(s => s.normalizedPlaylistId === targetId);
+    if (playlistRep) {
+        setEditingPayout({
+          ...editingPayout,
+          showId: targetId,
+          paymentMethod: playlistRep.paymentMethod || '',
+          paymentAccount: playlistRep.paymentAccount || ''
+        });
+    } else {
+        // WordPress authors don't have default payment methods defined in Control Room yet
+        setEditingPayout({
+          ...editingPayout,
+          showId: targetId,
+          paymentMethod: '',
+          paymentAccount: ''
+        });
+    }
   };
+
+  const activePlaylist = eligiblePlaylists.find(s => s.normalizedPlaylistId === editingPayout.showId);
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -49,12 +82,25 @@ export default function PayoutModal({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Playlist / Target</label>
-              <select required value={editingPayout.showId} onChange={handlePlaylistChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                <option value="" disabled>Select a playlist</option>
-                {eligiblePlaylists.map(s => (
-                  <option key={s.playlistId} value={s.playlistId}>{s.playlistName || s.title}</option>
-                ))}
+              <label className="block text-sm font-medium text-slate-700 mb-1">Target Ledger Account</label>
+              <select required value={editingPayout.showId} onChange={handleTargetChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+                <option value="" disabled>Select target...</option>
+                
+                {eligiblePlaylists.length > 0 && (
+                   <optgroup label="YouTube Playlists">
+                     {eligiblePlaylists.map(s => (
+                       <option key={s.normalizedPlaylistId} value={s.normalizedPlaylistId}>{s.playlistName || s.title}</option>
+                     ))}
+                   </optgroup>
+                )}
+
+                {visibleWpLedger.length > 0 && (
+                   <optgroup label="WordPress Writers">
+                     {visibleWpLedger.map(wp => (
+                       <option key={`wp_articles_${wp.wp_user_id}`} value={`wp_articles_${wp.wp_user_id}`}>Articles: {wp.name}</option>
+                     ))}
+                   </optgroup>
+                )}
               </select>
             </div>
 
