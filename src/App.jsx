@@ -1566,7 +1566,7 @@ export default function App() {
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
           <TopBar 
              currentApp={currentApp} setCurrentApp={setCurrentApp} isAppSwitcherOpen={isAppSwitcherOpen} setIsAppSwitcherOpen={setIsAppSwitcherOpen}
-             isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} currentUser={currentUser} activeTab={activeTab}
+             isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab}
              activeBudgetTab={activeBudgetTab} activeDomainTab={activeDomainTab} activeEventTab={activeEventTab}
              projectDisplayMode={projectDisplayMode} setProjectDisplayMode={setProjectDisplayMode}
              budgetDisplayMode={budgetDisplayMode} setBudgetDisplayMode={setBudgetDisplayMode}
@@ -1608,7 +1608,7 @@ export default function App() {
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} shows={shows} youtubeChannels={youtubeChannels} />
             ) : currentApp === 'ledger' ? (
-              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} currentUser={currentUser} wpLedgerData={wpLedgerData} users={users} />
+              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} currentUser={currentUser} wpLedgerData={wpLedgerData} users={users} activeTab={activeTab} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}

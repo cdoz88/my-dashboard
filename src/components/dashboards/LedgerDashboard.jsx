@@ -19,17 +19,19 @@ const normalizePlaylistId = (input) => {
 };
 
 export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
 }) {
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
   const [historyModalItem, setHistoryModalItem] = useState(null);
+
+  // Default the filter to 'all' if it's an unrecognized tab (like 'mytasks' from initial load)
+  const currentFilter = ['all', 'youtube', 'wordpress'].includes(activeTab) ? activeTab : 'all';
 
   // --- 1. YOUTUBE SHOWS LOGIC ---
   const allowedShows = shows.filter(s => 
       currentUser?.isAdmin || (s.userIds || []).includes(currentUser?.id)
   );
 
-  // Group completely by the CLEAN Playlist ID to prevent duplicate rows from messy user inputs
   const uniquePlaylistsMap = new Map();
   allowedShows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
       const cleanId = normalizePlaylistId(s.playlistId);
@@ -48,7 +50,6 @@ export default function LedgerDashboard({
   };
 
   const calculateTotalPaid = (normalizedPlaylistId) => {
-      // Find all raw show IDs that share this clean playlistId (to support legacy payout records & raw inputs)
       const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.id);
       const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.playlistId);
       
@@ -75,7 +76,6 @@ export default function LedgerDashboard({
   };
 
   // --- 2. WORDPRESS ARTICLES LOGIC ---
-  // Filter WordPress ledger: Admins see all connected users; Regular users only see their own WP ID
   const visibleWpLedger = wpLedgerData.filter(wpRecord => {
       if (currentUser?.isAdmin) return true;
       return wpRecord.wp_user_id == currentUser?.wpUserId;
@@ -93,20 +93,34 @@ export default function LedgerDashboard({
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
-  // --- 3. AGGREGATING PAYOUTS FOR HISTORY TAB ---
-  const allowedPlaylistIds = eligiblePlaylists.map(s => s.normalizedPlaylistId);
-  const rawAllowedPlaylistIds = eligiblePlaylists.map(s => s.playlistId);
-  const allowedWpShowIds = visibleWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
-  
-  const visiblePayouts = payouts.filter(p => 
-      allowedPlaylistIds.includes(p.showId) || 
-      rawAllowedPlaylistIds.includes(p.showId) || 
-      allowedWpShowIds.includes(p.showId)
-  );
+  // --- 3. FILTERING FOR DISPLAY ---
+  const filteredPlaylists = (currentFilter === 'all' || currentFilter === 'youtube') ? eligiblePlaylists : [];
+  const filteredWpLedger = (currentFilter === 'all' || currentFilter === 'wordpress') ? visibleWpLedger : [];
 
-  // --- 4. GRAND TOTALS ---
-  const ytTotalEarned = eligiblePlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
-  const wpTotalEarned = visibleWpLedger.reduce((sum, wp) => sum + parseFloat(wp.total_earned || 0), 0);
+  const allowedFilteredPlaylistIds = filteredPlaylists.map(s => s.normalizedPlaylistId);
+  const rawAllowedFilteredPlaylistIds = filteredPlaylists.map(s => s.playlistId);
+  const allowedFilteredWpShowIds = filteredWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
+  
+  const visiblePayouts = payouts.filter(p => {
+      // If filtering by YouTube, only show YT payouts
+      if (currentFilter === 'youtube') {
+          return allowedFilteredPlaylistIds.includes(p.showId) || rawAllowedFilteredPlaylistIds.includes(p.showId);
+      }
+      // If filtering by WordPress, only show WP payouts
+      if (currentFilter === 'wordpress') {
+          return allowedFilteredWpShowIds.includes(p.showId);
+      }
+      // Otherwise show all allowed payouts
+      return (
+          allowedFilteredPlaylistIds.includes(p.showId) || 
+          rawAllowedFilteredPlaylistIds.includes(p.showId) || 
+          allowedFilteredWpShowIds.includes(p.showId)
+      );
+  });
+
+  // --- 4. DYNAMIC GRAND TOTALS ---
+  const ytTotalEarned = filteredPlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
+  const wpTotalEarned = filteredWpLedger.reduce((sum, wp) => sum + parseFloat(wp.total_earned || 0), 0);
   
   const grandTotalEarned = ytTotalEarned + wpTotalEarned;
   const grandTotalPaid = visiblePayouts.filter(p => p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
@@ -187,7 +201,7 @@ export default function LedgerDashboard({
                        </thead>
                        <tbody className="divide-y divide-slate-100">
                            {/* YouTube Shows */}
-                           {eligiblePlaylists.map(show => {
+                           {filteredPlaylists.map(show => {
                                const displayName = show.playlistName || show.title;
                                const earned = calculateTotalEarned(show);
                                const paid = calculateTotalPaid(show.normalizedPlaylistId);
@@ -232,7 +246,7 @@ export default function LedgerDashboard({
                            })}
 
                            {/* WordPress Articles */}
-                           {visibleWpLedger.map(wpRecord => {
+                           {filteredWpLedger.map(wpRecord => {
                                const earned = parseFloat(wpRecord.total_earned || 0);
                                const paid = calculateTotalWpPaid(wpRecord.wp_user_id);
                                const deducted = calculateTotalWpDeducted(wpRecord.wp_user_id);
@@ -275,7 +289,7 @@ export default function LedgerDashboard({
                                    </tr>
                                );
                            })}
-                           {(eligiblePlaylists.length === 0 && visibleWpLedger.length === 0) && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows or articles currently available on the ledger.</td></tr>}
+                           {(filteredPlaylists.length === 0 && filteredWpLedger.length === 0) && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows or articles currently available on the ledger.</td></tr>}
                        </tbody>
                    </table>
                </div>
@@ -298,10 +312,10 @@ export default function LedgerDashboard({
                                let displayName = 'Unknown Target';
                                if (p.showId.startsWith('wp_articles_')) {
                                    const wpId = p.showId.replace('wp_articles_', '');
-                                   const wpUser = visibleWpLedger.find(u => u.wp_user_id == wpId);
+                                   const wpUser = filteredWpLedger.find(u => u.wp_user_id == wpId);
                                    if (wpUser) displayName = `Articles: ${wpUser.name}`;
                                } else {
-                                   const playlist = eligiblePlaylists.find(s => s.normalizedPlaylistId === p.showId || s.playlistId === p.showId || s.id === p.showId);
+                                   const playlist = filteredPlaylists.find(s => s.normalizedPlaylistId === p.showId || s.playlistId === p.showId || s.id === p.showId);
                                    if (playlist) displayName = playlist.playlistName || playlist.title;
                                }
                                

@@ -203,13 +203,24 @@ export default function Sidebar({
         {currentApp === 'ledger' && (
           <>
             <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Payouts</p>
-              <div className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-600 text-white shadow-sm">
-                <Calculator size={18} /> Creator Ledger
-              </div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ledger</p>
+              <button onClick={() => { setActiveTab('all'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${['all', 'mytasks'].includes(activeTab) ? 'bg-emerald-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                <Calculator size={18} /> All Balances
+              </button>
             </div>
-            <div className="px-4 mb-4 text-center">
-               <p className="text-xs text-slate-500 italic bg-slate-800/50 p-3 rounded-lg border border-slate-700">Navigate within the dashboard tabs to view current balances or payment history.</p>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Source</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => { setActiveTab('youtube'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'youtube' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <Youtube size={16} className={`${activeTab === 'youtube' ? 'text-red-500' : ''}`} /> YouTube Shows
+                </button>
+                <button onClick={() => { setActiveTab('wordpress'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'wordpress' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <Globe size={16} className={`${activeTab === 'wordpress' ? 'text-sky-500' : ''}`} /> WP Articles
+                </button>
+              </div>
             </div>
           </>
         )}
