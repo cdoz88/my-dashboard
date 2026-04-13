@@ -1420,7 +1420,6 @@ export default function App() {
     e.preventDefault();
     const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
     const localUser = { ...updatedUser };
-    delete localUser.password;
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
     else setUsers([...users, localUser]);
     setIsProfileModalOpen(false);
@@ -1538,7 +1537,7 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <AuthScreen users={users} setUsers={setUsers} setLoggedInUserId={setLoggedInUserId} sendToAPI={sendToAPI} />;
+    return <AuthScreen users={users} setUsers={setUsers} setLoggedInUserId={setLoggedInUserId} sendToAPI={sendToAPI} setCurrentApp={setCurrentApp} />;
   }
 
   return (

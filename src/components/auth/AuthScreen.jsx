@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, LogIn, RefreshCw } from 'lucide-react';
 import { API_URL } from '../../utils/constants';
 
-export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToAPI }) {
+export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToAPI, setCurrentApp }) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
@@ -11,7 +11,6 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
 
     if (token) {
       setIsAuthenticating(true);
-      // Clean the token out of the URL immediately so it isn't visible
       window.history.replaceState({}, document.title, window.location.pathname);
       
       fetch(`${API_URL}?action=sso_login`, { 
@@ -26,6 +25,7 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
             setIsAuthenticating(false);
         } else {
             setLoggedInUserId(data.user.id);
+            if (setCurrentApp) setCurrentApp('home');
             setUsers(prevUsers => {
                 if (prevUsers.find(u => u.id === data.user.id)) return prevUsers.map(u => u.id === data.user.id ? data.user : u);
                 return [...prevUsers, data.user];
@@ -40,13 +40,8 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
   }, []);
 
   const handleWordPressLogin = () => {
-     // Grab the current domain (works for http://localhost:5173 OR https://fytsolutions.com)
      const origin = encodeURIComponent(window.location.origin);
-     
-     // The WordPress endpoint that generates the token
      const returnUrl = encodeURIComponent(`https://admin.fsan.com/wp-admin/admin-ajax.php?action=fsan_generate_sso_token&client_url=${origin}`);
-     
-     // Direct the user straight to your custom headless login page
      window.location.href = `https://admin.fsan.com/login?redirect_to=${returnUrl}`;
   };
 

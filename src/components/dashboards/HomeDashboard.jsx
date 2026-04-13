@@ -1,5 +1,9 @@
 import React from 'react';
-import { Home, CheckCircle, Tv, Wallet, ArrowRight, Clock, CalendarDays, MonitorPlay, Radio } from 'lucide-react';
+import { 
+    Home, CheckCircle, Circle, Tv, Wallet, ArrowRight, Clock, 
+    CalendarDays, MonitorPlay, Radio, Youtube, Star, Paperclip, 
+    MessageSquare, Trash2 
+} from 'lucide-react';
 import { formatCurrency, formatDate, isOverdue } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
 import DynamicIcon from '../shared/DynamicIcon';
@@ -114,7 +118,7 @@ export default function HomeDashboard({
                                     return (
                                         <div key={task.id} className="p-4 hover:bg-slate-50 transition-colors flex items-start gap-3 group">
                                             <button onClick={() => handleToggleTaskStatus(task)} className="mt-0.5 flex-shrink-0 text-slate-300 hover:text-blue-500 transition-colors">
-                                                <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center"></div>
+                                                {task.status === 'done' ? <CheckCircle size={18} className="text-emerald-500" /> : <Circle size={18} className="text-slate-300 hover:text-blue-500" />}
                                             </button>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-bold text-slate-700 text-sm cursor-pointer hover:text-blue-600 truncate" onClick={() => openTaskModal(task)}>{task.title}</p>
