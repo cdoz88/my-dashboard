@@ -40,8 +40,14 @@ export default function AuthScreen({ users, setUsers, setLoggedInUserId, sendToA
   }, []);
 
   const handleWordPressLogin = () => {
-     // Point directly to the root with our flag, let WP handle the custom login routing
-     window.location.href = "https://admin.fsan.com/?fsan_sso=1";
+     // Grab the current domain (works for http://localhost:5173 OR https://fytsolutions.com)
+     const origin = encodeURIComponent(window.location.origin);
+     
+     // The WordPress endpoint that generates the token
+     const returnUrl = encodeURIComponent(`https://admin.fsan.com/wp-admin/admin-ajax.php?action=fsan_generate_sso_token&client_url=${origin}`);
+     
+     // Direct the user straight to your custom headless login page
+     window.location.href = `https://admin.fsan.com/login?redirect_to=${returnUrl}`;
   };
 
   return (
