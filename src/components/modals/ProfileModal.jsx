@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, UserCircle, Camera, Key, LogOut } from 'lucide-react';
+import { X, UserCircle, Camera, LogOut } from 'lucide-react';
 
 export default function ProfileModal({
   profileForm, setProfileForm, handleSaveProfile, handleProfileImageUpload,
@@ -34,7 +34,7 @@ export default function ProfileModal({
           
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-            <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input required type="email" value={profileForm.email} onChange={(e) => setProfileForm({...profileForm, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-500" disabled title="Email is managed via WordPress SSO" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -59,11 +59,6 @@ export default function ProfileModal({
           <div className="pt-4 border-t border-slate-100 mt-2">
             <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Google Chat Webhook URL</label>
             <input type="text" value={profileForm.webhookUrl || ''} onChange={(e) => setProfileForm({...profileForm, webhookUrl: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://chat.googleapis.com/v1/spaces/..." />
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 mt-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1"><Key size={14} className="text-slate-400"/> New Password</label>
-            <input type="password" value={profileForm.password} onChange={(e) => setProfileForm({...profileForm, password: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Leave blank to keep current password" />
           </div>
         </form>
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between gap-3 flex-shrink-0">
