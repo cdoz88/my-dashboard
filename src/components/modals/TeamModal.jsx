@@ -1,10 +1,10 @@
 import React from 'react';
-import { X, Users, Plus, UserCircle, Shield, Camera, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser } from 'lucide-react';
+import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
   users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, handleDeleteUser,
-  handleTeamMemberImageUpload, isUploading, setIsTeamModalOpen, currentUser
+  isUploading, setIsTeamModalOpen, currentUser
 }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -40,7 +40,7 @@ export default function TeamModal({
               <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="relative">
                   {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" alt="Avatar" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
-                  <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar"><Camera size={14} /><input type="file" accept="image/*" className="hidden" onChange={handleTeamMemberImageUpload} disabled={isUploading} /></label>
+                  <div className="absolute bottom-0 right-0 bg-slate-700 text-white p-1.5 rounded-full shadow-md cursor-help" title="Avatar managed via WordPress"><Lock size={12} /></div>
                 </div>
               </div>
 

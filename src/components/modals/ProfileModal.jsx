@@ -1,8 +1,8 @@
 import React from 'react';
-import { X, UserCircle, Camera, LogOut } from 'lucide-react';
+import { X, UserCircle, LogOut, Lock } from 'lucide-react';
 
 export default function ProfileModal({
-  profileForm, setProfileForm, handleSaveProfile, handleProfileImageUpload,
+  profileForm, setProfileForm, handleSaveProfile,
   isUploading, setIsProfileModalOpen, setLoggedInUserId
 }) {
   return (
@@ -14,16 +14,15 @@ export default function ProfileModal({
         </div>
         <form id="profileForm" onSubmit={handleSaveProfile} className="p-6 overflow-y-auto space-y-5">
           <div className="flex flex-col items-center gap-3">
-            <div className="relative">
+            <div className="relative group">
               {profileForm.avatarUrl ? (
                 <img src={profileForm.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" alt="Avatar" />
               ) : (
                 <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>
               )}
-              <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 shadow-md transition-colors" title="Upload Avatar">
-                <Camera size={16} />
-                <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isUploading} />
-              </label>
+              <div className="absolute bottom-0 right-0 bg-slate-700 text-white p-2 rounded-full shadow-md cursor-help" title="Avatar is managed securely via WordPress">
+                <Lock size={14} />
+              </div>
             </div>
           </div>
 
