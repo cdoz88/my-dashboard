@@ -1,60 +1,77 @@
 import React, { useState } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users
 }) {
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
-  const [historyModalPlaylist, setHistoryModalPlaylist] = useState(null);
+  const [historyModalItem, setHistoryModalItem] = useState(null);
 
-  // 1. Determine which shows this user is allowed to see.
-  // Admins see all shows. Non-admins only see shows where they are a cast member.
+  // --- 1. YOUTUBE SHOWS LOGIC ---
   const allowedShows = shows.filter(s => 
       currentUser?.isAdmin || (s.userIds || []).includes(currentUser?.id)
   );
 
-  // 2. Filter out shows that don't have tracking enabled, and group completely by Playlist ID
   const uniquePlaylistsMap = new Map();
   allowedShows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
       if (!uniquePlaylistsMap.has(s.playlistId)) {
-          // Store the very first show record found for this playlist as the representative
           uniquePlaylistsMap.set(s.playlistId, s);
       }
   });
   const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
 
-  // 3. Filter payouts so non-admins only see payouts for their allowed playlists
-  const allowedPlaylistIds = eligiblePlaylists.map(s => s.playlistId);
-  const visiblePayouts = payouts.filter(p => allowedPlaylistIds.includes(p.showId));
-
-  // Math Helpers
   const calculateTotalEarned = (show) => {
       const videos = parseInt(show.ledgerVideos || 0);
       const hours = parseFloat(show.ledgerHours || 0);
-      // It aggregates perfectly because the API fetches total videos & total hours for the entire Playlist
       const baseTotal = videos * parseFloat(show.basePay || 0);
       const hourlyTotal = hours * parseFloat(show.payPerHour || 0);
       return baseTotal + hourlyTotal;
   };
 
   const calculateTotalPaid = (playlistId) => {
-      // Find all raw show IDs that share this playlistId (to support legacy payout records)
       const relatedShowIds = allowedShows.filter(s => s.playlistId === playlistId).map(s => s.id);
-      return visiblePayouts
+      return payouts
           .filter(p => (p.showId === playlistId || relatedShowIds.includes(p.showId)) && p.transactionType === 'Payment')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
   
   const calculateTotalDeducted = (playlistId) => {
       const relatedShowIds = allowedShows.filter(s => s.playlistId === playlistId).map(s => s.id);
-      return visiblePayouts
+      return payouts
           .filter(p => (p.showId === playlistId || relatedShowIds.includes(p.showId)) && p.transactionType === 'Deduction')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
-  // Grand Totals for top cards
-  const grandTotalEarned = eligiblePlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
+  // --- 2. WORDPRESS ARTICLES LOGIC ---
+  // Filter WordPress ledger: Admins see all connected users; Regular users only see their own WP ID
+  const visibleWpLedger = wpLedgerData.filter(wpRecord => {
+      if (currentUser?.isAdmin) return true;
+      return wpRecord.wp_user_id == currentUser?.wpUserId;
+  });
+
+  const calculateTotalWpPaid = (wpUserId) => {
+      return payouts
+          .filter(p => p.showId === `wp_articles_${wpUserId}` && p.transactionType === 'Payment')
+          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  };
+
+  const calculateTotalWpDeducted = (wpUserId) => {
+      return payouts
+          .filter(p => p.showId === `wp_articles_${wpUserId}` && p.transactionType === 'Deduction')
+          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  };
+
+  // --- 3. AGGREGATING PAYOUTS FOR HISTORY TAB ---
+  const allowedPlaylistIds = eligiblePlaylists.map(s => s.playlistId);
+  const allowedWpShowIds = visibleWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
+  const visiblePayouts = payouts.filter(p => allowedPlaylistIds.includes(p.showId) || allowedWpShowIds.includes(p.showId));
+
+  // --- 4. GRAND TOTALS ---
+  const ytTotalEarned = eligiblePlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
+  const wpTotalEarned = visibleWpLedger.reduce((sum, wp) => sum + parseFloat(wp.total_earned || 0), 0);
+  
+  const grandTotalEarned = ytTotalEarned + wpTotalEarned;
   const grandTotalPaid = visiblePayouts.filter(p => p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   const grandTotalDeducted = visiblePayouts.filter(p => p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   const grandTotalOwed = grandTotalEarned - grandTotalPaid - grandTotalDeducted;
@@ -69,8 +86,8 @@ export default function LedgerDashboard({
           </h2>
           <p className="text-slate-500 text-sm mt-1">
              {currentUser?.isAdmin 
-                 ? "Running balance calculator driven by YouTube watch hours." 
-                 : "Your personal earnings calculator driven by YouTube watch hours."}
+                 ? "Running balance calculator driven by YouTube watch hours and WordPress articles." 
+                 : "Your personal earnings calculator driven by YouTube watch hours and WordPress articles."}
           </p>
         </div>
 
@@ -82,7 +99,7 @@ export default function LedgerDashboard({
                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${isSyncingLedger ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                >
                  <RefreshCw size={16} className={isSyncingLedger ? 'animate-spin' : ''} />
-                 {isSyncingLedger ? 'Syncing YouTube Data...' : 'Sync Latest Data'}
+                 {isSyncingLedger ? 'Syncing...' : 'Sync Latest Data'}
                </button>
 
                <button 
@@ -124,7 +141,7 @@ export default function LedgerDashboard({
                            <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                <th className="p-4 w-56">Playlist / Show Name</th>
                                <th className="p-4 w-32">Pay Rates</th>
-                               <th className="p-4 w-40 text-center">Eligible YT Stats<br/><span className="text-[9px] font-normal normal-case">(Since Start Date)</span></th>
+                               <th className="p-4 w-40 text-center">Eligible Stats<br/><span className="text-[9px] font-normal normal-case">(Since Start Date)</span></th>
                                <th className="p-4 w-32 text-right">Total Earned</th>
                                <th className="p-4 w-32 text-right">Total Paid/Deducted</th>
                                <th className="p-4 w-32 text-right bg-slate-50">Current Balance</th>
@@ -132,6 +149,7 @@ export default function LedgerDashboard({
                            </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100">
+                           {/* YouTube Shows */}
                            {eligiblePlaylists.map(show => {
                                const displayName = show.playlistName || show.title;
                                const earned = calculateTotalEarned(show);
@@ -142,7 +160,7 @@ export default function LedgerDashboard({
                                return (
                                    <tr key={show.playlistId} className="hover:bg-slate-50 transition-colors">
                                        <td className="p-4">
-                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalPlaylist(show)} title="View Payment History">{displayName}</div>
+                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: show.playlistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
                                            <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                                                <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
                                            </div>
@@ -175,7 +193,52 @@ export default function LedgerDashboard({
                                    </tr>
                                )
                            })}
-                           {eligiblePlaylists.length === 0 && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows currently available on the ledger.</td></tr>}
+
+                           {/* WordPress Articles */}
+                           {visibleWpLedger.map(wpRecord => {
+                               const earned = parseFloat(wpRecord.total_earned || 0);
+                               const paid = calculateTotalWpPaid(wpRecord.wp_user_id);
+                               const deducted = calculateTotalWpDeducted(wpRecord.wp_user_id);
+                               const balance = earned - paid - deducted;
+                               const wpShowId = `wp_articles_${wpRecord.wp_user_id}`;
+                               const displayName = `Articles: ${wpRecord.name}`;
+                               
+                               return (
+                                   <tr key={wpShowId} className="hover:bg-slate-50 transition-colors bg-sky-50/30">
+                                       <td className="p-4">
+                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-sky-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: wpShowId, name: displayName, type: 'wordpress', wpUserId: wpRecord.wp_user_id })} title="View Payment History">{displayName}</div>
+                                           <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                               <Globe size={10} className="text-sky-500" /> WordPress Writer
+                                           </div>
+                                       </td>
+                                       <td className="p-4 text-xs font-medium text-slate-400 italic">
+                                           Variable rates
+                                       </td>
+                                       <td className="p-4">
+                                           <div className="flex justify-center gap-4 text-xs">
+                                               <div className="text-center"><div className="font-bold text-slate-800">{wpRecord.articles || 0}</div><div className="text-[9px] text-slate-400 uppercase">Articles</div></div>
+                                               <div className="text-center"><div className="font-bold text-slate-800">{parseInt(wpRecord.views || 0).toLocaleString()}</div><div className="text-[9px] text-slate-400 uppercase">Views</div></div>
+                                           </div>
+                                       </td>
+                                       <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>
+                                       <td className="p-4 text-right font-medium text-slate-700">
+                                           {formatCurrency(paid)}
+                                           {deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(deducted)} (Fines)</div>}
+                                       </td>
+                                       <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-sky-600 bg-sky-50/30'}`}>
+                                           {formatCurrency(balance)}
+                                       </td>
+                                       {currentUser?.isAdmin && (
+                                           <td className="p-4 text-center">
+                                               <button onClick={() => openPayoutModal({ showId: wpShowId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                                   Pay Now
+                                               </button>
+                                           </td>
+                                       )}
+                                   </tr>
+                               );
+                           })}
+                           {(eligiblePlaylists.length === 0 && visibleWpLedger.length === 0) && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows or articles currently available on the ledger.</td></tr>}
                        </tbody>
                    </table>
                </div>
@@ -187,7 +250,7 @@ export default function LedgerDashboard({
                        <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                            <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                <th className="p-4">Date Logged</th>
-                               <th className="p-4">Playlist / Target</th>
+                               <th className="p-4">Target Account</th>
                                <th className="p-4 text-right">Amount</th>
                                <th className="p-4">Type / Account</th>
                                <th className="p-4">Memo</th>
@@ -195,9 +258,15 @@ export default function LedgerDashboard({
                        </thead>
                        <tbody className="divide-y divide-slate-100">
                            {visiblePayouts.map(p => {
-                               // Check if it matches a playlistId or legacy show.id
-                               const playlist = eligiblePlaylists.find(s => s.playlistId === p.showId || s.id === p.showId);
-                               const displayName = playlist ? (playlist.playlistName || playlist.title) : 'Unknown Playlist';
+                               let displayName = 'Unknown Target';
+                               if (p.showId.startsWith('wp_articles_')) {
+                                   const wpId = p.showId.replace('wp_articles_', '');
+                                   const wpUser = visibleWpLedger.find(u => u.wp_user_id == wpId);
+                                   if (wpUser) displayName = `Articles: ${wpUser.name}`;
+                               } else {
+                                   const playlist = eligiblePlaylists.find(s => s.playlistId === p.showId || s.id === p.showId);
+                                   if (playlist) displayName = playlist.playlistName || playlist.title;
+                               }
                                
                                return (
                                    <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) openPayoutModal(p); }}>
@@ -236,7 +305,7 @@ export default function LedgerDashboard({
          )}
 
          {/* HISTORY MODAL OVERLAY */}
-         {historyModalPlaylist && (
+         {historyModalItem && (
            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
              <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
                <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
@@ -246,10 +315,10 @@ export default function LedgerDashboard({
                     </div>
                     <div>
                         <h3 className="font-bold text-lg text-slate-800 leading-tight">Payment History</h3>
-                        <p className="text-xs text-slate-500 font-medium">History for "{historyModalPlaylist.playlistName || historyModalPlaylist.title}"</p>
+                        <p className="text-xs text-slate-500 font-medium">History for "{historyModalItem.name}"</p>
                     </div>
                  </div>
-                 <button onClick={() => setHistoryModalPlaylist(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+                 <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
                </div>
                
                <div className="overflow-y-auto flex-1 bg-slate-50">
@@ -264,15 +333,20 @@ export default function LedgerDashboard({
                      </thead>
                      <tbody className="divide-y divide-slate-100">
                          {(() => {
-                             const relatedShowIds = allowedShows.filter(s => s.playlistId === historyModalPlaylist.playlistId).map(s => s.id);
-                             const filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalPlaylist.playlistId || relatedShowIds.includes(p.showId));
+                             let filteredPayouts = [];
+                             if (historyModalItem.type === 'youtube') {
+                                 const relatedShowIds = allowedShows.filter(s => s.playlistId === historyModalItem.id).map(s => s.id);
+                                 filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || relatedShowIds.includes(p.showId));
+                             } else if (historyModalItem.type === 'wordpress') {
+                                 filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id);
+                             }
                              
                              if (filteredPayouts.length === 0) {
-                                 return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this playlist yet.</td></tr>;
+                                 return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this target yet.</td></tr>;
                              }
                              
                              return filteredPayouts.map(p => (
-                                 <tr key={p.id} className={`hover:bg-white transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) { setHistoryModalPlaylist(null); openPayoutModal(p); } }}>
+                                 <tr key={p.id} className={`hover:bg-white transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) { setHistoryModalItem(null); openPayoutModal(p); } }}>
                                      <td className="p-4 text-sm font-medium text-slate-700">
                                         {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
                                      </td>
@@ -304,7 +378,7 @@ export default function LedgerDashboard({
                </div>
                
                <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0 bg-white">
-                 <button type="button" onClick={() => setHistoryModalPlaylist(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
+                 <button type="button" onClick={() => setHistoryModalItem(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
                </div>
              </div>
            </div>

@@ -75,6 +75,9 @@ export default function App() {
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
+  // WordPress Ledger Sync State
+  const [wpLedgerData, setWpLedgerData] = useState([]);
+
   // YouTube & Spreaker State
   const [youtubeChannels, setYoutubeChannels] = useState([]);
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
@@ -224,7 +227,8 @@ export default function App() {
                venmo: u.venmo || '',
                webhookUrl: u.webhookUrl || '',
                managerId: u.managerId || '',
-               responsibilities: u.responsibilities || ''
+               responsibilities: u.responsibilities || '',
+               wpUserId: u.wpUserId || ''
            })));
         }
         
@@ -281,6 +285,18 @@ export default function App() {
       })
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
+
+  // --- FETCH WORDPRESS LEDGER DATA ---
+  useEffect(() => {
+     if (currentUser) {
+         fetch('https://admin.fsan.com/wp-json/fsan/v1/ledger')
+             .then(res => res.json())
+             .then(data => {
+                 if (Array.isArray(data)) setWpLedgerData(data);
+             })
+             .catch(err => console.error("Error syncing WP Ledger Data:", err));
+     }
+  }, [currentUser]);
 
   // --- AUTOMATION: Detect Overdue Tasks & Trigger Webhooks ---
   useEffect(() => {
@@ -362,7 +378,6 @@ export default function App() {
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
-  // --- NEW: GEMINI AI BUSINESS CARD SCANNER (ENVIRONMENT VARIABLE BYPASS) ---
   const handleScanBusinessCard = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -759,10 +774,10 @@ export default function App() {
 
   const handleSavePayout = (e) => {
     e.preventDefault();
-    if (!editingPayout.showId) { alert("Please select a show."); return; }
+    if (!editingPayout.showId) { alert("Please select a target."); return; }
     const payoutData = editingPayout.id ? editingPayout : { ...editingPayout, id: 'pay_' + Date.now(), timestamp: new Date().toISOString() };
     
-    if (!editingPayout.id) logActivity('Payouts', 'Payment Logged', `Logged payment of $${payoutData.amount} for show ID ${payoutData.showId}`);
+    if (!editingPayout.id) logActivity('Payouts', 'Payment Logged', `Logged transaction of ${formatCurrency(payoutData.amount)} for target ID ${payoutData.showId}`);
     
     if (editingPayout.id) setPayouts(payouts.map(p => p.id === payoutData.id ? payoutData : p));
     else setPayouts([payoutData, ...payouts]);
@@ -773,7 +788,7 @@ export default function App() {
 
   const handleSyncLedger = async () => {
     setIsSyncingLedger(true);
-    await handleSyncYoutube('lifetime'); // Re-sync all youtube stats to get fresh totals
+    await handleSyncYoutube('lifetime'); 
     setIsSyncingLedger(false);
   };
 
@@ -971,10 +986,8 @@ export default function App() {
     sendToAPI('delete_event', { id: eventId });
   };
 
-  // --- SHOWS HANDLERS (BULK EDIT AND ARCHIVE) ---
   const openShowModal = (show = null, scope = 'episode') => {
     if (show) {
-        // Compute original day of week so we can safely edit recurring series even if they share the same name
         const dayOfWeek = new Date(`${show.showDate}T12:00:00`).getDay();
         setEditingShow({ 
             ...show, 
@@ -1002,12 +1015,9 @@ export default function App() {
     });
 
     const updatedEpisodes = episodesToArchive.map(ep => ({ ...ep, status: 'Archived' }));
-    
-    // Non-series shows are everything else (including shows with same name but different day/time)
     const nonSeriesShows = shows.filter(s => !episodesToArchive.some(ep => ep.id === s.id));
     
     setShows([...nonSeriesShows, ...updatedEpisodes]);
-    
     sendToAPI('save_shows_batch', { shows: updatedEpisodes });
     logActivity('Shows', 'Series Archived', `Archived series "${showToArchive.originalTitle}"`);
     setIsShowModalOpen(false);
@@ -1023,7 +1033,6 @@ export default function App() {
         const newShows = [];
         const baseDate = new Date(`${editingShow.showDate}T12:00:00`); 
         
-        // 260 weeks = 5 years of shows (acts as "indefinitely" for scheduling)
         const numOccurrences = parseInt(editingShow.occurrences) === 0 ? 260 : (parseInt(editingShow.occurrences) || 1);
         
         for (let i = 0; i < numOccurrences; i++) {
@@ -1052,7 +1061,6 @@ export default function App() {
         sendToAPI('save_shows_batch', { shows: newShows });
         
     } else if (!isNew && editingShow.editScope === 'series') {
-        // BULK UPDATE ENTIRE SERIES based on Title + Time + DayOfWeek match
         const episodesToUpdate = shows.filter(s => {
             if (s.title !== editingShow.originalTitle) return false;
             if (s.showTime !== editingShow.originalShowTime) return false;
@@ -1085,7 +1093,6 @@ export default function App() {
         logActivity('Shows', 'Series Updated', `Bulk updated series "${editingShow.title}"`);
 
     } else {
-        // SINGLE EPISODE UPDATE OR NEW SINGLE EPISODE
         const showData = editingShow.id ? editingShow : { ...editingShow, id: 'show_' + Date.now() };
         delete showData.isRecurring;
         delete showData.occurrences;
@@ -1113,7 +1120,6 @@ export default function App() {
     sendToAPI('delete_show', { id });
   };
 
-  // --- SPONSORSHIP HANDLERS ---
   const openSponsorshipModal = (sponsorship = null) => {
     if (sponsorship) setEditingSponsorship({ ...sponsorship, elements: sponsorship.elements || [], showTitles: sponsorship.showTitles || [], eventTitles: sponsorship.eventTitles || [], files: sponsorship.files || [] });
     else setEditingSponsorship({ id: null, companyId: activeSponsorshipTab !== 'overview' ? activeSponsorshipTab : (companies[0]?.id || ''), name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
@@ -1181,7 +1187,6 @@ export default function App() {
     sendToAPI('delete_contact', { id });
   };
 
-  // --- PASSWORDS HANDLERS ---
   const openPasswordModal = (password = null) => {
     if (password) setEditingPassword({ ...password, sharedWith: password.sharedWith || [], category: password.category || 'Uncategorized' });
     else setEditingPassword({ id: null, companyId: activePasswordTab !== 'overview' ? activePasswordTab : (companies[0]?.id || ''), platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
@@ -1211,8 +1216,8 @@ export default function App() {
   };
 
   const openTeamModal = (userToEdit = null) => {
-    if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id) });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '' });
+    if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id), wpUserId: userToEdit.wpUserId || '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', password: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
     setIsTeamModalOpen(true);
   };
 
@@ -1593,7 +1598,7 @@ export default function App() {
             ) : currentApp === 'team' ? (
               <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} shows={shows} youtubeChannels={youtubeChannels} />
             ) : currentApp === 'ledger' ? (
-              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} currentUser={currentUser} />
+              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} currentUser={currentUser} wpLedgerData={wpLedgerData} users={users} />
             ) : (
               <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
             )}
@@ -1629,7 +1634,7 @@ export default function App() {
       {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
       {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
       {isAvatarMakerModalOpen && <AvatarMakerModal setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />}
-      {isPayoutModalOpen && <PayoutModal editingPayout={editingPayout} setEditingPayout={setEditingPayout} handleSavePayout={handleSavePayout} setIsPayoutModalOpen={setIsPayoutModalOpen} shows={shows} />}
+      {isPayoutModalOpen && <PayoutModal editingPayout={editingPayout} setEditingPayout={setEditingPayout} handleSavePayout={handleSavePayout} setIsPayoutModalOpen={setIsPayoutModalOpen} shows={shows} wpLedgerData={wpLedgerData} currentUser={currentUser} />}
     </>
   );
 }
