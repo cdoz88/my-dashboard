@@ -286,10 +286,10 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- FETCH WORDPRESS LEDGER DATA ---
+  // --- FETCH WORDPRESS LEDGER DATA (WITH CACHE BUSTER) ---
   useEffect(() => {
      if (currentUser) {
-         fetch('https://admin.fsan.com/wp-json/fsan/v1/ledger')
+         fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`)
              .then(res => res.json())
              .then(data => {
                  if (Array.isArray(data)) setWpLedgerData(data);
@@ -789,6 +789,16 @@ export default function App() {
   const handleSyncLedger = async () => {
     setIsSyncingLedger(true);
     await handleSyncYoutube('lifetime'); 
+    
+    // NEW: Sync WordPress Ledger Data
+    try {
+        const res = await fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`);
+        const data = await res.json();
+        if (Array.isArray(data)) setWpLedgerData(data);
+    } catch (err) {
+        console.error("Error manually syncing WP Ledger Data:", err);
+    }
+    
     setIsSyncingLedger(false);
   };
 
