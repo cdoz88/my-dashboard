@@ -13,6 +13,7 @@ import TopBar from './components/layout/TopBar';
 import Sidebar from './components/layout/Sidebar';
 
 // Dashboards
+import HomeDashboard from './components/dashboards/HomeDashboard';
 import DashboardView from './components/dashboards/DashboardView';
 import ArchivedProjectsView from './components/dashboards/ArchivedProjectsView';
 import ProjectView from './components/dashboards/ProjectView';
@@ -55,8 +56,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Core App State (Saved to Local Storage)
-  const [currentApp, setCurrentApp] = useState(() => localStorage.getItem('fyt_currentApp') || 'projects'); 
+  // Core App State (Saved to Local Storage - Default to Home!)
+  const [currentApp, setCurrentApp] = useState(() => localStorage.getItem('fyt_currentApp') || 'home'); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -113,11 +114,8 @@ export default function App() {
   const [paymentMode, setPaymentMode] = useState('single');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isProjectAttachmentsModalOpen, setIsProjectAttachmentsModalOpen] = useState(false);
-  
-  // NOTE: Changed default state to include `revShare: 100` instead of just payPerHour
   const [isShowModalOpen, setIsShowModalOpen] = useState(false);
   const [editingShow, setEditingShow] = useState({ id: null, channelId: '', title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, revShare: 100, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
-  
   const [isSponsorshipModalOpen, setIsSponsorshipModalOpen] = useState(false);
   const [editingSponsorship, setEditingSponsorship] = useState({ id: null, companyId: '', name: '', logoUrl: '', startDate: '', endDate: '', amount: '', elements: [], showTitles: [], eventTitles: [], promoCode: '', contactName: '', contactEmail: '', paymentStatus: 'Pending', notes: '', files: [] });
   const [isAvatarMakerModalOpen, setIsAvatarMakerModalOpen] = useState(false);
@@ -195,16 +193,16 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('projects');
-      if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('projects');
-      if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('projects');
-      if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('projects');
-      if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('projects');
-      if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('projects');
-      if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('projects');
-      if (currentApp === 'crm' && !currentUser.isAdmin && !currentUser.canViewCRM) setCurrentApp('projects');
-      if (currentApp === 'passwords' && !canViewPasswordsApp) setCurrentApp('projects');
-      if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('projects');
+      if (currentApp === 'budget' && !currentUser.isAdmin && !currentUser.canViewBudget) setCurrentApp('home');
+      if (currentApp === 'domains' && !currentUser.isAdmin && !currentUser.canViewDomains) setCurrentApp('home');
+      if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('home');
+      if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('home');
+      if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('home');
+      if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('home');
+      if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('home');
+      if (currentApp === 'crm' && !currentUser.isAdmin && !currentUser.canViewCRM) setCurrentApp('home');
+      if (currentApp === 'passwords' && !canViewPasswordsApp) setCurrentApp('home');
+      if (currentApp === 'activity' && !currentUser.isAdmin) setCurrentApp('home');
     }
   }, [currentUser, currentApp, canViewPasswordsApp]);
 
@@ -289,7 +287,7 @@ export default function App() {
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   }, []);
 
-  // --- FETCH WORDPRESS LEDGER DATA ---
+  // --- FETCH WORDPRESS LEDGER DATA (WITH CACHE BUSTER) ---
   useEffect(() => {
      if (currentUser) {
          fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`)
@@ -1422,6 +1420,7 @@ export default function App() {
     e.preventDefault();
     const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
     const localUser = { ...updatedUser };
+    delete localUser.password;
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
     else setUsers([...users, localUser]);
     setIsProfileModalOpen(false);
@@ -1584,7 +1583,9 @@ export default function App() {
              handleScanBusinessCard={handleScanBusinessCard} isUploading={isUploading}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
-            {currentApp === 'projects' ? (
+            {currentApp === 'home' ? (
+              <HomeDashboard currentUser={currentUser} tasks={tasks} projects={projects} shows={shows} payouts={payouts} wpLedgerData={wpLedgerData} youtubeChannels={youtubeChannels} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} openTaskModal={openTaskModal} handleToggleTaskStatus={handleToggleTaskStatus} openShowModal={openShowModal} />
+            ) : currentApp === 'projects' ? (
               activeTab === 'mytasks' ? <DashboardView tasks={visibleTasks} currentUser={currentUser} projects={visibleProjects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
               activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={visibleTasks} projects={visibleProjects} /> : 
               activeTab === 'archived' ? <ArchivedProjectsView projects={visibleProjects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :

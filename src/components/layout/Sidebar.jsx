@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, Wallet
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -33,6 +33,24 @@ export default function Sidebar({
       </div>
       
       <div className="flex-1 overflow-y-auto py-6">
+        
+        {currentApp === 'home' && (
+          <div className="px-4 mb-6">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Quick Navigation</p>
+            <div className="space-y-1">
+               <button onClick={() => { setCurrentApp('projects'); setActiveTab('mytasks'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
+                  <CheckCircle size={18} /> My Tasks
+               </button>
+               <button onClick={() => { setCurrentApp('shows'); setActiveTab('overview'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
+                  <Tv size={18} /> My Shows
+               </button>
+               <button onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
+                  <Wallet size={18} /> My Ledger
+               </button>
+            </div>
+          </div>
+        )}
+
         {currentApp === 'projects' && (
           <>
             <div className="px-4 mb-6">
