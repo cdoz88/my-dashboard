@@ -96,7 +96,7 @@ export default function HomeDashboard({
                     <div className="text-2xl font-black text-slate-800">{formatCurrency(grandTotalPaid)}</div>
                 </div>
                 <div className="bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-700 relative overflow-hidden group cursor-pointer" onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); }}>
-                    <div className="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">Available Balance</div>
+                    <div className="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">Current Balance</div>
                     <div className="text-2xl font-black text-white">{formatCurrency(grandTotalOwed)}</div>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-400">
                         <ArrowRight size={24} />

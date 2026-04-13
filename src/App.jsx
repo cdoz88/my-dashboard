@@ -56,10 +56,38 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Core App State (Saved to Local Storage - Default to Home!)
-  const [currentApp, setCurrentApp] = useState(() => localStorage.getItem('fyt_currentApp') || 'home'); 
+  // --- BROWSER URL ROUTING INITIALIZATION ---
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialApp = initialParams.get('app');
+  const initialTab = initialParams.get('tab');
+
+  // Core App State (Saved to URL -> Local Storage -> Default to Home)
+  const [currentApp, setCurrentApp] = useState(() => initialApp || localStorage.getItem('fyt_currentApp') || 'home'); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // View States
+  const [activeTab, setActiveTab] = useState(() => (initialApp === 'projects' || initialApp === 'home' || initialApp === 'ledger' || !initialApp) && initialTab ? initialTab : localStorage.getItem('fyt_activeTab') || 'mytasks'); 
+  const [activeBudgetTab, setActiveBudgetTab] = useState(() => initialApp === 'budget' && initialTab ? initialTab : localStorage.getItem('fyt_activeBudgetTab') || 'overview'); 
+  const [activeDomainTab, setActiveDomainTab] = useState(() => initialApp === 'domains' && initialTab ? initialTab : localStorage.getItem('fyt_activeDomainTab') || 'overview');
+  const [activeEventTab, setActiveEventTab] = useState(() => initialApp === 'events' && initialTab ? initialTab : localStorage.getItem('fyt_activeEventTab') || 'overview');
+  const [activeShowTab, setActiveShowTab] = useState(() => initialApp === 'shows' && initialTab ? initialTab : localStorage.getItem('fyt_activeShowTab') || 'overview');
+  const [activeSponsorshipTab, setActiveSponsorshipTab] = useState(() => initialApp === 'sponsorships' && initialTab ? initialTab : localStorage.getItem('fyt_activeSponsorshipTab') || 'overview');
+  const [activeTeamTab, setActiveTeamTab] = useState(() => initialApp === 'team' && initialTab ? initialTab : localStorage.getItem('fyt_activeTeamTab') || 'overview');
+  const [activeActivityTab, setActiveActivityTab] = useState(() => initialApp === 'activity' && initialTab ? initialTab : localStorage.getItem('fyt_activeActivityTab') || 'overview');
+  const [activeCRMTab, setActiveCRMTab] = useState(() => initialApp === 'crm' && initialTab ? initialTab : localStorage.getItem('fyt_activeCRMTab') || 'overview');
+  const [activePasswordTab, setActivePasswordTab] = useState(() => initialApp === 'passwords' && initialTab ? initialTab : localStorage.getItem('fyt_activePasswordTab') || 'overview');
+
+  // Display Modes
+  const [projectDisplayMode, setProjectDisplayMode] = useState(() => localStorage.getItem('fyt_projectDisplayMode') || 'list');
+  const [budgetDisplayMode, setBudgetDisplayMode] = useState(() => localStorage.getItem('fyt_budgetDisplayMode') || 'list'); 
+  const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [domainDisplayMode, setDomainDisplayMode] = useState(() => localStorage.getItem('fyt_domainDisplayMode') || 'list'); 
+  const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [eventDisplayMode, setEventDisplayMode] = useState(() => localStorage.getItem('fyt_eventDisplayMode') || 'timeline');
+  const [showDisplayMode, setShowDisplayMode] = useState(() => localStorage.getItem('fyt_showDisplayMode') || 'calendar');
+  const [teamDisplayMode, setTeamDisplayMode] = useState(() => localStorage.getItem('fyt_teamDisplayMode') || 'cards');
+  const [crmDisplayMode, setCRMDisplayMode] = useState(() => localStorage.getItem('fyt_crmDisplayMode') || 'list');
 
   // Database State
   const [users, setUsers] = useState([]);
@@ -75,8 +103,6 @@ export default function App() {
   const [payouts, setPayouts] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
-  
-  // WordPress Ledger Sync State
   const [wpLedgerData, setWpLedgerData] = useState([]);
 
   // YouTube & Spreaker State
@@ -123,60 +149,84 @@ export default function App() {
   const [editingContact, setEditingContact] = useState({ id: null, companyId: '', name: '', email: '', phone: '', organization: '', contactType: 'General', notes: '' });
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
-  
-  // Ledger/Payout State
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: '', paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
-  const [isSyncingLedger, setIsSyncingLedger] = useState(false);
 
-  // View States (Saved to Local Storage)
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('fyt_activeTab') || 'mytasks'); 
-  const [projectDisplayMode, setProjectDisplayMode] = useState(() => localStorage.getItem('fyt_projectDisplayMode') || 'list');
-  const [activeBudgetTab, setActiveBudgetTab] = useState(() => localStorage.getItem('fyt_activeBudgetTab') || 'overview'); 
-  const [budgetDisplayMode, setBudgetDisplayMode] = useState(() => localStorage.getItem('fyt_budgetDisplayMode') || 'list'); 
-  const [expenseSortConfig, setExpenseSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [activeDomainTab, setActiveDomainTab] = useState(() => localStorage.getItem('fyt_activeDomainTab') || 'overview');
-  const [domainDisplayMode, setDomainDisplayMode] = useState(() => localStorage.getItem('fyt_domainDisplayMode') || 'list'); 
-  const [domainSortConfig, setDomainSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [activeEventTab, setActiveEventTab] = useState(() => localStorage.getItem('fyt_activeEventTab') || 'overview');
-  const [eventDisplayMode, setEventDisplayMode] = useState(() => localStorage.getItem('fyt_eventDisplayMode') || 'timeline');
-  const [activeShowTab, setActiveShowTab] = useState(() => localStorage.getItem('fyt_activeShowTab') || 'overview');
-  const [showDisplayMode, setShowDisplayMode] = useState(() => localStorage.getItem('fyt_showDisplayMode') || 'calendar');
-  const [activeSponsorshipTab, setActiveSponsorshipTab] = useState(() => localStorage.getItem('fyt_activeSponsorshipTab') || 'overview');
-  const [activeTeamTab, setActiveTeamTab] = useState(() => localStorage.getItem('fyt_activeTeamTab') || 'overview');
-  const [teamDisplayMode, setTeamDisplayMode] = useState(() => localStorage.getItem('fyt_teamDisplayMode') || 'cards');
-  const [activeActivityTab, setActiveActivityTab] = useState(() => localStorage.getItem('fyt_activeActivityTab') || 'overview');
-  const [activeCRMTab, setActiveCRMTab] = useState(() => localStorage.getItem('fyt_activeCRMTab') || 'overview');
-  const [crmDisplayMode, setCRMDisplayMode] = useState(() => localStorage.getItem('fyt_crmDisplayMode') || 'list');
-  const [activePasswordTab, setActivePasswordTab] = useState(() => localStorage.getItem('fyt_activePasswordTab') || 'overview');
+  // --- BROWSER HISTORY SYNCING (URL Management) ---
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('sso_token') || urlParams.has('code') || urlParams.has('task')) return;
 
-  // Sync memory states any time they change
-  useEffect(() => { localStorage.setItem('fyt_currentApp', currentApp); }, [currentApp]);
-  useEffect(() => { localStorage.setItem('fyt_activeTab', activeTab); }, [activeTab]);
+    let currentTab = activeTab;
+    if (currentApp === 'budget') currentTab = activeBudgetTab;
+    else if (currentApp === 'domains') currentTab = activeDomainTab;
+    else if (currentApp === 'events') currentTab = activeEventTab;
+    else if (currentApp === 'shows') currentTab = activeShowTab;
+    else if (currentApp === 'sponsorships') currentTab = activeSponsorshipTab;
+    else if (currentApp === 'team') currentTab = activeTeamTab;
+    else if (currentApp === 'activity') currentTab = activeActivityTab;
+    else if (currentApp === 'crm') currentTab = activeCRMTab;
+    else if (currentApp === 'passwords') currentTab = activePasswordTab;
+
+    if (urlParams.get('app') !== currentApp || urlParams.get('tab') !== currentTab) {
+        urlParams.set('app', currentApp);
+        urlParams.set('tab', currentTab);
+        window.history.pushState({ app: currentApp, tab: currentTab }, '', `${window.location.pathname}?${urlParams.toString()}`);
+    }
+
+    // Save to memory as backup
+    localStorage.setItem('fyt_currentApp', currentApp);
+    localStorage.setItem('fyt_activeTab', activeTab);
+    localStorage.setItem('fyt_activeBudgetTab', activeBudgetTab);
+    localStorage.setItem('fyt_activeDomainTab', activeDomainTab);
+    localStorage.setItem('fyt_activeEventTab', activeEventTab);
+    localStorage.setItem('fyt_activeShowTab', activeShowTab);
+    localStorage.setItem('fyt_activeSponsorshipTab', activeSponsorshipTab);
+    localStorage.setItem('fyt_activeTeamTab', activeTeamTab);
+    localStorage.setItem('fyt_activeActivityTab', activeActivityTab);
+    localStorage.setItem('fyt_activeCRMTab', activeCRMTab);
+    localStorage.setItem('fyt_activePasswordTab', activePasswordTab);
+  }, [currentApp, activeTab, activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab, activeActivityTab, activeCRMTab, activePasswordTab]);
+
+  // Handle Browser Back/Forward Buttons
+  useEffect(() => {
+    const handlePopState = (event) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const app = event.state?.app || urlParams.get('app');
+        const tab = event.state?.tab || urlParams.get('tab');
+        
+        if (app) setCurrentApp(app);
+        if (tab) {
+            if (app === 'projects' || app === 'home' || app === 'ledger') setActiveTab(tab);
+            else if (app === 'budget') setActiveBudgetTab(tab);
+            else if (app === 'domains') setActiveDomainTab(tab);
+            else if (app === 'events') setActiveEventTab(tab);
+            else if (app === 'shows') setActiveShowTab(tab);
+            else if (app === 'sponsorships') setActiveSponsorshipTab(tab);
+            else if (app === 'team') setActiveTeamTab(tab);
+            else if (app === 'activity') setActiveActivityTab(tab);
+            else if (app === 'crm') setActiveCRMTab(tab);
+            else if (app === 'passwords') setActivePasswordTab(tab);
+        }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Save Display Modes to local storage
   useEffect(() => { localStorage.setItem('fyt_projectDisplayMode', projectDisplayMode); }, [projectDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activeBudgetTab', activeBudgetTab); }, [activeBudgetTab]);
   useEffect(() => { localStorage.setItem('fyt_budgetDisplayMode', budgetDisplayMode); }, [budgetDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activeDomainTab', activeDomainTab); }, [activeDomainTab]);
   useEffect(() => { localStorage.setItem('fyt_domainDisplayMode', domainDisplayMode); }, [domainDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activeEventTab', activeEventTab); }, [activeEventTab]);
   useEffect(() => { localStorage.setItem('fyt_eventDisplayMode', eventDisplayMode); }, [eventDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activeShowTab', activeShowTab); }, [activeShowTab]);
   useEffect(() => { localStorage.setItem('fyt_showDisplayMode', showDisplayMode); }, [showDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activeSponsorshipTab', activeSponsorshipTab); }, [activeSponsorshipTab]);
-  useEffect(() => { localStorage.setItem('fyt_activeTeamTab', activeTeamTab); }, [activeTeamTab]);
   useEffect(() => { localStorage.setItem('fyt_teamDisplayMode', teamDisplayMode); }, [teamDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activeActivityTab', activeActivityTab); }, [activeActivityTab]);
-  useEffect(() => { localStorage.setItem('fyt_activeCRMTab', activeCRMTab); }, [activeCRMTab]);
   useEffect(() => { localStorage.setItem('fyt_crmDisplayMode', crmDisplayMode); }, [crmDisplayMode]);
-  useEffect(() => { localStorage.setItem('fyt_activePasswordTab', activePasswordTab); }, [activePasswordTab]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
   const visibleCompanies = companies.filter(c => currentUser?.isAdmin || (c.userIds && c.userIds.includes(currentUser?.id)));
 
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
-
-  // Determine if the Passwords App should be accessible to this user
   const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
   useEffect(() => {
@@ -356,7 +406,12 @@ export default function App() {
                 setCurrentApp('projects');
                 setActiveTab(targetProject.id);
                 openTaskModal(targetTask);
-                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Clear the task from the URL so it doesn't re-open on refresh
+                const newParams = new URLSearchParams();
+                newParams.set('app', 'projects');
+                newParams.set('tab', targetProject.id);
+                window.history.replaceState({ app: 'projects', tab: targetProject.id }, '', `${window.location.pathname}?${newParams.toString()}`);
             }
         }
     }
@@ -425,9 +480,7 @@ export default function App() {
                   alert("Google AI Error: " + data.error.message);
               } else if (data.candidates && data.candidates[0].content.parts[0].text) {
                   let text = data.candidates[0].content.parts[0].text;
-                  // Strip Markdown formatting if Gemini accidentally included it
                   text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                  
                   const parsed = JSON.parse(text);
 
                   setEditingContact({
@@ -1010,7 +1063,7 @@ export default function App() {
             revShare: show.revShare ?? 100
         });
     } else {
-        setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, revShare: 100, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
+        setEditingShow({ id: null, channelId: activeShowTab !== 'overview' ? activeShowTab : (youtubeChannels[0]?.id || ''), title: '', showDate: '', showTime: '', isLive: true, studio: 'Studio 1', guestLink: '', notes: '', userIds: [], isRecurring: false, occurrences: 1, basePay: 0, payPerHour: 0, revShare: 100, paymentStartDate: '', paymentMethod: '', paymentAccount: '', playlistId: '', status: 'Active', editScope: 'episode' });
     }
     setIsShowModalOpen(true);
   };
@@ -1092,6 +1145,7 @@ export default function App() {
             notes: editingShow.notes,
             userIds: editingShow.userIds,
             basePay: editingShow.basePay,
+            payPerHour: editingShow.payPerHour,
             revShare: editingShow.revShare,
             paymentStartDate: editingShow.paymentStartDate,
             paymentMethod: editingShow.paymentMethod,
