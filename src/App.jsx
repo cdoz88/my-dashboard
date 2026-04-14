@@ -240,7 +240,6 @@ export default function App() {
     else localStorage.removeItem('loggedInUserId');
   }, [currentUser]);
 
-  // Safety net: Protects the app from crashing if a memory state references a project/company that was deleted
   useEffect(() => {
     if (!isLoading && currentApp === 'projects' && !['mytasks', 'capacity', 'archived'].includes(activeTab)) {
         if (!projects.some(p => p.id === activeTab)) setActiveTab('mytasks');
@@ -254,7 +253,7 @@ export default function App() {
       if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('home');
       if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('home');
       if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('home');
-      if (currentApp === 'analytics' && !currentUser.isAdmin) setCurrentApp('home'); // Protect GA4
+      if (currentApp === 'analytics' && !currentUser.isAdmin) setCurrentApp('home');
       if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('home');
       if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('home');
       if (currentApp === 'crm' && !currentUser.isAdmin && !currentUser.canViewCRM) setCurrentApp('home');
@@ -301,16 +300,35 @@ export default function App() {
         }
 
         if(data.companies) setCompanies(data.companies);
-        if(data.projects) setProjects(data.projects.map(p => ({ ...p, isArchived: p.isArchived == 1 || p.isArchived === true, adminOnly: p.adminOnly == 1 || p.adminOnly === true })));
-        if(data.tasks) setTasks(data.tasks.map(t => ({ ...t, tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [], subscribers: Array.isArray(t.subscribers) ? t.subscribers : [], overdueLogged: t.overdueLogged == 1 || t.overdueLogged === true, sortOrder: parseInt(t.sortOrder) || 0 })));
+        
+        if(data.projects) setProjects(data.projects.map(p => ({ 
+            ...p, 
+            isArchived: p.isArchived == 1 || p.isArchived === true, 
+            adminOnly: p.adminOnly == 1 || p.adminOnly === true 
+        })));
+        
+        if(data.tasks) setTasks(data.tasks.map(t => ({ 
+            ...t, 
+            tags: Array.isArray(t.tags) ? t.tags.map(tag => tag === 'See Notes' ? 'See Comments' : tag) : [],
+            subscribers: Array.isArray(t.subscribers) ? t.subscribers : [],
+            overdueLogged: t.overdueLogged == 1 || t.overdueLogged === true,
+            sortOrder: parseInt(t.sortOrder) || 0
+        })));
+        
         if(data.expenses) setExpenses(data.expenses);
         if(data.events) setEvents(data.events);
-        if(data.shows) setShows(data.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
+        
+        if(data.shows) {
+            setShows(data.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
+        }
+
         if(data.sponsorships) setSponsorships(data.sponsorships);
         if(data.contacts) setContacts(data.contacts);
         if(data.passwords) setPasswords(data.passwords);
         if(data.payouts) setPayouts(data.payouts);
+        
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
+        else setActivityLogs([]);
         
         if(data.youtube_channels) {
             setYoutubeChannels(data.youtube_channels);
@@ -342,7 +360,6 @@ export default function App() {
      }
   }, [currentUser]);
 
-  // --- AUTOMATION: Detect Overdue Tasks ---
   useEffect(() => {
     if (tasks.length > 0 && currentUser?.isAdmin) {
         let tasksUpdated = false;
@@ -383,7 +400,176 @@ export default function App() {
     }
   }, [tasks, currentUser]);
 
-  // --- OAUTH REDIRECT HANDLER ---
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskIdParam = urlParams.get('task');
+    
+    if (taskIdParam && tasks.length > 0 && projects.length > 0 && !isTaskModalOpen) {
+        const targetTask = tasks.find(t => t.id === taskIdParam);
+        if (targetTask) {
+            const targetProject = projects.find(p => p.id === targetTask.projectId);
+            if (targetProject) {
+                setCurrentApp('projects');
+                setActiveTab(targetProject.id);
+                openTaskModal(targetTask);
+                
+                const newParams = new URLSearchParams();
+                newParams.set('app', 'projects');
+                newParams.set('tab', targetProject.id);
+                window.history.replaceState({ app: 'projects', tab: targetProject.id }, '', `${window.location.pathname}?${newParams.toString()}`);
+            }
+        }
+    }
+  }, [tasks, projects, isTaskModalOpen]);
+
+  const sendToAPI = async (action, data) => {
+    try { await fetch(`${API_URL}?action=${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); }
+    catch (err) { console.error(`Error with ${action}:`, err); }
+  };
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch(`${API_URL}?action=upload_file`, { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.success) return data.url;
+      alert('Upload failed: ' + data.error);
+      return null;
+    } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
+  };
+
+  const handleScanBusinessCard = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      setIsUploading(true);
+      const reader = new FileReader();
+      
+      reader.onloadend = async () => {
+          try {
+              const base64Data = reader.result.split(',')[1];
+              const mimeType = file.type || 'image/jpeg';
+              const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+              
+              if (!GEMINI_API_KEY) {
+                  alert("API Key is missing! Please add VITE_GEMINI_API_KEY to your Vercel Environment Variables.");
+                  setIsUploading(false);
+                  return;
+              }
+
+              const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      contents: [{
+                          parts: [
+                              { text: "Analyze this business card. Extract the contact info and return it strictly as a JSON object with these exact keys: 'name', 'organization', 'email', 'phone'. Do not include markdown formatting or any other text. If a piece of information is missing, leave the string empty." },
+                              { inlineData: { mimeType: mimeType, data: base64Data } }
+                          ]
+                      }],
+                      generationConfig: { responseMimeType: "application/json", temperature: 0.1 }
+                  })
+              });
+
+              const data = await response.json();
+              
+              if (data.error) {
+                  alert("Google AI Error: " + data.error.message);
+              } else if (data.candidates && data.candidates[0].content.parts[0].text) {
+                  let text = data.candidates[0].content.parts[0].text;
+                  text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                  const parsed = JSON.parse(text);
+
+                  setEditingContact({
+                      id: null,
+                      companyId: activeCRMTab !== 'overview' ? activeCRMTab : (companies[0]?.id || ''),
+                      name: parsed.name || '',
+                      email: parsed.email || '',
+                      phone: parsed.phone || '',
+                      organization: parsed.organization || '',
+                      contactType: 'Lead',
+                      notes: 'Imported via Business Card Scanner'
+                  });
+                  setIsContactModalOpen(true);
+              } else {
+                  alert("Failed to read the card data. Please try again.");
+              }
+          } catch (err) {
+              alert("Scanner error. Check your browser console.");
+              console.error(err);
+          } finally {
+              setIsUploading(false);
+              e.target.value = null; 
+          }
+      };
+      reader.readAsDataURL(file);
+  };
+
+  const logActivity = (category, type, description) => {
+    const newLog = {
+      id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+      userId: currentUser?.id || 'system',
+      actionCategory: category,
+      actionType: type,
+      description: description,
+      timestamp: new Date().toISOString()
+    };
+    setActivityLogs(prev => [newLog, ...(Array.isArray(prev) ? prev : [])]);
+    sendToAPI('save_log', newLog);
+  };
+
+  const handleSaveGlobalChecklist = (newList) => {
+    setGlobalChecklist(newList);
+    sendToAPI('save_setting', { key_name: 'globalOnboardingChecklist', setting_value: JSON.stringify(newList) });
+  };
+
+  const handleGenerateOnboarding = (user) => {
+    if (!globalChecklist || globalChecklist.length === 0) {
+        alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
+        return;
+    }
+    const { newProject, newTasks } = generateOnboardingData(user, globalChecklist, companies, currentUser);
+    sendToAPI('save_project', newProject);
+    logActivity('Projects', 'New Project Created', `Created onboarding project for "${user.name}"`);
+
+    newTasks.forEach(t => {
+        const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
+        sendToAPI('save_task', { ...t, notifyAssignee, actorId: currentUser.id });
+        logActivity('Tasks', 'Task Added', `Created task "${t.title}"`);
+    });
+
+    setProjects(prev => [...prev, newProject]);
+    setTasks(prev => [...prev, ...newTasks]);
+  };
+
+  const handleGenerateOffboarding = (user) => {
+    if (!globalChecklist || globalChecklist.length === 0) {
+        alert("Your onboarding template is empty. Add tasks to it first via the Team Directory!");
+        return;
+    }
+    const { newProject, newTasks } = generateOffboardingData(user, globalChecklist, companies, currentUser);
+    sendToAPI('save_project', newProject);
+    logActivity('Projects', 'New Project Created', `Created offboarding project for "${user.name}"`);
+
+    newTasks.forEach(t => {
+        const notifyAssignee = t.assigneeId && t.assigneeId !== currentUser.id;
+        sendToAPI('save_task', { ...t, notifyAssignee, actorId: currentUser.id });
+        logActivity('Tasks', 'Task Added', `Created task "${t.title}"`);
+    });
+
+    setProjects(prev => [...prev, newProject]);
+    setTasks(prev => [...prev, ...newTasks]);
+  };
+
+  const handleReorderTasks = (reorderedTasks) => {
+    setTasks(prev => {
+        const map = new Map(reorderedTasks.map(t => [t.id, t]));
+        return prev.map(t => map.has(t.id) ? map.get(t.id) : t);
+    });
+    reorderedTasks.forEach(t => sendToAPI('save_task', t));
+  };
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -583,7 +769,6 @@ export default function App() {
     else setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
     setIsPayoutModalOpen(true);
   };
-
   const handleSavePayout = (e) => {
     e.preventDefault();
     if (!editingPayout.showId) { alert("Please select a target."); return; }
@@ -1072,65 +1257,7 @@ export default function App() {
     setIsSpreakerModalOpen(false); sendToAPI('delete_spreaker_show', { id: showId });
   };
 
-  const openProfileModal = () => {
-    if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', avatarUrl: currentUser.avatarUrl, webhookUrl: currentUser.webhookUrl || '' });
-      setIsProfileModalOpen(true);
-    }
-  };
-  const handleSaveProfile = (e) => {
-    e.preventDefault();
-    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
-    const localUser = { ...updatedUser };
-    if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
-    else setUsers([...users, localUser]);
-    setIsProfileModalOpen(false); sendToAPI('save_user', updatedUser);
-  };
-  
-  const handleSponsorshipAssetUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    setIsUploading(true);
-    const uploadedFiles = [];
-    for (const file of files) { const url = await uploadFileToServer(file); if (url) uploadedFiles.push({ name: file.name, url: url }); }
-    setEditingSponsorship({ ...editingSponsorship, files: [...(editingSponsorship.files || []), ...uploadedFiles] });
-    setIsUploading(false); e.target.value = null; 
-  };
-  const removeSponsorshipAsset = (indexToRemove) => setEditingSponsorship({ ...editingSponsorship, files: editingSponsorship.files.filter((_, i) => i !== indexToRemove) });
-
-  const handleCompanyLogoUpload = async (e) => {
-    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingCompany({ ...editingCompany, logoUrl: url }); setIsUploading(false); }
-  };
-  const handleTeamMemberImageUpload = async (e) => {
-    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingTeamMember({ ...editingTeamMember, avatarUrl: url }); setIsUploading(false); }
-  };
-  const handleSponsorshipLogoUpload = async (e) => {
-    if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingSponsorship({ ...editingSponsorship, logoUrl: url }); setIsUploading(false); }
-  };
-
-  const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    setIsUploading(true);
-    const uploadedFiles = [];
-    for (const file of files) { const url = await uploadFileToServer(file); if (url) uploadedFiles.push({ name: file.name, url: url }); }
-    setCurrentTask({ ...currentTask, files: [...(currentTask.files || []), ...uploadedFiles] });
-    setIsUploading(false); e.target.value = null; 
-  };
-  const removeFile = (indexToRemove) => setCurrentTask({ ...currentTask, files: currentTask.files.filter((_, i) => i !== indexToRemove) });
-
-  const handleDragStart = (e, taskId) => e.dataTransfer.setData('taskId', taskId);
-  const handleDrop = (e, newStatus) => {
-     const taskId = e.dataTransfer.getData('taskId');
-     const task = visibleTasks.find(t => t.id === taskId);
-     if(task && task.status !== newStatus) {
-        logActivity('Tasks', 'Task Status Update', `Changed status of "${task.title}" to ${newStatus}`);
-        const updatedTask = { ...task, status: newStatus, completedAt: newStatus === 'done' ? new Date().toISOString() : null, completedBy: newStatus === 'done' ? currentUser.id : null };
-        setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
-        const notifyStatus = task.assigneeId && task.assigneeId !== currentUser.id;
-        sendToAPI('save_task', { ...updatedTask, notifyStatus, newStatus, actorId: currentUser.id });
-     }
-  };
-  const handleDragOver = (e) => e.preventDefault();
-
+  // --- Modals Render ---
   if (isLoading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
   if (!currentUser) return <AuthScreen users={users} setUsers={setUsers} setLoggedInUserId={setLoggedInUserId} sendToAPI={sendToAPI} setCurrentApp={setCurrentApp} />;
 
@@ -1223,26 +1350,227 @@ export default function App() {
         </div>
       </div>
 
-      {isTaskModalOpen && <TaskModal currentTask={currentTask} setCurrentTask={setCurrentTask} handleSaveTask={handleSaveTask} handleDeleteTask={handleDeleteTask} setIsTaskModalOpen={setIsTaskModalOpen} users={users} isUploading={isUploading} handleFileUpload={handleFileUpload} removeFile={removeFile} newCommentText={newCommentText} setNewCommentText={setNewCommentText} handleAddComment={handleAddComment} currentUser={currentUser} handleToggleSubscribe={handleToggleSubscribe} />}
-      {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
-      {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
-      {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
-      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} handleArchiveSeries={handleArchiveSeries} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} currentUser={currentUser} />}
-      {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
-      {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
-      {isPasswordModalOpen && <PasswordModal editingPassword={editingPassword} setEditingPassword={setEditingPassword} handleSavePassword={handleSavePassword} handleDeletePassword={handleDeletePassword} setIsPasswordModalOpen={setIsPasswordModalOpen} visibleCompanies={visibleCompanies} users={users} currentUser={currentUser} />}
-      {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
-      {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
-      {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
-      {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleDeleteUser={handleDeleteUser} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} currentUser={currentUser} />}
-      {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
-      {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
-      {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
-      {isAnalyticsModalOpen && <AnalyticsModal editingAnalyticsProperty={editingAnalyticsProperty} setEditingAnalyticsProperty={setEditingAnalyticsProperty} handleSaveAnalyticsProperty={handleSaveAnalyticsProperty} handleDeleteAnalyticsProperty={handleDeleteAnalyticsProperty} setIsAnalyticsModalOpen={setIsAnalyticsModalOpen} />}
-      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
-      {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
-      {isAvatarMakerModalOpen && <AvatarMakerModal setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />}
-      {isPayoutModalOpen && <PayoutModal editingPayout={editingPayout} setEditingPayout={setEditingPayout} handleSavePayout={handleSavePayout} setIsPayoutModalOpen={setIsPayoutModalOpen} shows={shows} wpLedgerData={wpLedgerData} currentUser={currentUser} />}
+      {isTaskModalOpen && (
+        <TaskModal 
+          currentTask={currentTask} 
+          setCurrentTask={setCurrentTask} 
+          handleSaveTask={handleSaveTask} 
+          handleDeleteTask={handleDeleteTask} 
+          setIsTaskModalOpen={setIsTaskModalOpen} 
+          users={users} 
+          isUploading={isUploading} 
+          handleFileUpload={handleFileUpload} 
+          removeFile={removeFile} 
+          newCommentText={newCommentText} 
+          setNewCommentText={setNewCommentText} 
+          handleAddComment={handleAddComment} 
+          currentUser={currentUser} 
+          handleToggleSubscribe={handleToggleSubscribe} 
+        />
+      )}
+      {isExpenseModalOpen && (
+        <ExpenseModal 
+          currentExpense={currentExpense} 
+          setCurrentExpense={setCurrentExpense} 
+          handleSaveExpense={handleSaveExpense} 
+          handleDeleteExpense={handleDeleteExpense} 
+          setIsExpenseModalOpen={setIsExpenseModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isDomainModalOpen && (
+        <DomainModal 
+          currentDomain={currentDomain} 
+          setCurrentDomain={setCurrentDomain} 
+          handleSaveDomain={handleSaveDomain} 
+          handleDeleteExpense={handleDeleteExpense} 
+          setIsDomainModalOpen={setIsDomainModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isEventModalOpen && (
+        <EventModal 
+          editingEvent={editingEvent} 
+          setEditingEvent={setEditingEvent} 
+          paymentMode={paymentMode} 
+          setPaymentMode={setPaymentMode} 
+          handleSaveEvent={handleSaveEvent} 
+          handleDeleteEvent={handleDeleteEvent} 
+          setIsEventModalOpen={setIsEventModalOpen} 
+          visibleCompanies={visibleCompanies} 
+          sponsorships={sponsorships} 
+          openSponsorshipModal={openSponsorshipModal} 
+        />
+      )}
+      {isShowModalOpen && (
+        <ShowModal 
+          editingShow={editingShow} 
+          setEditingShow={setEditingShow} 
+          handleSaveShow={handleSaveShow} 
+          handleDeleteShow={handleDeleteShow} 
+          handleArchiveSeries={handleArchiveSeries} 
+          setIsShowModalOpen={setIsShowModalOpen} 
+          youtubeChannels={youtubeChannels} 
+          users={users} 
+          sponsorships={sponsorships} 
+          openSponsorshipModal={openSponsorshipModal} 
+          currentUser={currentUser} 
+        />
+      )}
+      {isSponsorshipModalOpen && (
+        <SponsorshipModal 
+          editingSponsorship={editingSponsorship} 
+          setEditingSponsorship={setEditingSponsorship} 
+          handleSaveSponsorship={handleSaveSponsorship} 
+          handleDeleteSponsorship={handleDeleteSponsorship} 
+          setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} 
+          visibleCompanies={visibleCompanies} 
+          isUploading={isUploading} 
+          handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} 
+          shows={shows} 
+          events={events} 
+          currentUser={currentUser} 
+          handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} 
+          removeSponsorshipAsset={removeSponsorshipAsset} 
+        />
+      )}
+      {isContactModalOpen && (
+        <ContactModal 
+          editingContact={editingContact} 
+          setEditingContact={setEditingContact} 
+          handleSaveContact={handleSaveContact} 
+          handleDeleteContact={handleDeleteContact} 
+          setIsContactModalOpen={setIsContactModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isPasswordModalOpen && (
+        <PasswordModal 
+          editingPassword={editingPassword} 
+          setEditingPassword={setEditingPassword} 
+          handleSavePassword={handleSavePassword} 
+          handleDeletePassword={handleDeletePassword} 
+          setIsPasswordModalOpen={setIsPasswordModalOpen} 
+          visibleCompanies={visibleCompanies} 
+          users={users} 
+          currentUser={currentUser} 
+        />
+      )}
+      {isCompanyModalOpen && (
+        <CompanyModal 
+          editingCompany={editingCompany} 
+          setEditingCompany={setEditingCompany} 
+          handleSaveCompany={handleSaveCompany} 
+          handleDeleteCompany={handleDeleteCompany} 
+          setIsCompanyModalOpen={setIsCompanyModalOpen} 
+          users={users} 
+          toggleCompanyUser={toggleCompanyUser} 
+          handleCompanyLogoUpload={handleCompanyLogoUpload} 
+          isUploading={isUploading} 
+        />
+      )}
+      {isProjectModalOpen && (
+        <ProjectModal 
+          editingProject={editingProject} 
+          setEditingProject={setEditingProject} 
+          handleSaveProject={handleSaveProject} 
+          handleArchiveProject={handleArchiveProject} 
+          handlePermanentDeleteProject={handlePermanentDeleteProject} 
+          setIsProjectModalOpen={setIsProjectModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isProfileModalOpen && (
+        <ProfileModal 
+          profileForm={profileForm} 
+          setProfileForm={setProfileForm} 
+          handleSaveProfile={handleSaveProfile} 
+          handleProfileImageUpload={handleProfileImageUpload} 
+          isUploading={isUploading} 
+          setIsProfileModalOpen={setIsProfileModalOpen} 
+          setLoggedInUserId={setLoggedInUserId} 
+        />
+      )}
+      {isTeamModalOpen && (
+        <TeamModal 
+          users={users} 
+          companies={companies} 
+          editingTeamMember={editingTeamMember} 
+          setEditingTeamMember={setEditingTeamMember} 
+          handleSaveTeamMember={handleSaveTeamMember} 
+          handleDeleteUser={handleDeleteUser} 
+          handleTeamMemberImageUpload={handleTeamMemberImageUpload} 
+          isUploading={isUploading} 
+          setIsTeamModalOpen={setIsTeamModalOpen} 
+          currentUser={currentUser} 
+        />
+      )}
+      {isSwitchUserModalOpen && (
+        <SwitchUserModal 
+          users={users} 
+          loggedInUserId={loggedInUserId} 
+          setLoggedInUserId={setLoggedInUserId} 
+          setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} 
+        />
+      )}
+      {isYoutubeModalOpen && (
+        <YoutubeModal 
+          editingYoutubeChannel={editingYoutubeChannel} 
+          setEditingYoutubeChannel={setEditingYoutubeChannel} 
+          handleSaveYoutubeChannel={handleSaveYoutubeChannel} 
+          handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} 
+          handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} 
+          setIsYoutubeModalOpen={setIsYoutubeModalOpen} 
+        />
+      )}
+      {isSpreakerModalOpen && (
+        <SpreakerModal 
+          editingSpreakerShow={editingSpreakerShow} 
+          handleSaveSpreakerShow={handleSaveSpreakerShow} 
+          handleDeleteSpreakerShow={handleDeleteSpreakerShow} 
+          setIsSpreakerModalOpen={setIsSpreakerModalOpen} 
+        />
+      )}
+      {isAnalyticsModalOpen && (
+        <AnalyticsModal 
+          editingAnalyticsProperty={editingAnalyticsProperty} 
+          setEditingAnalyticsProperty={setEditingAnalyticsProperty} 
+          handleSaveAnalyticsProperty={handleSaveAnalyticsProperty} 
+          handleDeleteAnalyticsProperty={handleDeleteAnalyticsProperty} 
+          setIsAnalyticsModalOpen={setIsAnalyticsModalOpen} 
+        />
+      )}
+      {isOnboardingModalOpen && (
+        <OnboardingModal 
+          setIsOnboardingModalOpen={setIsOnboardingModalOpen} 
+          globalChecklist={globalChecklist} 
+          handleSaveGlobalChecklist={handleSaveGlobalChecklist} 
+          uploadFileToServer={uploadFileToServer} 
+        />
+      )}
+      {isProjectAttachmentsModalOpen && (
+        <ProjectAttachmentsModal 
+          project={projects.find(p => p.id === activeTab)} 
+          tasks={tasks} 
+          setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} 
+        />
+      )}
+      {isAvatarMakerModalOpen && (
+        <AvatarMakerModal 
+          setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} 
+        />
+      )}
+      {isPayoutModalOpen && (
+        <PayoutModal 
+          editingPayout={editingPayout} 
+          setEditingPayout={setEditingPayout} 
+          handleSavePayout={handleSavePayout} 
+          setIsPayoutModalOpen={setIsPayoutModalOpen} 
+          shows={shows} 
+          wpLedgerData={wpLedgerData} 
+          currentUser={currentUser} 
+        />
+      )}
     </>
   );
 }
