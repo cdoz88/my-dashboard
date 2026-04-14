@@ -361,7 +361,7 @@ export default function App() {
     fetchData();
   }, []);
 
-  // --- FETCH WORDPRESS LEDGER DATA ---
+  // --- FETCH WORDPRESS LEDGER DATA (WITH CACHE BUSTER) ---
   useEffect(() => {
      if (currentUser) {
          fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`)
@@ -430,7 +430,12 @@ export default function App() {
                 setCurrentApp('projects');
                 setActiveTab(targetProject.id);
                 openTaskModal(targetTask);
-                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Clear the task from the URL so it doesn't re-open on refresh
+                const newParams = new URLSearchParams();
+                newParams.set('app', 'projects');
+                newParams.set('tab', targetProject.id);
+                window.history.replaceState({ app: 'projects', tab: targetProject.id }, '', `${window.location.pathname}?${newParams.toString()}`);
             }
         }
     }
@@ -659,7 +664,7 @@ export default function App() {
 
   // --- OAUTH REDIRECT HANDLER ---
   useEffect(() => {
-    const urlParams = newSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const error = urlParams.get('error');
     const errorDesc = urlParams.get('error_description');
