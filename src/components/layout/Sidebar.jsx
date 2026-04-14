@@ -21,7 +21,8 @@ export default function Sidebar({
   activeTeamTab, setActiveTeamTab, activeActivityTab, setActiveActivityTab,
   activeShowTab, setActiveShowTab, activeSponsorshipTab, setActiveSponsorshipTab,
   activeCRMTab, setActiveCRMTab, canViewPasswordsApp,
-  activePasswordTab, setActivePasswordTab
+  activePasswordTab, setActivePasswordTab,
+  openAnalyticsModal, analyticsProperties, activeAnalyticsId, setActiveAnalyticsId
 }) {
 
   const getCompany = (id) => companies.find(c => c.id === id);
@@ -118,7 +119,15 @@ export default function Sidebar({
                 <button onClick={() => openAnalyticsModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add GA4 Property"><Plus size={16} /></button>
               </div>
               <div className="flex flex-col gap-1">
-                 <div className="text-xs text-slate-500 p-3 text-center italic">Managed in Top Bar.</div> 
+                {analyticsProperties && analyticsProperties.length > 0 ? analyticsProperties.map(property => (
+                  <div key={property.id} className="flex items-center justify-between group/property">
+                    <button onClick={() => { setActiveAnalyticsId(property.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeAnalyticsId === property.id ? 'bg-slate-800 text-orange-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <BarChart3 size={16} className={`flex-shrink-0 ${activeAnalyticsId === property.id ? 'text-orange-500' : 'text-slate-500'}`} />
+                      <span className="truncate">{property.name}</span>
+                    </button>
+                    {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/property:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openAnalyticsModal(property); }} className="text-slate-500 hover:text-white p-1" title="Edit Property"><Pencil size={12} /></button></div>}
+                  </div>
+                )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No properties added yet.</div> )}
               </div>
             </div>
           </>

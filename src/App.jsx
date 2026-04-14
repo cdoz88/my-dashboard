@@ -160,8 +160,6 @@ export default function App() {
   const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
-  
-  // Add missing state for Ledger sync
   const [isSyncingLedger, setIsSyncingLedger] = useState(false);
 
   // --- BROWSER HISTORY SYNCING (URL Management) ---
@@ -811,13 +809,13 @@ export default function App() {
   };
 
   const handleDeleteAnalyticsProperty = (propertyId) => {
+      sendToAPI('delete_analytics_property', { id: propertyId });
       setAnalyticsProperties(analyticsProperties.filter(p => p.id !== propertyId));
       if(activeAnalyticsId === propertyId) {
           const remaining = analyticsProperties.filter(p => p.id !== propertyId);
           setActiveAnalyticsId(remaining.length > 0 ? remaining[0].id : null);
       }
       setIsAnalyticsModalOpen(false);
-      sendToAPI('delete_analytics_property', { id: propertyId });
   };
 
   const handleImportCSV = (e, companyId, type = 'expenses') => {
@@ -1642,6 +1640,7 @@ export default function App() {
              activeShowTab={activeShowTab} setActiveShowTab={setActiveShowTab} activeSponsorshipTab={activeSponsorshipTab} setActiveSponsorshipTab={setActiveSponsorshipTab}
              activeCRMTab={activeCRMTab} setActiveCRMTab={setActiveCRMTab} canViewPasswordsApp={canViewPasswordsApp}
              activePasswordTab={activePasswordTab} setActivePasswordTab={setActivePasswordTab}
+             openAnalyticsModal={openAnalyticsModal} analyticsProperties={analyticsProperties} activeAnalyticsId={activeAnalyticsId} setActiveAnalyticsId={setActiveAnalyticsId}
           />
         </div>
         <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
