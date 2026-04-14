@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Wallet, Youtube, CalendarDays, Mic, Globe, 
   ChevronsUpDown, ListTodo, CalendarClock, Plus, Clock, ChevronDown, 
-  RefreshCw, Upload, Kanban, Contact, Activity, Tv, Award, Network, LayoutGrid, BookUser, LayoutPanelTop, Lock, Camera, Calculator, Home
+  RefreshCw, Upload, Kanban, Contact, Activity, Tv, Award, Network, LayoutGrid, BookUser, LayoutPanelTop, Lock, Camera, Calculator, Home, BarChart3
 } from 'lucide-react';
 
 export default function TopBar({
@@ -20,12 +20,14 @@ export default function TopBar({
   showDisplayMode, setShowDisplayMode, openShowModal,
   openSponsorshipModal, openTeamModal, teamDisplayMode, setTeamDisplayMode,
   crmDisplayMode, setCRMDisplayMode, openContactModal, openPasswordModal, canViewPasswordsApp, activePasswordTab,
-  handleScanBusinessCard, isUploading
+  handleScanBusinessCard, isUploading,
+  analyticsTimeFilter, handleAnalyticsFilterChange, handleSyncAnalytics, openAnalyticsModal
 }) {
   const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
   const isBudgetView = currentApp === 'budget';
   const isDomainView = currentApp === 'domains';
   const isYoutubeView = currentApp === 'youtube';
+  const isAnalyticsView = currentApp === 'analytics';
   const isShowsView = currentApp === 'shows';
   const isEventView = currentApp === 'events';
   const isSpreakerView = currentApp === 'spreaker';
@@ -33,15 +35,13 @@ export default function TopBar({
   const isTeamView = currentApp === 'team';
   const isCRMView = currentApp === 'crm';
   const isPasswordsView = currentApp === 'passwords';
-  const isLedgerView = currentApp === 'ledger';
-  const isHomeView = currentApp === 'home';
 
   return (
-    <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' || currentApp === 'shows' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : currentApp === 'team' ? 'bg-indigo-600' : currentApp === 'activity' ? 'bg-slate-800' : currentApp === 'sponsorships' ? 'bg-amber-500' : currentApp === 'crm' ? 'bg-sky-500' : currentApp === 'passwords' ? 'bg-slate-800' : currentApp === 'ledger' ? 'bg-emerald-600' : currentApp === 'home' ? 'bg-slate-800' : 'bg-teal-500'} ${currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
+    <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' || currentApp === 'shows' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : currentApp === 'team' ? 'bg-indigo-600' : currentApp === 'activity' ? 'bg-slate-800' : currentApp === 'sponsorships' ? 'bg-amber-500' : currentApp === 'crm' ? 'bg-sky-500' : currentApp === 'passwords' ? 'bg-slate-800' : currentApp === 'ledger' ? 'bg-emerald-600' : currentApp === 'home' ? 'bg-slate-800' : currentApp === 'analytics' ? 'bg-orange-500' : 'bg-teal-500'} ${currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
       <div className="relative">
-        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' || currentApp === 'shows' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : currentApp === 'sponsorships' ? 'hover:bg-amber-400' : currentApp === 'crm' ? 'hover:bg-sky-400' : currentApp === 'passwords' ? 'hover:bg-slate-900' : currentApp === 'ledger' ? 'hover:bg-emerald-700' : currentApp === 'team' ? 'hover:bg-indigo-700' : currentApp === 'activity' ? 'hover:bg-slate-900' : currentApp === 'home' ? 'hover:bg-slate-900' : 'hover:bg-teal-600'}`}>
-          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'shows' ? <Tv size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'sponsorships' ? <Award size={24} className="text-slate-900/70" /> : currentApp === 'crm' ? <BookUser size={24} className="text-slate-900/70" /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : currentApp === 'team' ? <Contact size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'passwords' ? <Lock size={24} className="text-white/70" /> : currentApp === 'activity' ? <Activity size={24} className="text-white/70" /> : currentApp === 'ledger' ? <Calculator size={24} className="text-white/70" /> : currentApp === 'home' ? <Home size={24} className="text-white/70" /> : <Globe size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} />}
-          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp === 'team' ? 'Team Directory' : currentApp === 'shows' ? 'Shows' : currentApp === 'crm' ? 'CRM' : currentApp === 'passwords' ? 'Password Vault' : currentApp === 'ledger' ? 'Creator Ledger' : currentApp === 'home' ? 'Home Dashboard' : currentApp}</span>
+        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' || currentApp === 'shows' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : currentApp === 'sponsorships' ? 'hover:bg-amber-400' : currentApp === 'crm' ? 'hover:bg-sky-400' : currentApp === 'passwords' ? 'hover:bg-slate-900' : currentApp === 'ledger' ? 'hover:bg-emerald-700' : currentApp === 'team' ? 'hover:bg-indigo-700' : currentApp === 'activity' ? 'hover:bg-slate-900' : currentApp === 'home' ? 'hover:bg-slate-900' : currentApp === 'analytics' ? 'hover:bg-orange-600' : 'hover:bg-teal-600'}`}>
+          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'shows' ? <Tv size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'sponsorships' ? <Award size={24} className="text-slate-900/70" /> : currentApp === 'crm' ? <BookUser size={24} className="text-slate-900/70" /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : currentApp === 'team' ? <Contact size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'passwords' ? <Lock size={24} className="text-white/70" /> : currentApp === 'activity' ? <Activity size={24} className="text-white/70" /> : currentApp === 'ledger' ? <Calculator size={24} className="text-white/70" /> : currentApp === 'home' ? <Home size={24} className="text-white/70" /> : currentApp === 'analytics' ? <BarChart3 size={24} className="text-white/70" /> : <Globe size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} />}
+          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'youtube' ? 'YouTube Studio' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp === 'team' ? 'Team Directory' : currentApp === 'shows' ? 'Shows' : currentApp === 'crm' ? 'CRM' : currentApp === 'passwords' ? 'Password Vault' : currentApp === 'ledger' ? 'Creator Ledger' : currentApp === 'home' ? 'Home Dashboard' : currentApp === 'analytics' ? 'Web Traffic' : currentApp}</span>
           <ChevronsUpDown size={18} className={`${currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? 'text-slate-900/60' : 'text-white/60'} ml-1`} />
         </button>
         {isAppSwitcherOpen && (
@@ -61,6 +61,9 @@ export default function TopBar({
               <button onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors border-b border-slate-100 ${currentApp === 'ledger' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'ledger' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Calculator size={18} /></div>Creator Ledger</button>
               
               {(currentUser.isAdmin || currentUser.canViewDomains) && <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains</button>}
+              
+              {currentUser.isAdmin && <button onClick={() => { setCurrentApp('analytics'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'analytics' ? 'bg-orange-50 text-orange-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'analytics' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}><BarChart3 size={18} /></div>Web Traffic</button>}
+
               {(currentUser.isAdmin || currentUser.canViewYoutube) && <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube Stats</button>}
               {(currentUser.isAdmin || currentUser.canViewShows) && <button onClick={() => { setCurrentApp('shows'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'shows' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'shows' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Tv size={18} /></div>Show Schedule</button>}
               {(currentUser.isAdmin || currentUser.canViewSponsorships) && <button onClick={() => { setCurrentApp('sponsorships'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'sponsorships' ? 'bg-amber-50 text-amber-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'sponsorships' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}><Award size={18} /></div>Sponsorships</button>}
@@ -142,6 +145,25 @@ export default function TopBar({
              </button>
            </>
         )}
+        
+        {isAnalyticsView && currentUser?.isAdmin && (
+           <>
+             <div className="relative flex items-center bg-orange-700/50 rounded-lg border border-orange-500/50 px-3 py-1.5 hover:bg-orange-700 transition-colors cursor-pointer mr-3">
+               <Clock size={16} className="text-orange-200 mr-2" />
+               <select value={analyticsTimeFilter} onChange={handleAnalyticsFilterChange} className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-6">
+                 <option value="7" className="text-slate-800 font-medium">Last 7 days</option>
+                 <option value="28" className="text-slate-800 font-medium">Last 28 days</option>
+                 <option value="90" className="text-slate-800 font-medium">Last 90 days</option>
+                 <option value="365" className="text-slate-800 font-medium">Last 365 days</option>
+               </select>
+               <ChevronDown size={14} className="text-orange-200 absolute right-3 pointer-events-none" />
+             </div>
+             <button onClick={() => handleSyncAnalytics()} className="bg-white text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors" title="Sync with Google Analytics">
+               <RefreshCw size={18} strokeWidth={2.5} /> <span className="hidden sm:inline">Sync</span>
+             </button>
+           </>
+        )}
+
         {isYoutubeView && (
            <>
              <div className="relative flex items-center bg-red-700/50 rounded-lg border border-red-500/50 px-3 py-1.5 hover:bg-red-700 transition-colors cursor-pointer">
