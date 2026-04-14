@@ -160,6 +160,9 @@ export default function App() {
   const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
+  
+  // Add missing state for Ledger sync
+  const [isSyncingLedger, setIsSyncingLedger] = useState(false);
 
   // --- BROWSER HISTORY SYNCING (URL Management) ---
   useEffect(() => {
@@ -238,8 +241,6 @@ export default function App() {
 
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
-
-  // Determine if the Passwords App should be accessible to this user
   const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
   useEffect(() => {
@@ -603,66 +604,6 @@ export default function App() {
     reorderedTasks.forEach(t => sendToAPI('save_task', t));
   };
 
-  useEffect(() => {
-     if (events.length > 0 && currentUser?.isAdmin) {
-         events.forEach(event => {
-             let updatedEvent = null;
-             
-             if (!event.expenseId) {
-                 const isInstallments = event.installments && event.installments.length > 0;
-                 const hasCost = parseFloat(event.cost) > 0;
-                 if (isInstallments) {
-                     const newIds = [];
-                     let tempExpenses = [];
-                     event.installments.forEach((inst, idx) => {
-                         const newExpenseId = 'e' + Date.now() + idx + Math.random().toString(36).substr(2, 5);
-                         newIds.push(newExpenseId);
-                         const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title} (Installment ${idx + 1})`, category: 'Company Expense', amount: inst.amount, cycle: 'one-time', renewalDate: inst.date, notes: `Auto-generated installment for event ${event.title}`, autoRenew: false };
-                         sendToAPI('save_expense', newExpense);
-                         tempExpenses.push(newExpense);
-                     });
-                     setExpenses(prev => [...prev, ...tempExpenses]);
-                     updatedEvent = { ...event, expenseId: newIds.join(',') };
-                 } else if (hasCost) {
-                     const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
-                     const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title}`, category: 'Company Expense', amount: event.cost, cycle: 'one-time', renewalDate: event.billingDate || event.eventDate, notes: `Auto-generated for event ${event.title}`, autoRenew: false };
-                     sendToAPI('save_expense', newExpense);
-                     setExpenses(prev => [...prev, newExpense]);
-                     updatedEvent = { ...event, expenseId: newExpenseId };
-                 }
-             }
-
-             if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
-                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
-                 let triggerDate = new Date(eventDateObj);
-                 if (event.projectLeadUnit === 'now') {
-                     triggerDate = new Date(0);
-                 } else {
-                     const leadTime = parseInt(event.projectLeadTime);
-                     if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
-                     if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
-                     if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
-                     if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
-                 }
-                 const today = new Date();
-                 if (today >= triggerDate) {
-                     const newProjectId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
-                     const newProject = { id: newProjectId, companyId: event.companyId, name: `${event.title} (Event Prep)`, icon: 'CalendarDays', color: 'purple' };
-                     sendToAPI('save_project', newProject);
-                     setProjects(prev => [...prev, newProject]);
-                     updatedEvent = { ...(updatedEvent || event), projectId: newProjectId };
-                 }
-             }
-
-             if (updatedEvent) {
-                 sendToAPI('save_event', updatedEvent);
-                 setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-             }
-         });
-     }
-  }, [events, currentUser]); 
-
-  // --- OAUTH REDIRECT HANDLER ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
