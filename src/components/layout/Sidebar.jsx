@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, Network, LayoutGrid, BookUser, LayoutPanelTop, Lock, Calculator, Home, BarChart3
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, Wallet
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -109,24 +109,6 @@ export default function Sidebar({
             </div>
           </>
         )}
-
-        {currentApp === 'analytics' && currentUser?.isAdmin && (
-          <>
-            <div className="px-4 mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Properties</p>
-                <button onClick={() => openAnalyticsModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add GA4 Property"><Plus size={16} /></button>
-              </div>
-              <div className="flex flex-col gap-1">
-                {/* Note: App.jsx needs to pass analyticsProperties to Sidebar if we want to list them here. 
-                    For now, we'll just have a placeholder or skip listing them individually in the sidebar. */}
-                 <div className="text-xs text-slate-500 p-3 text-center italic">Managed in Top Bar.</div> 
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ... [Rest of Sidebar remains exactly as it was] ... */}
 
         {currentApp === 'sponsorships' && (
           <>
