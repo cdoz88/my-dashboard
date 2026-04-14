@@ -24,6 +24,7 @@ import DomainsDashboard from './components/dashboards/DomainsDashboard';
 import EventsDashboard from './components/dashboards/EventsDashboard';
 import SpreakerDashboard from './components/dashboards/SpreakerDashboard';
 import YoutubeDashboard from './components/dashboards/YoutubeDashboard';
+import AnalyticsDashboard from './components/dashboards/AnalyticsDashboard';
 import ActivityLogView from './components/dashboards/ActivityLogView';
 import ShowsDashboard from './components/dashboards/ShowsDashboard';
 import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard';
@@ -41,6 +42,7 @@ import ProjectModal from './components/modals/ProjectModal';
 import ProfileModal from './components/modals/ProfileModal';
 import SpreakerModal from './components/modals/SpreakerModal';
 import YoutubeModal from './components/modals/YoutubeModal';
+import AnalyticsModal from './components/modals/AnalyticsModal';
 import TeamModal from './components/modals/TeamModal';
 import SwitchUserModal from './components/modals/SwitchUserModal';
 import OnboardingModal from './components/modals/OnboardingModal';
@@ -105,17 +107,24 @@ export default function App() {
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
 
-  // YouTube & Spreaker State
+  // YouTube, Spreaker & Analytics State
   const [youtubeChannels, setYoutubeChannels] = useState([]);
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
   const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); 
+  
   const [spreakerShows, setSpreakerShows] = useState([]);
   const [activeSpreakerShowId, setActiveSpreakerShowId] = useState(null);
   const [spreakerTimeFilter, setSpreakerTimeFilter] = useState('30');
+
+  const [analyticsProperties, setAnalyticsProperties] = useState([]);
+  const [activeAnalyticsId, setActiveAnalyticsId] = useState(null);
+  const [analyticsTimeFilter, setAnalyticsTimeFilter] = useState('28');
   
   // Modal states
   const [isSpreakerModalOpen, setIsSpreakerModalOpen] = useState(false);
   const [editingSpreakerShow, setEditingSpreakerShow] = useState({ id: null, name: '' });
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
+  const [editingAnalyticsProperty, setEditingAnalyticsProperty] = useState({ id: null, name: '', propertyId: '' });
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState({ title: '', description: '', dueDate: '', status: 'todo', projectId: '', files: [], comments: [], subscribers: [], assigneeId: '', tags: [], weight: 1, completedAt: null, completedBy: null });
   const [newCommentText, setNewCommentText] = useState('');
@@ -150,7 +159,7 @@ export default function App() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [editingPassword, setEditingPassword] = useState({ id: null, companyId: '', platform: '', url: '', username: '', password: '', notes: '', sharedWith: [], category: 'Uncategorized' });
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
-  const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: '', paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
+  const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
 
   // --- BROWSER HISTORY SYNCING (URL Management) ---
   useEffect(() => {
@@ -167,10 +176,11 @@ export default function App() {
     else if (currentApp === 'activity') currentTab = activeActivityTab;
     else if (currentApp === 'crm') currentTab = activeCRMTab;
     else if (currentApp === 'passwords') currentTab = activePasswordTab;
+    else if (currentApp === 'analytics') currentTab = activeAnalyticsId || '';
 
     if (urlParams.get('app') !== currentApp || urlParams.get('tab') !== currentTab) {
         urlParams.set('app', currentApp);
-        urlParams.set('tab', currentTab);
+        if (currentTab) urlParams.set('tab', currentTab);
         window.history.pushState({ app: currentApp, tab: currentTab }, '', `${window.location.pathname}?${urlParams.toString()}`);
     }
 
@@ -186,7 +196,7 @@ export default function App() {
     localStorage.setItem('fyt_activeActivityTab', activeActivityTab);
     localStorage.setItem('fyt_activeCRMTab', activeCRMTab);
     localStorage.setItem('fyt_activePasswordTab', activePasswordTab);
-  }, [currentApp, activeTab, activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab, activeActivityTab, activeCRMTab, activePasswordTab]);
+  }, [currentApp, activeTab, activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab, activeActivityTab, activeCRMTab, activePasswordTab, activeAnalyticsId]);
 
   // Handle Browser Back/Forward Buttons
   useEffect(() => {
@@ -207,6 +217,7 @@ export default function App() {
             else if (app === 'activity') setActiveActivityTab(tab);
             else if (app === 'crm') setActiveCRMTab(tab);
             else if (app === 'passwords') setActivePasswordTab(tab);
+            else if (app === 'analytics') setActiveAnalyticsId(tab);
         }
     };
     window.addEventListener('popstate', handlePopState);
@@ -227,6 +238,8 @@ export default function App() {
 
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
+
+  // Determine if the Passwords App should be accessible to this user
   const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
   useEffect(() => {
@@ -248,6 +261,7 @@ export default function App() {
       if (currentApp === 'events' && !currentUser.isAdmin && !currentUser.canViewEvents) setCurrentApp('home');
       if (currentApp === 'spreaker' && !currentUser.isAdmin && !currentUser.canViewSpreaker) setCurrentApp('home');
       if (currentApp === 'youtube' && !currentUser.isAdmin && !currentUser.canViewYoutube) setCurrentApp('home');
+      if (currentApp === 'analytics' && !currentUser.isAdmin) setCurrentApp('home'); // Protect GA4
       if (currentApp === 'shows' && !currentUser.isAdmin && !currentUser.canViewShows) setCurrentApp('home');
       if (currentApp === 'sponsorships' && !currentUser.isAdmin && !currentUser.canViewSponsorships) setCurrentApp('home');
       if (currentApp === 'crm' && !currentUser.isAdmin && !currentUser.canViewCRM) setCurrentApp('home');
@@ -256,7 +270,7 @@ export default function App() {
     }
   }, [currentUser, currentApp, canViewPasswordsApp]);
 
-  useEffect(() => {
+  const fetchData = () => {
     fetch(`${API_URL}?action=get_all`)
       .then(res => res.json())
       .then(data => {
@@ -332,12 +346,22 @@ export default function App() {
             setSpreakerShows(data.spreaker_shows);
             if(data.spreaker_shows.length > 0 && !activeSpreakerShowId) setActiveSpreakerShowId(data.spreaker_shows[0].id);
         }
+        
+        if(data.analytics_properties) {
+            setAnalyticsProperties(data.analytics_properties);
+            if(data.analytics_properties.length > 0 && !activeAnalyticsId) setActiveAnalyticsId(data.analytics_properties[0].id);
+        }
+
         setIsLoading(false);
       })
       .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
-  // --- FETCH WORDPRESS LEDGER DATA (WITH CACHE BUSTER) ---
+  // --- FETCH WORDPRESS LEDGER DATA ---
   useEffect(() => {
      if (currentUser) {
          fetch(`https://admin.fsan.com/wp-json/fsan/v1/ledger?t=${Date.now()}`)
@@ -406,12 +430,7 @@ export default function App() {
                 setCurrentApp('projects');
                 setActiveTab(targetProject.id);
                 openTaskModal(targetTask);
-                
-                // Clear the task from the URL so it doesn't re-open on refresh
-                const newParams = new URLSearchParams();
-                newParams.set('app', 'projects');
-                newParams.set('tab', targetProject.id);
-                window.history.replaceState({ app: 'projects', tab: targetProject.id }, '', `${window.location.pathname}?${newParams.toString()}`);
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
     }
@@ -480,7 +499,9 @@ export default function App() {
                   alert("Google AI Error: " + data.error.message);
               } else if (data.candidates && data.candidates[0].content.parts[0].text) {
                   let text = data.candidates[0].content.parts[0].text;
+                  // Strip Markdown formatting if Gemini accidentally included it
                   text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                  
                   const parsed = JSON.parse(text);
 
                   setEditingContact({
@@ -638,25 +659,60 @@ export default function App() {
 
   // --- OAUTH REDIRECT HANDLER ---
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = newSearchParams(window.location.search);
     const code = urlParams.get('code');
     const error = urlParams.get('error');
     const errorDesc = urlParams.get('error_description');
     
     const pendingYtName = localStorage.getItem('pendingYtName');
     const pendingSpAuth = localStorage.getItem('pendingSpAuth');
+    const pendingGaName = localStorage.getItem('pendingGaName');
     const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
 
-    if (error && (pendingYtName || pendingSpAuth)) {
+    if (error && (pendingYtName || pendingSpAuth || pendingGaName)) {
         alert("Authorization failed: " + (errorDesc ? errorDesc.replace(/\+/g, ' ') : error));
         localStorage.removeItem('pendingYtName');
         localStorage.removeItem('pendingYtId');
         localStorage.removeItem('pendingSpAuth');
+        localStorage.removeItem('pendingGaName');
+        localStorage.removeItem('pendingGaId');
+        localStorage.removeItem('pendingGaPropId');
         window.history.replaceState({path: redirectUri}, '', redirectUri);
         return;
     }
 
-    if (code && pendingYtName) {
+    if (code && pendingGaName) {
+        setIsLoading(true);
+        const pendingGaId = localStorage.getItem('pendingGaId');
+        const pendingGaPropId = localStorage.getItem('pendingGaPropId');
+        window.history.replaceState({path: redirectUri}, '', redirectUri);
+
+        fetch(`${API_URL}?action=exchange_analytics_code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, redirect_uri: redirectUri, name: pendingGaName, id: pendingGaId, propertyId: pendingGaPropId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert('Failed to connect Google Analytics: ' + data.error); } 
+            else {
+                setCurrentApp('analytics');
+                fetchData(); 
+            }
+            localStorage.removeItem('pendingGaName');
+            localStorage.removeItem('pendingGaId');
+            localStorage.removeItem('pendingGaPropId');
+            setIsLoading(false);
+        })
+        .catch(err => {
+            alert("Server error during Analytics connection.");
+            localStorage.removeItem('pendingGaName');
+            localStorage.removeItem('pendingGaId');
+            localStorage.removeItem('pendingGaPropId');
+            setIsLoading(false);
+        });
+
+    } else if (code && pendingYtName) {
         setIsLoading(true);
         const pendingYtId = localStorage.getItem('pendingYtId');
         window.history.replaceState({path: redirectUri}, '', redirectUri);
@@ -671,13 +727,7 @@ export default function App() {
             if (data.error) { alert('Failed to connect YouTube: ' + data.error); } 
             else {
                 setCurrentApp('youtube');
-                fetch(`${API_URL}?action=get_all`).then(r => r.json()).then(freshData => {
-                    if(freshData.youtube_channels) {
-                        setYoutubeChannels(freshData.youtube_channels);
-                        if (pendingYtId) setActiveYoutubeChannelId(pendingYtId);
-                        else if (freshData.youtube_channels.length > 0) setActiveYoutubeChannelId(freshData.youtube_channels[freshData.youtube_channels.length - 1].id);
-                    }
-                });
+                fetchData();
             }
             localStorage.removeItem('pendingYtName');
             localStorage.removeItem('pendingYtId');
@@ -706,16 +756,7 @@ export default function App() {
                 setIsLoading(false);
             } else {
                 setCurrentApp('spreaker');
-                fetch(`${API_URL}?action=sync_spreaker&days=30`)
-                .then(() => fetch(`${API_URL}?action=get_all`))
-                .then(r => r.json())
-                .then(freshData => {
-                    if(freshData.spreaker_shows) {
-                        setSpreakerShows(freshData.spreaker_shows);
-                        if (freshData.spreaker_shows.length > 0) setActiveSpreakerShowId(freshData.spreaker_shows[0].id);
-                    }
-                    setIsLoading(false);
-                });
+                fetch(`${API_URL}?action=sync_spreaker&days=30`).then(() => fetchData());
             }
             localStorage.removeItem('pendingSpAuth');
         })
@@ -735,9 +776,7 @@ export default function App() {
       if (data.error) alert("Sync Failed: " + data.error);
       else {
         alert(`Successfully synced ${data.count} domains from GoDaddy!`);
-        const refresh = await fetch(`${API_URL}?action=get_all`);
-        const freshData = await refresh.json();
-        if(freshData.expenses) setExpenses(freshData.expenses);
+        fetchData();
       }
     } catch (err) { alert("An error occurred during sync. Check your server connection."); }
     setIsLoading(false);
@@ -755,15 +794,7 @@ export default function App() {
         if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
         alert(errorMsg);
       } else {
-        const refresh = await fetch(`${API_URL}?action=get_all`);
-        const freshData = await refresh.json();
-        if(freshData.youtube_channels) {
-            setYoutubeChannels(freshData.youtube_channels);
-            if(freshData.youtube_channels.length > 0 && !activeYoutubeChannelId) setActiveYoutubeChannelId(freshData.youtube_channels[0].id);
-        }
-        if(freshData.shows) {
-            setShows(freshData.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
-        }
+        fetchData();
       }
     } catch (err) { alert("An error occurred during sync. Check your server connection."); }
     setIsLoading(false);
@@ -781,15 +812,66 @@ export default function App() {
         if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
         alert(errorMsg);
       } else {
-        const refresh = await fetch(`${API_URL}?action=get_all`);
-        const freshData = await refresh.json();
-        if(freshData.spreaker_shows) {
-            setSpreakerShows(freshData.spreaker_shows);
-            if(freshData.spreaker_shows.length > 0 && !activeSpreakerShowId) setActiveSpreakerShowId(freshData.spreaker_shows[0].id);
-        }
+        fetchData();
       }
     } catch (err) { alert("An error occurred during sync. Check your server connection."); }
     setIsLoading(false);
+  };
+
+  const handleAnalyticsFilterChange = (e) => { setAnalyticsTimeFilter(e.target.value); handleSyncAnalytics(e.target.value); };
+  const handleSyncAnalytics = async (overrideDays = null) => {
+      const daysToSync = typeof overrideDays === 'string' ? overrideDays : analyticsTimeFilter;
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${API_URL}?action=sync_analytics&days=${daysToSync}`);
+        const data = await response.json();
+        if (data.error) {
+          let errorMsg = "Analytics Sync Failed: " + data.error;
+          if (data.details && data.details.length > 0) errorMsg += "\n\nDetails:\n" + data.details.join("\n");
+          alert(errorMsg);
+        } else {
+          fetchData(); 
+        }
+      } catch (err) { alert("An error occurred during sync. Check your server connection."); }
+      setIsLoading(false);
+  };
+
+  const openAnalyticsModal = (property = null) => {
+    if (property) setEditingAnalyticsProperty({ ...property });
+    else setEditingAnalyticsProperty({ id: null, name: '', propertyId: '' });
+    setIsAnalyticsModalOpen(true);
+  };
+  
+  const handleSaveAnalyticsProperty = (e) => {
+      e.preventDefault();
+      if (!editingAnalyticsProperty.name.trim() || !editingAnalyticsProperty.propertyId.trim()) return;
+      
+      const redirectUri = window.location.protocol + "//" + window.location.host + window.location.pathname;
+      const clientId = '985277958318-3ubsghnc9fj8010949mhskta84g2mds4.apps.googleusercontent.com';
+      const scope = encodeURIComponent('https://www.googleapis.com/auth/analytics.readonly');
+      
+      localStorage.setItem('pendingGaName', editingAnalyticsProperty.name);
+      localStorage.setItem('pendingGaPropId', editingAnalyticsProperty.propertyId);
+      if (editingAnalyticsProperty.id) {
+          localStorage.setItem('pendingGaId', editingAnalyticsProperty.id);
+      } else {
+          localStorage.removeItem('pendingGaId');
+      }
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+      
+      setIsAnalyticsModalOpen(false);
+      window.location.href = authUrl;
+  };
+
+  const handleDeleteAnalyticsProperty = (propertyId) => {
+      setAnalyticsProperties(analyticsProperties.filter(p => p.id !== propertyId));
+      if(activeAnalyticsId === propertyId) {
+          const remaining = analyticsProperties.filter(p => p.id !== propertyId);
+          setActiveAnalyticsId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      setIsAnalyticsModalOpen(false);
+      sendToAPI('delete_analytics_property', { id: propertyId });
   };
 
   const handleImportCSV = (e, companyId, type = 'expenses') => {
@@ -820,7 +902,6 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // --- PAYOUT LEDGER HANDLERS ---
   const openPayoutModal = (payout = null) => {
     if (payout) setEditingPayout({ ...payout });
     else setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
@@ -1634,6 +1715,7 @@ export default function App() {
              openSponsorshipModal={openSponsorshipModal} openTeamModal={openTeamModal} teamDisplayMode={teamDisplayMode} setTeamDisplayMode={setTeamDisplayMode}
              crmDisplayMode={crmDisplayMode} setCRMDisplayMode={setCRMDisplayMode} openContactModal={openContactModal} openPasswordModal={openPasswordModal} canViewPasswordsApp={canViewPasswordsApp} activePasswordTab={activePasswordTab}
              handleScanBusinessCard={handleScanBusinessCard} isUploading={isUploading}
+             analyticsTimeFilter={analyticsTimeFilter} handleAnalyticsFilterChange={handleAnalyticsFilterChange} handleSyncAnalytics={handleSyncAnalytics} openAnalyticsModal={openAnalyticsModal}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'home' ? (
@@ -1653,6 +1735,8 @@ export default function App() {
               <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
             ) : currentApp === 'youtube' ? (
               <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
+            ) : currentApp === 'analytics' ? (
+              <AnalyticsDashboard analyticsProperties={analyticsProperties} activeAnalyticsId={activeAnalyticsId} />
             ) : currentApp === 'shows' ? (
               <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />
             ) : currentApp === 'sponsorships' ? (
@@ -1682,25 +1766,227 @@ export default function App() {
         </div>
       </div>
 
-      {isTaskModalOpen && <TaskModal currentTask={currentTask} setCurrentTask={setCurrentTask} handleSaveTask={handleSaveTask} handleDeleteTask={handleDeleteTask} setIsTaskModalOpen={setIsTaskModalOpen} users={users} isUploading={isUploading} handleFileUpload={handleFileUpload} removeFile={removeFile} newCommentText={newCommentText} setNewCommentText={setNewCommentText} handleAddComment={handleAddComment} currentUser={currentUser} handleToggleSubscribe={handleToggleSubscribe} />}
-      {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
-      {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
-      {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
-      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} handleArchiveSeries={handleArchiveSeries} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} currentUser={currentUser} />}
-      {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
-      {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
-      {isPasswordModalOpen && <PasswordModal editingPassword={editingPassword} setEditingPassword={setEditingPassword} handleSavePassword={handleSavePassword} handleDeletePassword={handleDeletePassword} setIsPasswordModalOpen={setIsPasswordModalOpen} visibleCompanies={visibleCompanies} users={users} currentUser={currentUser} />}
-      {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
-      {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
-      {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
-      {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleDeleteUser={handleDeleteUser} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} currentUser={currentUser} />}
-      {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
-      {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
-      {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
-      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
-      {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
-      {isAvatarMakerModalOpen && <AvatarMakerModal setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />}
-      {isPayoutModalOpen && <PayoutModal editingPayout={editingPayout} setEditingPayout={setEditingPayout} handleSavePayout={handleSavePayout} setIsPayoutModalOpen={setIsPayoutModalOpen} shows={shows} wpLedgerData={wpLedgerData} currentUser={currentUser} />}
+      {isTaskModalOpen && (
+        <TaskModal 
+          currentTask={currentTask} 
+          setCurrentTask={setCurrentTask} 
+          handleSaveTask={handleSaveTask} 
+          handleDeleteTask={handleDeleteTask} 
+          setIsTaskModalOpen={setIsTaskModalOpen} 
+          users={users} 
+          isUploading={isUploading} 
+          handleFileUpload={handleFileUpload} 
+          removeFile={removeFile} 
+          newCommentText={newCommentText} 
+          setNewCommentText={setNewCommentText} 
+          handleAddComment={handleAddComment} 
+          currentUser={currentUser} 
+          handleToggleSubscribe={handleToggleSubscribe} 
+        />
+      )}
+      {isExpenseModalOpen && (
+        <ExpenseModal 
+          currentExpense={currentExpense} 
+          setCurrentExpense={setCurrentExpense} 
+          handleSaveExpense={handleSaveExpense} 
+          handleDeleteExpense={handleDeleteExpense} 
+          setIsExpenseModalOpen={setIsExpenseModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isDomainModalOpen && (
+        <DomainModal 
+          currentDomain={currentDomain} 
+          setCurrentDomain={setCurrentDomain} 
+          handleSaveDomain={handleSaveDomain} 
+          handleDeleteExpense={handleDeleteExpense} 
+          setIsDomainModalOpen={setIsDomainModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isEventModalOpen && (
+        <EventModal 
+          editingEvent={editingEvent} 
+          setEditingEvent={setEditingEvent} 
+          paymentMode={paymentMode} 
+          setPaymentMode={setPaymentMode} 
+          handleSaveEvent={handleSaveEvent} 
+          handleDeleteEvent={handleDeleteEvent} 
+          setIsEventModalOpen={setIsEventModalOpen} 
+          visibleCompanies={visibleCompanies} 
+          sponsorships={sponsorships} 
+          openSponsorshipModal={openSponsorshipModal} 
+        />
+      )}
+      {isShowModalOpen && (
+        <ShowModal 
+          editingShow={editingShow} 
+          setEditingShow={setEditingShow} 
+          handleSaveShow={handleSaveShow} 
+          handleDeleteShow={handleDeleteShow} 
+          handleArchiveSeries={handleArchiveSeries} 
+          setIsShowModalOpen={setIsShowModalOpen} 
+          youtubeChannels={youtubeChannels} 
+          users={users} 
+          sponsorships={sponsorships} 
+          openSponsorshipModal={openSponsorshipModal} 
+          currentUser={currentUser} 
+        />
+      )}
+      {isSponsorshipModalOpen && (
+        <SponsorshipModal 
+          editingSponsorship={editingSponsorship} 
+          setEditingSponsorship={setEditingSponsorship} 
+          handleSaveSponsorship={handleSaveSponsorship} 
+          handleDeleteSponsorship={handleDeleteSponsorship} 
+          setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} 
+          visibleCompanies={visibleCompanies} 
+          isUploading={isUploading} 
+          handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} 
+          shows={shows} 
+          events={events} 
+          currentUser={currentUser} 
+          handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} 
+          removeSponsorshipAsset={removeSponsorshipAsset} 
+        />
+      )}
+      {isContactModalOpen && (
+        <ContactModal 
+          editingContact={editingContact} 
+          setEditingContact={setEditingContact} 
+          handleSaveContact={handleSaveContact} 
+          handleDeleteContact={handleDeleteContact} 
+          setIsContactModalOpen={setIsContactModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isPasswordModalOpen && (
+        <PasswordModal 
+          editingPassword={editingPassword} 
+          setEditingPassword={setEditingPassword} 
+          handleSavePassword={handleSavePassword} 
+          handleDeletePassword={handleDeletePassword} 
+          setIsPasswordModalOpen={setIsPasswordModalOpen} 
+          visibleCompanies={visibleCompanies} 
+          users={users} 
+          currentUser={currentUser} 
+        />
+      )}
+      {isCompanyModalOpen && (
+        <CompanyModal 
+          editingCompany={editingCompany} 
+          setEditingCompany={setEditingCompany} 
+          handleSaveCompany={handleSaveCompany} 
+          handleDeleteCompany={handleDeleteCompany} 
+          setIsCompanyModalOpen={setIsCompanyModalOpen} 
+          users={users} 
+          toggleCompanyUser={toggleCompanyUser} 
+          handleCompanyLogoUpload={handleCompanyLogoUpload} 
+          isUploading={isUploading} 
+        />
+      )}
+      {isProjectModalOpen && (
+        <ProjectModal 
+          editingProject={editingProject} 
+          setEditingProject={setEditingProject} 
+          handleSaveProject={handleSaveProject} 
+          handleArchiveProject={handleArchiveProject} 
+          handlePermanentDeleteProject={handlePermanentDeleteProject} 
+          setIsProjectModalOpen={setIsProjectModalOpen} 
+          visibleCompanies={visibleCompanies} 
+        />
+      )}
+      {isProfileModalOpen && (
+        <ProfileModal 
+          profileForm={profileForm} 
+          setProfileForm={setProfileForm} 
+          handleSaveProfile={handleSaveProfile} 
+          handleProfileImageUpload={handleProfileImageUpload} 
+          isUploading={isUploading} 
+          setIsProfileModalOpen={setIsProfileModalOpen} 
+          setLoggedInUserId={setLoggedInUserId} 
+        />
+      )}
+      {isTeamModalOpen && (
+        <TeamModal 
+          users={users} 
+          companies={companies} 
+          editingTeamMember={editingTeamMember} 
+          setEditingTeamMember={setEditingTeamMember} 
+          handleSaveTeamMember={handleSaveTeamMember} 
+          handleDeleteUser={handleDeleteUser} 
+          handleTeamMemberImageUpload={handleTeamMemberImageUpload} 
+          isUploading={isUploading} 
+          setIsTeamModalOpen={setIsTeamModalOpen} 
+          currentUser={currentUser} 
+        />
+      )}
+      {isSwitchUserModalOpen && (
+        <SwitchUserModal 
+          users={users} 
+          loggedInUserId={loggedInUserId} 
+          setLoggedInUserId={setLoggedInUserId} 
+          setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} 
+        />
+      )}
+      {isYoutubeModalOpen && (
+        <YoutubeModal 
+          editingYoutubeChannel={editingYoutubeChannel} 
+          setEditingYoutubeChannel={setEditingYoutubeChannel} 
+          handleSaveYoutubeChannel={handleSaveYoutubeChannel} 
+          handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} 
+          handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} 
+          setIsYoutubeModalOpen={setIsYoutubeModalOpen} 
+        />
+      )}
+      {isSpreakerModalOpen && (
+        <SpreakerModal 
+          editingSpreakerShow={editingSpreakerShow} 
+          handleSaveSpreakerShow={handleSaveSpreakerShow} 
+          handleDeleteSpreakerShow={handleDeleteSpreakerShow} 
+          setIsSpreakerModalOpen={setIsSpreakerModalOpen} 
+        />
+      )}
+      {isAnalyticsModalOpen && (
+        <AnalyticsModal 
+          editingAnalyticsProperty={editingAnalyticsProperty} 
+          setEditingAnalyticsProperty={setEditingAnalyticsProperty} 
+          handleSaveAnalyticsProperty={handleSaveAnalyticsProperty} 
+          handleDeleteAnalyticsProperty={handleDeleteAnalyticsProperty} 
+          setIsAnalyticsModalOpen={setIsAnalyticsModalOpen} 
+        />
+      )}
+      {isOnboardingModalOpen && (
+        <OnboardingModal 
+          setIsOnboardingModalOpen={setIsOnboardingModalOpen} 
+          globalChecklist={globalChecklist} 
+          handleSaveGlobalChecklist={handleSaveGlobalChecklist} 
+          uploadFileToServer={uploadFileToServer} 
+        />
+      )}
+      {isProjectAttachmentsModalOpen && (
+        <ProjectAttachmentsModal 
+          project={projects.find(p => p.id === activeTab)} 
+          tasks={tasks} 
+          setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} 
+        />
+      )}
+      {isAvatarMakerModalOpen && (
+        <AvatarMakerModal 
+          setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} 
+        />
+      )}
+      {isPayoutModalOpen && (
+        <PayoutModal 
+          editingPayout={editingPayout} 
+          setEditingPayout={setEditingPayout} 
+          handleSavePayout={handleSavePayout} 
+          setIsPayoutModalOpen={setIsPayoutModalOpen} 
+          shows={shows} 
+          wpLedgerData={wpLedgerData} 
+          currentUser={currentUser} 
+        />
+      )}
     </>
   );
 }
