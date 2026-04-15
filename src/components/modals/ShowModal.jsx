@@ -56,6 +56,12 @@ export default function ShowModal({
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">YouTube Playlist ID / URL</label>
+              <input type="text" value={editingShow.playlistId || ''} onChange={(e) => setEditingShow({...editingShow, playlistId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., PLxxxxxx or full playlist URL" />
+              <p className="text-[10px] text-slate-500 mt-1">Required to automatically pull revenue statistics for this show.</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
@@ -156,7 +162,7 @@ export default function ShowModal({
                     <input type="number" step="1" min="0" max="100" value={editingShow.revShare ?? 100} onChange={(e) => setEditingShow({...editingShow, revShare: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="100" />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Payment Start Date</label>
                     <input type="date" value={editingShow.paymentStartDate || ''} onChange={(e) => setEditingShow({...editingShow, paymentStartDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" />
@@ -181,11 +187,6 @@ export default function ShowModal({
                     </label>
                     <input type="text" value={editingShow.paymentAccount || ''} onChange={(e) => setEditingShow({...editingShow, paymentAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Username, Email, etc." />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">YouTube Playlist ID / URL</label>
-                  <input type="text" value={editingShow.playlistId || ''} onChange={(e) => setEditingShow({...editingShow, playlistId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., PLxxxxxx or full playlist URL" />
-                  <p className="text-[10px] text-slate-500 mt-1">Required to automatically pull revenue statistics for this show.</p>
                 </div>
               </div>
             )}
