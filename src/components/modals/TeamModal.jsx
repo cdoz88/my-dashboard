@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock } from 'lucide-react';
+import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock, Calculator } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
@@ -12,7 +12,34 @@ export default function TeamModal({
         <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
-            <button onClick={() => setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' })} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            <button onClick={() => {
+                const fsanComp = companies.find(c => c.name.toLowerCase().includes('fsan'));
+                setEditingTeamMember({ 
+                    id: null, 
+                    name: '', 
+                    email: '', 
+                    phone: '', 
+                    title: '', 
+                    venmo: '', 
+                    webhookUrl: '', 
+                    isAdmin: false, 
+                    canViewProjects: true, 
+                    canViewEvents: true, 
+                    canViewSpreaker: true, 
+                    canViewYoutube: true, 
+                    canViewShows: true, 
+                    canViewSponsorships: true, 
+                    canViewLedger: true,
+                    canViewBudget: false, 
+                    canViewDomains: false, 
+                    canViewCRM: false, 
+                    companyIds: fsanComp ? [fsanComp.id] : [], 
+                    generateOnboarding: true, 
+                    managerId: '', 
+                    responsibilities: '', 
+                    wpUserId: '' 
+                });
+            }} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
@@ -61,7 +88,7 @@ export default function TeamModal({
                   <label className="block text-sm font-medium text-slate-700 mb-1">Title / Role</label>
                   <input type="text" value={editingTeamMember.title || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lead Designer" />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reports To (Manager)</label>
                   <select value={editingTeamMember.managerId || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, managerId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                       <option value="">No Manager (Top Level)</option>
@@ -69,12 +96,6 @@ export default function TeamModal({
                           <option key={u.id} value={u.id}>{u.name}</option>
                       ))}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center justify-between">
-                     WordPress User ID (For SSO)
-                  </label>
-                  <input type="text" value={editingTeamMember.wpUserId || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, wpUserId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 12" />
                 </div>
                 
                 <div className="md:col-span-2 pt-2">
@@ -130,39 +151,43 @@ export default function TeamModal({
                 <div className={`space-y-3 transition-opacity ${editingTeamMember.isAdmin ? 'opacity-50 pointer-events-none' : ''}`}>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><LayoutDashboard size={16} className="text-blue-500"/> Projects App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded" checked={editingTeamMember.canViewProjects} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewProjects: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-blue-600 rounded" checked={editingTeamMember.canViewProjects !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewProjects: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><CalendarDays size={16} className="text-purple-500"/> Events App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-purple-600 rounded" checked={editingTeamMember.canViewEvents} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewEvents: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-purple-600 rounded" checked={editingTeamMember.canViewEvents !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewEvents: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Wallet size={16} className="text-emerald-500"/> Expenses App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewBudget} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewBudget: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewBudget === true} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewBudget: e.target.checked})} />
+                  </label>
+                  <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><Calculator size={16} className="text-emerald-600"/> Ledger App</div>
+                    <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewLedger !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewLedger: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Domains App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains === true} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Youtube size={16} className="text-red-500"/> YouTube App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewYoutube} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewYoutube: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewYoutube !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewYoutube: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Tv size={16} className="text-red-500"/> Shows App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewShows} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewShows: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewShows !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewShows: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Award size={16} className="text-amber-500"/> Sponsorships App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-amber-500 rounded" checked={editingTeamMember.canViewSponsorships} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewSponsorships: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-amber-500 rounded" checked={editingTeamMember.canViewSponsorships !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewSponsorships: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><BookUser size={16} className="text-sky-500"/> CRM Contacts App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-sky-500 rounded" checked={editingTeamMember.canViewCRM} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewCRM: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-sky-500 rounded" checked={editingTeamMember.canViewCRM === true} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewCRM: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><Mic size={16} className="text-[#ffc005]"/> Spreaker App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-[#ffc005] rounded" checked={editingTeamMember.canViewSpreaker} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewSpreaker: e.target.checked})} />
+                    <input type="checkbox" className="w-5 h-5 accent-[#ffc005] rounded" checked={editingTeamMember.canViewSpreaker !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewSpreaker: e.target.checked})} />
                   </label>
                 </div>
               </div>
