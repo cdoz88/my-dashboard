@@ -31,6 +31,7 @@ import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard
 import CRMDashboard from './components/dashboards/CRMDashboard';
 import PasswordsDashboard from './components/dashboards/PasswordsDashboard';
 import LedgerDashboard from './components/dashboards/LedgerDashboard';
+import KnowledgeBaseDashboard from './components/dashboards/KnowledgeBaseDashboard'; // <-- IMPORT ADDED HERE
 
 // Modals
 import TaskModal from './components/modals/TaskModal';
@@ -178,6 +179,7 @@ export default function App() {
     else if (currentApp === 'crm') currentTab = activeCRMTab;
     else if (currentApp === 'passwords') currentTab = activePasswordTab;
     else if (currentApp === 'analytics') currentTab = activeAnalyticsId || '';
+    else if (currentApp === 'knowledge') currentTab = '';
 
     if (urlParams.get('app') !== currentApp || urlParams.get('tab') !== currentTab) {
         urlParams.set('app', currentApp);
@@ -239,6 +241,8 @@ export default function App() {
 
   const visibleProjects = currentUser?.isAdmin ? projects : projects.filter(p => !p.adminOnly);
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
+
+  // Determine if the Passwords App should be accessible to this user
   const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
   useEffect(() => {
@@ -603,6 +607,66 @@ export default function App() {
   };
 
   useEffect(() => {
+     if (events.length > 0 && currentUser?.isAdmin) {
+         events.forEach(event => {
+             let updatedEvent = null;
+             
+             if (!event.expenseId) {
+                 const isInstallments = event.installments && event.installments.length > 0;
+                 const hasCost = parseFloat(event.cost) > 0;
+                 if (isInstallments) {
+                     const newIds = [];
+                     let tempExpenses = [];
+                     event.installments.forEach((inst, idx) => {
+                         const newExpenseId = 'e' + Date.now() + idx + Math.random().toString(36).substr(2, 5);
+                         newIds.push(newExpenseId);
+                         const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title} (Installment ${idx + 1})`, category: 'Company Expense', amount: inst.amount, cycle: 'one-time', renewalDate: inst.date, notes: `Auto-generated installment for event ${event.title}`, autoRenew: false };
+                         sendToAPI('save_expense', newExpense);
+                         tempExpenses.push(newExpense);
+                     });
+                     setExpenses(prev => [...prev, ...tempExpenses]);
+                     updatedEvent = { ...event, expenseId: newIds.join(',') };
+                 } else if (hasCost) {
+                     const newExpenseId = 'e' + Date.now() + Math.random().toString(36).substr(2, 5);
+                     const newExpense = { id: newExpenseId, companyId: event.companyId, name: `Event: ${event.title}`, category: 'Company Expense', amount: event.cost, cycle: 'one-time', renewalDate: event.billingDate || event.eventDate, notes: `Auto-generated for event ${event.title}`, autoRenew: false };
+                     sendToAPI('save_expense', newExpense);
+                     setExpenses(prev => [...prev, newExpense]);
+                     updatedEvent = { ...event, expenseId: newExpenseId };
+                 }
+             }
+
+             if ((event.autoProject == 1 || event.autoProject === true) && !event.projectId && event.eventDate) {
+                 const eventDateObj = new Date(`${event.eventDate}T12:00:00`); 
+                 let triggerDate = new Date(eventDateObj);
+                 if (event.projectLeadUnit === 'now') {
+                     triggerDate = new Date(0);
+                 } else {
+                     const leadTime = parseInt(event.projectLeadTime);
+                     if (event.projectLeadUnit === 'days') triggerDate.setDate(triggerDate.getDate() - leadTime);
+                     if (event.projectLeadUnit === 'weeks') triggerDate.setDate(triggerDate.getDate() - (leadTime * 7));
+                     if (event.projectLeadUnit === 'months') triggerDate.setMonth(triggerDate.getMonth() - leadTime);
+                     if (event.projectLeadUnit === 'years') triggerDate.setFullYear(triggerDate.getFullYear() - leadTime);
+                 }
+                 const today = new Date();
+                 if (today >= triggerDate) {
+                     const newProjectId = 'p' + Date.now() + Math.random().toString(36).substr(2, 5);
+                     const newProject = { id: newProjectId, companyId: event.companyId, name: `${event.title} (Event Prep)`, icon: 'CalendarDays', color: 'purple' };
+                     sendToAPI('save_project', newProject);
+                     setProjects(prev => [...prev, newProject]);
+                     updatedEvent = { ...(updatedEvent || event), projectId: newProjectId };
+                 }
+             }
+
+             if (updatedEvent) {
+                 sendToAPI('save_event', updatedEvent);
+                 setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+             }
+         });
+     }
+  }, [events, currentUser]); 
+
+  // --- OAUTH REDIRECT HANDLER ---
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const error = urlParams.get('error');
@@ -809,13 +873,13 @@ export default function App() {
   };
 
   const handleDeleteAnalyticsProperty = (propertyId) => {
-      sendToAPI('delete_analytics_property', { id: propertyId });
       setAnalyticsProperties(analyticsProperties.filter(p => p.id !== propertyId));
       if(activeAnalyticsId === propertyId) {
           const remaining = analyticsProperties.filter(p => p.id !== propertyId);
           setActiveAnalyticsId(remaining.length > 0 ? remaining[0].id : null);
       }
       setIsAnalyticsModalOpen(false);
+      sendToAPI('delete_analytics_property', { id: propertyId });
   };
 
   const handleImportCSV = (e, companyId, type = 'expenses') => {
@@ -1665,6 +1729,8 @@ export default function App() {
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
             {currentApp === 'home' ? (
               <HomeDashboard currentUser={currentUser} tasks={tasks} projects={projects} shows={shows} payouts={payouts} wpLedgerData={wpLedgerData} youtubeChannels={youtubeChannels} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} openTaskModal={openTaskModal} handleToggleTaskStatus={handleToggleTaskStatus} openShowModal={openShowModal} />
+            ) : currentApp === 'knowledge' ? (
+              <KnowledgeBaseDashboard />
             ) : currentApp === 'projects' ? (
               activeTab === 'mytasks' ? <DashboardView tasks={visibleTasks} currentUser={currentUser} projects={visibleProjects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
               activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={visibleTasks} projects={visibleProjects} /> : 
@@ -1711,227 +1777,25 @@ export default function App() {
         </div>
       </div>
 
-      {isTaskModalOpen && (
-        <TaskModal 
-          currentTask={currentTask} 
-          setCurrentTask={setCurrentTask} 
-          handleSaveTask={handleSaveTask} 
-          handleDeleteTask={handleDeleteTask} 
-          setIsTaskModalOpen={setIsTaskModalOpen} 
-          users={users} 
-          isUploading={isUploading} 
-          handleFileUpload={handleFileUpload} 
-          removeFile={removeFile} 
-          newCommentText={newCommentText} 
-          setNewCommentText={setNewCommentText} 
-          handleAddComment={handleAddComment} 
-          currentUser={currentUser} 
-          handleToggleSubscribe={handleToggleSubscribe} 
-        />
-      )}
-      {isExpenseModalOpen && (
-        <ExpenseModal 
-          currentExpense={currentExpense} 
-          setCurrentExpense={setCurrentExpense} 
-          handleSaveExpense={handleSaveExpense} 
-          handleDeleteExpense={handleDeleteExpense} 
-          setIsExpenseModalOpen={setIsExpenseModalOpen} 
-          visibleCompanies={visibleCompanies} 
-        />
-      )}
-      {isDomainModalOpen && (
-        <DomainModal 
-          currentDomain={currentDomain} 
-          setCurrentDomain={setCurrentDomain} 
-          handleSaveDomain={handleSaveDomain} 
-          handleDeleteExpense={handleDeleteExpense} 
-          setIsDomainModalOpen={setIsDomainModalOpen} 
-          visibleCompanies={visibleCompanies} 
-        />
-      )}
-      {isEventModalOpen && (
-        <EventModal 
-          editingEvent={editingEvent} 
-          setEditingEvent={setEditingEvent} 
-          paymentMode={paymentMode} 
-          setPaymentMode={setPaymentMode} 
-          handleSaveEvent={handleSaveEvent} 
-          handleDeleteEvent={handleDeleteEvent} 
-          setIsEventModalOpen={setIsEventModalOpen} 
-          visibleCompanies={visibleCompanies} 
-          sponsorships={sponsorships} 
-          openSponsorshipModal={openSponsorshipModal} 
-        />
-      )}
-      {isShowModalOpen && (
-        <ShowModal 
-          editingShow={editingShow} 
-          setEditingShow={setEditingShow} 
-          handleSaveShow={handleSaveShow} 
-          handleDeleteShow={handleDeleteShow} 
-          handleArchiveSeries={handleArchiveSeries} 
-          setIsShowModalOpen={setIsShowModalOpen} 
-          youtubeChannels={youtubeChannels} 
-          users={users} 
-          sponsorships={sponsorships} 
-          openSponsorshipModal={openSponsorshipModal} 
-          currentUser={currentUser} 
-        />
-      )}
-      {isSponsorshipModalOpen && (
-        <SponsorshipModal 
-          editingSponsorship={editingSponsorship} 
-          setEditingSponsorship={setEditingSponsorship} 
-          handleSaveSponsorship={handleSaveSponsorship} 
-          handleDeleteSponsorship={handleDeleteSponsorship} 
-          setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} 
-          visibleCompanies={visibleCompanies} 
-          isUploading={isUploading} 
-          handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} 
-          shows={shows} 
-          events={events} 
-          currentUser={currentUser} 
-          handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} 
-          removeSponsorshipAsset={removeSponsorshipAsset} 
-        />
-      )}
-      {isContactModalOpen && (
-        <ContactModal 
-          editingContact={editingContact} 
-          setEditingContact={setEditingContact} 
-          handleSaveContact={handleSaveContact} 
-          handleDeleteContact={handleDeleteContact} 
-          setIsContactModalOpen={setIsContactModalOpen} 
-          visibleCompanies={visibleCompanies} 
-        />
-      )}
-      {isPasswordModalOpen && (
-        <PasswordModal 
-          editingPassword={editingPassword} 
-          setEditingPassword={setEditingPassword} 
-          handleSavePassword={handleSavePassword} 
-          handleDeletePassword={handleDeletePassword} 
-          setIsPasswordModalOpen={setIsPasswordModalOpen} 
-          visibleCompanies={visibleCompanies} 
-          users={users} 
-          currentUser={currentUser} 
-        />
-      )}
-      {isCompanyModalOpen && (
-        <CompanyModal 
-          editingCompany={editingCompany} 
-          setEditingCompany={setEditingCompany} 
-          handleSaveCompany={handleSaveCompany} 
-          handleDeleteCompany={handleDeleteCompany} 
-          setIsCompanyModalOpen={setIsCompanyModalOpen} 
-          users={users} 
-          toggleCompanyUser={toggleCompanyUser} 
-          handleCompanyLogoUpload={handleCompanyLogoUpload} 
-          isUploading={isUploading} 
-        />
-      )}
-      {isProjectModalOpen && (
-        <ProjectModal 
-          editingProject={editingProject} 
-          setEditingProject={setEditingProject} 
-          handleSaveProject={handleSaveProject} 
-          handleArchiveProject={handleArchiveProject} 
-          handlePermanentDeleteProject={handlePermanentDeleteProject} 
-          setIsProjectModalOpen={setIsProjectModalOpen} 
-          visibleCompanies={visibleCompanies} 
-        />
-      )}
-      {isProfileModalOpen && (
-        <ProfileModal 
-          profileForm={profileForm} 
-          setProfileForm={setProfileForm} 
-          handleSaveProfile={handleSaveProfile} 
-          handleProfileImageUpload={handleProfileImageUpload} 
-          isUploading={isUploading} 
-          setIsProfileModalOpen={setIsProfileModalOpen} 
-          setLoggedInUserId={setLoggedInUserId} 
-        />
-      )}
-      {isTeamModalOpen && (
-        <TeamModal 
-          users={users} 
-          companies={companies} 
-          editingTeamMember={editingTeamMember} 
-          setEditingTeamMember={setEditingTeamMember} 
-          handleSaveTeamMember={handleSaveTeamMember} 
-          handleDeleteUser={handleDeleteUser} 
-          handleTeamMemberImageUpload={handleTeamMemberImageUpload} 
-          isUploading={isUploading} 
-          setIsTeamModalOpen={setIsTeamModalOpen} 
-          currentUser={currentUser} 
-        />
-      )}
-      {isSwitchUserModalOpen && (
-        <SwitchUserModal 
-          users={users} 
-          loggedInUserId={loggedInUserId} 
-          setLoggedInUserId={setLoggedInUserId} 
-          setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} 
-        />
-      )}
-      {isYoutubeModalOpen && (
-        <YoutubeModal 
-          editingYoutubeChannel={editingYoutubeChannel} 
-          setEditingYoutubeChannel={setEditingYoutubeChannel} 
-          handleSaveYoutubeChannel={handleSaveYoutubeChannel} 
-          handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} 
-          handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} 
-          setIsYoutubeModalOpen={setIsYoutubeModalOpen} 
-        />
-      )}
-      {isSpreakerModalOpen && (
-        <SpreakerModal 
-          editingSpreakerShow={editingSpreakerShow} 
-          handleSaveSpreakerShow={handleSaveSpreakerShow} 
-          handleDeleteSpreakerShow={handleDeleteSpreakerShow} 
-          setIsSpreakerModalOpen={setIsSpreakerModalOpen} 
-        />
-      )}
-      {isAnalyticsModalOpen && (
-        <AnalyticsModal 
-          editingAnalyticsProperty={editingAnalyticsProperty} 
-          setEditingAnalyticsProperty={setEditingAnalyticsProperty} 
-          handleSaveAnalyticsProperty={handleSaveAnalyticsProperty} 
-          handleDeleteAnalyticsProperty={handleDeleteAnalyticsProperty} 
-          setIsAnalyticsModalOpen={setIsAnalyticsModalOpen} 
-        />
-      )}
-      {isOnboardingModalOpen && (
-        <OnboardingModal 
-          setIsOnboardingModalOpen={setIsOnboardingModalOpen} 
-          globalChecklist={globalChecklist} 
-          handleSaveGlobalChecklist={handleSaveGlobalChecklist} 
-          uploadFileToServer={uploadFileToServer} 
-        />
-      )}
-      {isProjectAttachmentsModalOpen && (
-        <ProjectAttachmentsModal 
-          project={projects.find(p => p.id === activeTab)} 
-          tasks={tasks} 
-          setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} 
-        />
-      )}
-      {isAvatarMakerModalOpen && (
-        <AvatarMakerModal 
-          setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} 
-        />
-      )}
-      {isPayoutModalOpen && (
-        <PayoutModal 
-          editingPayout={editingPayout} 
-          setEditingPayout={setEditingPayout} 
-          handleSavePayout={handleSavePayout} 
-          setIsPayoutModalOpen={setIsPayoutModalOpen} 
-          shows={shows} 
-          wpLedgerData={wpLedgerData} 
-          currentUser={currentUser} 
-        />
-      )}
+      {isTaskModalOpen && <TaskModal currentTask={currentTask} setCurrentTask={setCurrentTask} handleSaveTask={handleSaveTask} handleDeleteTask={handleDeleteTask} setIsTaskModalOpen={setIsTaskModalOpen} users={users} isUploading={isUploading} handleFileUpload={handleFileUpload} removeFile={removeFile} newCommentText={newCommentText} setNewCommentText={setNewCommentText} handleAddComment={handleAddComment} currentUser={currentUser} handleToggleSubscribe={handleToggleSubscribe} />}
+      {isExpenseModalOpen && <ExpenseModal currentExpense={currentExpense} setCurrentExpense={setCurrentExpense} handleSaveExpense={handleSaveExpense} handleDeleteExpense={handleDeleteExpense} setIsExpenseModalOpen={setIsExpenseModalOpen} visibleCompanies={visibleCompanies} />}
+      {isDomainModalOpen && <DomainModal currentDomain={currentDomain} setCurrentDomain={setCurrentDomain} handleSaveDomain={handleSaveDomain} handleDeleteExpense={handleDeleteExpense} setIsDomainModalOpen={setIsDomainModalOpen} visibleCompanies={visibleCompanies} />}
+      {isEventModalOpen && <EventModal editingEvent={editingEvent} setEditingEvent={setEditingEvent} paymentMode={paymentMode} setPaymentMode={setPaymentMode} handleSaveEvent={handleSaveEvent} handleDeleteEvent={handleDeleteEvent} setIsEventModalOpen={setIsEventModalOpen} visibleCompanies={visibleCompanies} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} />}
+      {isShowModalOpen && <ShowModal editingShow={editingShow} setEditingShow={setEditingShow} handleSaveShow={handleSaveShow} handleDeleteShow={handleDeleteShow} handleArchiveSeries={handleArchiveSeries} setIsShowModalOpen={setIsShowModalOpen} youtubeChannels={youtubeChannels} users={users} sponsorships={sponsorships} openSponsorshipModal={openSponsorshipModal} currentUser={currentUser} />}
+      {isSponsorshipModalOpen && <SponsorshipModal editingSponsorship={editingSponsorship} setEditingSponsorship={setEditingSponsorship} handleSaveSponsorship={handleSaveSponsorship} handleDeleteSponsorship={handleDeleteSponsorship} setIsSponsorshipModalOpen={setIsSponsorshipModalOpen} visibleCompanies={visibleCompanies} isUploading={isUploading} handleSponsorshipLogoUpload={handleSponsorshipLogoUpload} shows={shows} events={events} currentUser={currentUser} handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} removeSponsorshipAsset={removeSponsorshipAsset} />}
+      {isContactModalOpen && <ContactModal editingContact={editingContact} setEditingContact={setEditingContact} handleSaveContact={handleSaveContact} handleDeleteContact={handleDeleteContact} setIsContactModalOpen={setIsContactModalOpen} visibleCompanies={visibleCompanies} />}
+      {isPasswordModalOpen && <PasswordModal editingPassword={editingPassword} setEditingPassword={setEditingPassword} handleSavePassword={handleSavePassword} handleDeletePassword={handleDeletePassword} setIsPasswordModalOpen={setIsPasswordModalOpen} visibleCompanies={visibleCompanies} users={users} currentUser={currentUser} />}
+      {isCompanyModalOpen && <CompanyModal editingCompany={editingCompany} setEditingCompany={setEditingCompany} handleSaveCompany={handleSaveCompany} handleDeleteCompany={handleDeleteCompany} setIsCompanyModalOpen={setIsCompanyModalOpen} users={users} toggleCompanyUser={toggleCompanyUser} handleCompanyLogoUpload={handleCompanyLogoUpload} isUploading={isUploading} />}
+      {isProjectModalOpen && <ProjectModal editingProject={editingProject} setEditingProject={setEditingProject} handleSaveProject={handleSaveProject} handleArchiveProject={handleArchiveProject} handlePermanentDeleteProject={handlePermanentDeleteProject} setIsProjectModalOpen={setIsProjectModalOpen} visibleCompanies={visibleCompanies} />}
+      {isProfileModalOpen && <ProfileModal profileForm={profileForm} setProfileForm={setProfileForm} handleSaveProfile={handleSaveProfile} handleProfileImageUpload={handleProfileImageUpload} isUploading={isUploading} setIsProfileModalOpen={setIsProfileModalOpen} setLoggedInUserId={setLoggedInUserId} />}
+      {isTeamModalOpen && <TeamModal users={users} companies={companies} editingTeamMember={editingTeamMember} setEditingTeamMember={setEditingTeamMember} handleSaveTeamMember={handleSaveTeamMember} handleDeleteUser={handleDeleteUser} handleTeamMemberImageUpload={handleTeamMemberImageUpload} isUploading={isUploading} setIsTeamModalOpen={setIsTeamModalOpen} currentUser={currentUser} />}
+      {isSwitchUserModalOpen && <SwitchUserModal users={users} loggedInUserId={loggedInUserId} setLoggedInUserId={setLoggedInUserId} setIsSwitchUserModalOpen={setIsSwitchUserModalOpen} />}
+      {isYoutubeModalOpen && <YoutubeModal editingYoutubeChannel={editingYoutubeChannel} setEditingYoutubeChannel={setEditingYoutubeChannel} handleSaveYoutubeChannel={handleSaveYoutubeChannel} handleUpdateYoutubeChannel={handleUpdateYoutubeChannel} handleDeleteYoutubeChannel={handleDeleteYoutubeChannel} setIsYoutubeModalOpen={setIsYoutubeModalOpen} />}
+      {isSpreakerModalOpen && <SpreakerModal editingSpreakerShow={editingSpreakerShow} handleSaveSpreakerShow={handleSaveSpreakerShow} handleDeleteSpreakerShow={handleDeleteSpreakerShow} setIsSpreakerModalOpen={setIsSpreakerModalOpen} />}
+      {isOnboardingModalOpen && <OnboardingModal setIsOnboardingModalOpen={setIsOnboardingModalOpen} globalChecklist={globalChecklist} handleSaveGlobalChecklist={handleSaveGlobalChecklist} uploadFileToServer={uploadFileToServer} />}
+      {isProjectAttachmentsModalOpen && <ProjectAttachmentsModal project={projects.find(p => p.id === activeTab)} tasks={tasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />}
+      {isAvatarMakerModalOpen && <AvatarMakerModal setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} />}
+      {isPayoutModalOpen && <PayoutModal editingPayout={editingPayout} setEditingPayout={setEditingPayout} handleSavePayout={handleSavePayout} setIsPayoutModalOpen={setIsPayoutModalOpen} shows={shows} wpLedgerData={wpLedgerData} currentUser={currentUser} />}
     </>
   );
 }
