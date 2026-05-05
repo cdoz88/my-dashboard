@@ -23,5 +23,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <script type="text/javascript" charset="utf-8"> 
+      window.addEventListener('load', () => { 
+        const widgetElement = document.createElement('charla-widget'); 
+        widgetElement.setAttribute("p", "fd40e732-0396-460d-90e2-e07b45568809"); 
+        document.body.appendChild(widgetElement); 
+        const widgetCode = document.createElement('script'); 
+        widgetCode.src = 'https://app.charla.com/widget/widget.js'; 
+        document.body.appendChild(widgetCode); 
+      }); 
+    </script>
   </body>
 </html>
