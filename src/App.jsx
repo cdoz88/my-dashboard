@@ -9,11 +9,12 @@ import Sidebar from './components/layout/Sidebar';
 import DashboardRouter from './components/dashboards/DashboardRouter';
 import ModalsManager from './components/modals/ModalsManager';
 
-// Custom Hooks
-import { useAppLogic } from './hooks/useAppLogic';
+// Context Provider
+import { AppProvider, useAppContext } from './context/AppContext';
 
-export default function App() {
-  const appState = useAppLogic();
+function AppContent() {
+  // Reach up into the global context cloud and grab all of our logic and data!
+  const appState = useAppContext();
 
   if (appState.isLoading) {
     return (
@@ -59,5 +60,14 @@ export default function App() {
 
       <ModalsManager {...appState} />
     </>
+  );
+}
+
+// Wrap the entire app in the Provider so all components have access to the data
+export default function App() {
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
   );
 }
