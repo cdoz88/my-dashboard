@@ -11,29 +11,7 @@ import AuthScreen from './components/auth/AuthScreen';
 // Layout Components
 import TopBar from './components/layout/TopBar';
 import Sidebar from './components/layout/Sidebar';
-
-// Dashboards
-import HomeDashboard from './components/dashboards/HomeDashboard';
-import DashboardView from './components/dashboards/DashboardView';
-import ArchivedProjectsView from './components/dashboards/ArchivedProjectsView';
-import ProjectView from './components/dashboards/ProjectView';
-import TeamCapacityView from './components/dashboards/TeamCapacityView';
-import TeamDirectoryView from './components/dashboards/TeamDirectoryView';
-import BudgetDashboard from './components/dashboards/BudgetDashboard';
-import DomainsDashboard from './components/dashboards/DomainsDashboard';
-import EventsDashboard from './components/dashboards/EventsDashboard';
-import SpreakerDashboard from './components/dashboards/SpreakerDashboard';
-import YoutubeDashboard from './components/dashboards/YoutubeDashboard';
-import AnalyticsDashboard from './components/dashboards/AnalyticsDashboard';
-import ActivityLogView from './components/dashboards/ActivityLogView';
-import ShowsDashboard from './components/dashboards/ShowsDashboard';
-import SponsorshipsDashboard from './components/dashboards/SponsorshipsDashboard';
-import CRMDashboard from './components/dashboards/CRMDashboard';
-import PasswordsDashboard from './components/dashboards/PasswordsDashboard';
-import LedgerDashboard from './components/dashboards/LedgerDashboard';
-import KnowledgeBaseDashboard from './components/dashboards/KnowledgeBaseDashboard';
-
-// Unified Modals Manager
+import DashboardRouter from './components/dashboards/DashboardRouter';
 import ModalsManager from './components/modals/ModalsManager';
 
 export default function App() {
@@ -1648,42 +1626,31 @@ export default function App() {
              analyticsTimeFilter={analyticsTimeFilter} handleAnalyticsFilterChange={handleAnalyticsFilterChange} handleSyncAnalytics={handleSyncAnalytics} openAnalyticsModal={openAnalyticsModal}
           />
           <main className="flex-1 overflow-auto relative pb-16 lg:pb-0">
-            {currentApp === 'home' ? (
-              <HomeDashboard currentUser={currentUser} tasks={tasks} projects={projects} shows={shows} payouts={payouts} wpLedgerData={wpLedgerData} youtubeChannels={youtubeChannels} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} openTaskModal={openTaskModal} handleToggleTaskStatus={handleToggleTaskStatus} openShowModal={openShowModal} />
-            ) : currentApp === 'knowledge' ? (
-              <KnowledgeBaseDashboard />
-            ) : currentApp === 'projects' ? (
-              activeTab === 'mytasks' ? <DashboardView tasks={visibleTasks} currentUser={currentUser} projects={visibleProjects} companies={companies} users={users} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} /> : 
-              activeTab === 'capacity' ? <TeamCapacityView users={users} tasks={visibleTasks} projects={visibleProjects} /> : 
-              activeTab === 'archived' ? <ArchivedProjectsView projects={visibleProjects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} /> :
-              <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />
-            ) : currentApp === 'budget' ? (
-              <BudgetDashboard expenses={expenses} activeBudgetTab={activeBudgetTab} budgetDisplayMode={budgetDisplayMode} expenseSortConfig={expenseSortConfig} setExpenseSortConfig={setExpenseSortConfig} openExpenseModal={openExpenseModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />
-            ) : currentApp === 'domains' ? (
-              <DomainsDashboard expenses={expenses} activeDomainTab={activeDomainTab} domainDisplayMode={domainDisplayMode} domainSortConfig={domainSortConfig} setDomainSortConfig={setDomainSortConfig} openDomainModal={openDomainModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />
-            ) : currentApp === 'events' ? (
-              <EventsDashboard events={events} sponsorships={sponsorships} activeEventTab={activeEventTab} eventDisplayMode={eventDisplayMode} openEventModal={openEventModal} handleDeleteEvent={handleDeleteEvent} companies={companies} />
-            ) : currentApp === 'spreaker' ? (
-              <SpreakerDashboard spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} />
-            ) : currentApp === 'youtube' ? (
-              <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />
-            ) : currentApp === 'analytics' ? (
-              <AnalyticsDashboard analyticsProperties={analyticsProperties} activeAnalyticsId={activeAnalyticsId} />
-            ) : currentApp === 'shows' ? (
-              <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />
-            ) : currentApp === 'sponsorships' ? (
-              <SponsorshipsDashboard sponsorships={sponsorships} activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} companies={companies} currentUser={currentUser} />
-            ) : currentApp === 'crm' ? (
-              <CRMDashboard contacts={contacts} activeCRMTab={activeCRMTab} crmDisplayMode={crmDisplayMode} openContactModal={openContactModal} handleDeleteContact={handleDeleteContact} companies={companies} />
-            ) : currentApp === 'passwords' ? (
-              <PasswordsDashboard passwords={passwords} activePasswordTab={activePasswordTab} openPasswordModal={openPasswordModal} handleDeletePassword={handleDeletePassword} companies={companies} currentUser={currentUser} />
-            ) : currentApp === 'team' ? (
-              <TeamDirectoryView users={users} currentUser={currentUser} handleUpdateUser={handleUpdateUser} setIsOnboardingModalOpen={setIsOnboardingModalOpen} companies={companies} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} globalChecklist={globalChecklist} projects={visibleProjects} tasks={visibleTasks} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} shows={shows} youtubeChannels={youtubeChannels} />
-            ) : currentApp === 'ledger' ? (
-              <LedgerDashboard shows={shows} payouts={payouts} youtubeChannels={youtubeChannels} openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} currentUser={currentUser} wpLedgerData={wpLedgerData} users={users} activeTab={activeTab} />
-            ) : (
-              <ActivityLogView activityLogs={activityLogs} users={users} activeActivityTab={activeActivityTab} tasks={visibleTasks} projects={visibleProjects} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} />
-            )}
+             <DashboardRouter
+                currentApp={currentApp} activeTab={activeTab} currentUser={currentUser} tasks={tasks} projects={projects} shows={shows} 
+                payouts={payouts} wpLedgerData={wpLedgerData} youtubeChannels={youtubeChannels} setCurrentApp={setCurrentApp} 
+                setActiveTab={setActiveTab} openTaskModal={openTaskModal} handleToggleTaskStatus={handleToggleTaskStatus} openShowModal={openShowModal} 
+                visibleTasks={visibleTasks} visibleProjects={visibleProjects} companies={companies} users={users} handleDeleteTask={handleDeleteTask} 
+                handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} projectDisplayMode={projectDisplayMode} 
+                handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} 
+                setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} expenses={expenses} activeBudgetTab={activeBudgetTab} 
+                budgetDisplayMode={budgetDisplayMode} expenseSortConfig={expenseSortConfig} setExpenseSortConfig={setExpenseSortConfig} 
+                openExpenseModal={openExpenseModal} handleDeleteExpense={handleDeleteExpense} activeDomainTab={activeDomainTab} 
+                domainDisplayMode={domainDisplayMode} domainSortConfig={domainSortConfig} setDomainSortConfig={setDomainSortConfig} 
+                openDomainModal={openDomainModal} events={events} sponsorships={sponsorships} activeEventTab={activeEventTab} 
+                eventDisplayMode={eventDisplayMode} openEventModal={openEventModal} handleDeleteEvent={handleDeleteEvent} 
+                spreakerShows={spreakerShows} activeSpreakerShowId={activeSpreakerShowId} spreakerTimeFilter={spreakerTimeFilter} 
+                activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} analyticsProperties={analyticsProperties} 
+                activeAnalyticsId={activeAnalyticsId} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} handleDeleteShow={handleDeleteShow} 
+                activeSponsorshipTab={activeSponsorshipTab} openSponsorshipModal={openSponsorshipModal} handleDeleteSponsorship={handleDeleteSponsorship} 
+                contacts={contacts} activeCRMTab={activeCRMTab} crmDisplayMode={crmDisplayMode} openContactModal={openContactModal} 
+                handleDeleteContact={handleDeleteContact} passwords={passwords} activePasswordTab={activePasswordTab} 
+                openPasswordModal={openPasswordModal} handleDeletePassword={handleDeletePassword} handleUpdateUser={handleUpdateUser} 
+                setIsOnboardingModalOpen={setIsOnboardingModalOpen} visibleCompanies={visibleCompanies} activeTeamTab={activeTeamTab} 
+                globalChecklist={globalChecklist} handleGenerateOnboarding={handleGenerateOnboarding} handleGenerateOffboarding={handleGenerateOffboarding} 
+                setIsAvatarMakerModalOpen={setIsAvatarMakerModalOpen} teamDisplayMode={teamDisplayMode} openTeamModal={openTeamModal} 
+                openPayoutModal={openPayoutModal} handleSyncLedger={handleSyncLedger} isSyncingLedger={isSyncingLedger} activityLogs={activityLogs}
+             />
           </main>
           <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 text-slate-300 flex items-center justify-between px-6 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.15)]">
              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 -ml-2 transition-colors flex flex-col items-center gap-1 ${isMobileMenuOpen ? 'text-white' : 'hover:text-white'}`}>
