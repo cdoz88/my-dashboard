@@ -670,7 +670,8 @@ export default function LedgerDashboard({
                </div>
              )}
           </div>
-        )}
-      </div>
-    );
+        </div>
+      )}
+    </div>
+  );
 }
