@@ -34,7 +34,7 @@ export default function DashboardRouter({
   contacts, activeCRMTab, crmDisplayMode, openContactModal, handleDeleteContact, passwords, activePasswordTab, 
   openPasswordModal, handleDeletePassword, handleUpdateUser, setIsOnboardingModalOpen, visibleCompanies, activeTeamTab, 
   globalChecklist, handleGenerateOnboarding, handleGenerateOffboarding, setIsAvatarMakerModalOpen, teamDisplayMode, 
-  openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs, youtubeSection
+  openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs, youtubeSection, websiteSection
 }) {
 
   if (currentApp === 'home') {
@@ -55,14 +55,17 @@ export default function DashboardRouter({
     if (activeTab === 'archived') {
       return <ArchivedProjectsView projects={visibleProjects} companies={companies} handlePermanentDeleteProject={handlePermanentDeleteProject} handleRestoreProject={handleRestoreProject} />;
     }
-    return <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDragStart} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />;
+    return <ProjectView projectId={activeTab} projects={visibleProjects} tasks={visibleTasks} companies={companies} users={users} projectDisplayMode={projectDisplayMode} handleToggleTaskStatus={handleToggleTaskStatus} openTaskModal={openTaskModal} handleDeleteTask={handleDeleteTask} handleDragStart={handleDrop} handleDrop={handleDrop} handleDragOver={handleDragOver} handleReorderTasks={handleReorderTasks} setIsProjectAttachmentsModalOpen={setIsProjectAttachmentsModalOpen} />;
   }
   
   if (currentApp === 'budget') {
     return <BudgetDashboard expenses={expenses} activeBudgetTab={activeBudgetTab} budgetDisplayMode={budgetDisplayMode} expenseSortConfig={expenseSortConfig} setExpenseSortConfig={setExpenseSortConfig} openExpenseModal={openExpenseModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />;
   }
   
-  if (currentApp === 'domains') {
+  if (currentApp === 'website') {
+    if (websiteSection === 'analytics' && currentUser?.isAdmin) {
+      return <AnalyticsDashboard analyticsProperties={analyticsProperties} activeAnalyticsId={activeAnalyticsId} />;
+    }
     return <DomainsDashboard expenses={expenses} activeDomainTab={activeDomainTab} domainDisplayMode={domainDisplayMode} domainSortConfig={domainSortConfig} setDomainSortConfig={setDomainSortConfig} openDomainModal={openDomainModal} handleDeleteExpense={handleDeleteExpense} companies={companies} />;
   }
   
@@ -79,10 +82,6 @@ export default function DashboardRouter({
         return <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />;
     }
     return <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />;
-  }
-  
-  if (currentApp === 'analytics') {
-    return <AnalyticsDashboard analyticsProperties={analyticsProperties} activeAnalyticsId={activeAnalyticsId} />;
   }
   
   if (currentApp === 'sponsorships') {

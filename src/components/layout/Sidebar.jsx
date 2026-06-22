@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, BarChart3, Wallet, BookOpen, CreditCard
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, BarChart3, BookOpen, CreditCard
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -11,7 +11,7 @@ import CompanyLogo from '../shared/CompanyLogo';
 export default function Sidebar({
   currentApp, setCurrentApp, activeTab, setActiveTab,
   isMobileMenuOpen, setIsMobileMenuOpen, currentUser,
-  youtubeSection, setYoutubeSection,
+  youtubeSection, setYoutubeSection, websiteSection, setWebsiteSection,
   users, companies, visibleCompanies, projects, tasks, events,
   youtubeChannels, spreakerShows, activeBudgetTab, setActiveBudgetTab,
   activeDomainTab, setActiveDomainTab, activeEventTab, setActiveEventTab,
@@ -126,25 +126,72 @@ export default function Sidebar({
           </>
         )}
 
-        {currentApp === 'analytics' && currentUser?.isAdmin && (
+        {currentApp === 'website' && (
           <>
             <div className="px-4 mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Properties</p>
-                <button onClick={() => openAnalyticsModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add GA4 Property"><Plus size={16} /></button>
-              </div>
-              <div className="flex flex-col gap-1">
-                {analyticsProperties && analyticsProperties.length > 0 ? analyticsProperties.map(property => (
-                  <div key={property.id} className="flex items-center justify-between group/property">
-                    <button onClick={() => { setActiveAnalyticsId(property.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeAnalyticsId === property.id ? 'bg-slate-800 text-orange-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                      <BarChart3 size={16} className={`flex-shrink-0 ${activeAnalyticsId === property.id ? 'text-orange-500' : 'text-slate-500'}`} />
-                      <span className="truncate">{property.name}</span>
-                    </button>
-                    {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/property:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openAnalyticsModal(property); }} className="text-slate-500 hover:text-white p-1" title="Edit Property"><Pencil size={12} /></button></div>}
-                  </div>
-                )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No properties added yet.</div> )}
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Website</p>
+              <div className="space-y-1">
+                 <button onClick={() => { setWebsiteSection('domains'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${websiteSection === 'domains' ? 'bg-teal-500 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <Globe size={18} /> Domains
+                 </button>
+                 {currentUser?.isAdmin && (
+                   <button onClick={() => { setWebsiteSection('analytics'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${websiteSection === 'analytics' ? 'bg-orange-500 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                      <BarChart3 size={18} /> Web Traffic
+                   </button>
+                 )}
               </div>
             </div>
+
+            {websiteSection === 'domains' && (
+              <>
+                <div className="px-4 mb-4">
+                  <button onClick={() => { setActiveDomainTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === 'overview' ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                    <Globe size={16} className={`${activeDomainTab === 'overview' ? 'text-teal-500' : 'text-slate-500'}`} /> All Domains
+                  </button>
+                </div>
+                <div className="px-4 mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
+                    {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {visibleCompanies.map(company => (
+                      <div key={company.id} className="flex items-center justify-between group/company">
+                        <button onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === company.id ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                          <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                          <span className="truncate">{company.name}</span>
+                        </button>
+                        {currentUser?.isAdmin && (
+                          <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
+                            <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {websiteSection === 'analytics' && currentUser?.isAdmin && (
+              <div className="px-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Properties</p>
+                  <button onClick={() => openAnalyticsModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add GA4 Property"><Plus size={16} /></button>
+                </div>
+                <div className="flex flex-col gap-1">
+                  {analyticsProperties && analyticsProperties.length > 0 ? analyticsProperties.map(property => (
+                    <div key={property.id} className="flex items-center justify-between group/property">
+                      <button onClick={() => { setActiveAnalyticsId(property.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeAnalyticsId === property.id ? 'bg-slate-800 text-orange-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                        <BarChart3 size={16} className={`flex-shrink-0 ${activeAnalyticsId === property.id ? 'text-orange-500' : 'text-slate-500'}`} />
+                        <span className="truncate">{property.name}</span>
+                      </button>
+                      {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/property:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openAnalyticsModal(property); }} className="text-slate-500 hover:text-white p-1" title="Edit Property"><Pencil size={12} /></button></div>}
+                    </div>
+                  )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No properties added yet.</div> )}
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -286,76 +333,10 @@ export default function Sidebar({
           </>
         )}
 
-        {currentApp === 'budget' && (
-          <>
-            <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Finance</p>
-              <button onClick={() => { setActiveBudgetTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
-                <PieChart size={18} /> All Expenses
-              </button>
-            </div>
-            
-            <div className="px-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
-              </div>
-              <div className="flex flex-col gap-1">
-                {visibleCompanies.map(company => (
-                  <div key={company.id} className="flex items-center justify-between group/company">
-                    <button onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeBudgetTab === company.id ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                      <span className="truncate">{company.name}</span>
-                    </button>
-                    {currentUser?.isAdmin && (
-                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
-                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {currentApp === 'domains' && (
-          <>
-            <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Portfolio</p>
-              <button onClick={() => { setActiveDomainTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeDomainTab === 'overview' ? 'bg-teal-500 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
-                <Globe size={18} /> All Domains
-              </button>
-            </div>
-            
-            <div className="px-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
-                {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
-              </div>
-              <div className="flex flex-col gap-1">
-                {visibleCompanies.map(company => (
-                  <div key={company.id} className="flex items-center justify-between group/company">
-                    <button onClick={() => { setActiveDomainTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeDomainTab === company.id ? 'bg-slate-800 text-teal-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
-                      <span className="truncate">{company.name}</span>
-                    </button>
-                    {currentUser?.isAdmin && (
-                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
-                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
         {currentApp === 'youtube' && (
           <>
             <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">YouTube Studio</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">YouTube</p>
               <div className="space-y-1">
                  <button onClick={() => { setYoutubeSection('stats'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'stats' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
                     <BarChart3 size={18} /> Channel Stats

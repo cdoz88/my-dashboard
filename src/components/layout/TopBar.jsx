@@ -9,7 +9,7 @@ export default function TopBar({
   currentApp, setCurrentApp, isAppSwitcherOpen, setIsAppSwitcherOpen,
   isMobileMenuOpen, setIsMobileMenuOpen, currentUser, activeTab, setActiveTab,
   activeBudgetTab, activeDomainTab, activeEventTab,
-  youtubeSection, setYoutubeSection,
+  youtubeSection, setYoutubeSection, websiteSection, setWebsiteSection,
   projectDisplayMode, setProjectDisplayMode,
   budgetDisplayMode, setBudgetDisplayMode,
   domainDisplayMode, setDomainDisplayMode,
@@ -26,10 +26,10 @@ export default function TopBar({
 }) {
   const isProjectView = currentApp === 'projects' && activeTab !== 'mytasks' && activeTab !== 'capacity' && activeTab !== 'archived';
   const isBudgetView = currentApp === 'budget';
-  const isDomainView = currentApp === 'domains';
+  const isWebsiteDomainsView = currentApp === 'website' && websiteSection === 'domains';
+  const isWebsiteAnalyticsView = currentApp === 'website' && websiteSection === 'analytics';
   const isYoutubeStatsView = currentApp === 'youtube' && youtubeSection === 'stats';
   const isYoutubeShowsView = currentApp === 'youtube' && youtubeSection === 'shows';
-  const isAnalyticsView = currentApp === 'analytics';
   const isEventView = currentApp === 'events';
   const isSpreakerView = currentApp === 'spreaker';
   const isSponsorshipsView = currentApp === 'sponsorships';
@@ -38,12 +38,40 @@ export default function TopBar({
   const isPasswordsView = currentApp === 'passwords';
   const isKnowledgeView = currentApp === 'knowledge';
 
+  const getHeaderColor = () => {
+    if (currentApp === 'projects' || currentApp === 'knowledge') return 'bg-blue-600';
+    if (currentApp === 'budget' || currentApp === 'ledger') return 'bg-emerald-600';
+    if (currentApp === 'youtube' || currentApp === 'events' === 'shows') return 'bg-red-600';
+    if (currentApp === 'events') return 'bg-purple-600';
+    if (currentApp === 'spreaker') return 'bg-[#ffc005]';
+    if (currentApp === 'team') return 'bg-indigo-600';
+    if (currentApp === 'activity' || currentApp === 'home' || currentApp === 'passwords') return 'bg-slate-800';
+    if (currentApp === 'sponsorships') return 'bg-amber-500';
+    if (currentApp === 'crm') return 'bg-sky-500';
+    if (currentApp === 'website') return websiteSection === 'analytics' ? 'bg-orange-500' : 'bg-teal-500';
+    return 'bg-slate-800';
+  };
+
+  const getHoverColor = () => {
+    if (currentApp === 'projects' || currentApp === 'knowledge') return 'hover:bg-blue-700';
+    if (currentApp === 'budget' || currentApp === 'ledger') return 'hover:bg-emerald-700';
+    if (currentApp === 'youtube') return 'hover:bg-red-700';
+    if (currentApp === 'events') return 'hover:bg-purple-700';
+    if (currentApp === 'spreaker') return 'hover:bg-[#e6ad04]';
+    if (currentApp === 'sponsorships') return 'hover:bg-amber-400';
+    if (currentApp === 'crm') return 'hover:bg-sky-400';
+    if (currentApp === 'team') return 'hover:bg-indigo-700';
+    if (currentApp === 'activity' || currentApp === 'home' || currentApp === 'passwords') return 'hover:bg-slate-900';
+    if (currentApp === 'website') return websiteSection === 'analytics' ? 'hover:bg-orange-600' : 'hover:bg-teal-600';
+    return 'hover:bg-slate-700';
+  };
+
   return (
-    <header className={`${currentApp === 'projects' ? 'bg-blue-600' : currentApp === 'knowledge' ? 'bg-blue-600' : currentApp === 'budget' ? 'bg-emerald-600' : currentApp === 'youtube' ? 'bg-red-600' : currentApp === 'events' ? 'bg-purple-600' : currentApp === 'spreaker' ? 'bg-[#ffc005]' : currentApp === 'team' ? 'bg-indigo-600' : currentApp === 'activity' ? 'bg-slate-800' : currentApp === 'sponsorships' ? 'bg-amber-500' : currentApp === 'crm' ? 'bg-sky-500' : currentApp === 'passwords' ? 'bg-slate-800' : currentApp === 'ledger' ? 'bg-emerald-600' : currentApp === 'home' ? 'bg-slate-800' : currentApp === 'analytics' ? 'bg-orange-500' : 'bg-teal-500'} ${currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
+    <header className={`${getHeaderColor()} ${currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? 'text-slate-900' : 'text-white'} h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 shadow-md z-40 w-full transition-colors duration-300`}>
       <div className="relative">
-        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${currentApp === 'projects' ? 'hover:bg-blue-700' : currentApp === 'knowledge' ? 'hover:bg-blue-700' : currentApp === 'budget' ? 'hover:bg-emerald-700' : currentApp === 'youtube' ? 'hover:bg-red-700' : currentApp === 'events' ? 'hover:bg-purple-700' : currentApp === 'spreaker' ? 'hover:bg-[#e6ad04]' : currentApp === 'sponsorships' ? 'hover:bg-amber-400' : currentApp === 'crm' ? 'hover:bg-sky-400' : currentApp === 'passwords' ? 'hover:bg-slate-900' : currentApp === 'ledger' ? 'hover:bg-emerald-700' : currentApp === 'team' ? 'hover:bg-indigo-700' : currentApp === 'activity' ? 'hover:bg-slate-900' : currentApp === 'home' ? 'hover:bg-slate-900' : currentApp === 'analytics' ? 'hover:bg-orange-600' : 'hover:bg-teal-600'}`}>
-          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'knowledge' ? <BookOpen size={24} className="text-white/70" /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'sponsorships' ? <Award size={24} className="text-slate-900/70" /> : currentApp === 'crm' ? <BookUser size={24} className="text-slate-900/70" /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : currentApp === 'team' ? <Contact size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'passwords' ? <Lock size={24} className="text-white/70" /> : currentApp === 'activity' ? <Activity size={24} className="text-white/70" /> : currentApp === 'ledger' ? <Calculator size={24} className="text-white/70" /> : currentApp === 'home' ? <Home size={24} className="text-white/70" /> : currentApp === 'analytics' ? <BarChart3 size={24} className="text-white/70" /> : <Globe size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} />}
-          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'knowledge' ? 'Knowledge Base' : currentApp === 'youtube' ? 'YouTube' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp === 'team' ? 'Team Directory' : currentApp === 'crm' ? 'CRM' : currentApp === 'passwords' ? 'Password Vault' : currentApp === 'ledger' ? 'Creator Ledger' : currentApp === 'home' ? 'Home Dashboard' : currentApp === 'analytics' ? 'Web Traffic' : currentApp}</span>
+        <button onClick={() => setIsAppSwitcherOpen(!isAppSwitcherOpen)} className={`flex items-center gap-2 font-bold text-xl tracking-tight px-2 py-1.5 -ml-2 rounded-lg transition-colors ${getHoverColor()}`}>
+          {currentApp === 'projects' ? <LayoutDashboard size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'knowledge' ? <BookOpen size={24} className="text-white/70" /> : currentApp === 'budget' ? <Wallet size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'youtube' ? <Youtube size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'sponsorships' ? <Award size={24} className="text-slate-900/70" /> : currentApp === 'crm' ? <BookUser size={24} className="text-slate-900/70" /> : currentApp === 'events' ? <CalendarDays size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'spreaker' ? <Mic size={24} className="text-slate-900/70" /> : currentApp === 'team' ? <Contact size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} /> : currentApp === 'passwords' ? <Lock size={24} className="text-white/70" /> : currentApp === 'activity' ? <Activity size={24} className="text-white/70" /> : currentApp === 'ledger' ? <Calculator size={24} className="text-white/70" /> : currentApp === 'home' ? <Home size={24} className="text-white/70" /> : <Globe size={24} className={currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? "text-slate-900/70" : "text-white/70"} />}
+          <span className="capitalize">{currentApp === 'budget' ? 'Expenses' : currentApp === 'knowledge' ? 'Knowledge Base' : currentApp === 'youtube' ? 'YouTube' : currentApp === 'spreaker' ? 'Spreaker Studio' : currentApp === 'team' ? 'Team Directory' : currentApp === 'crm' ? 'CRM' : currentApp === 'passwords' ? 'Password Vault' : currentApp === 'ledger' ? 'Creator Ledger' : currentApp === 'home' ? 'Home Dashboard' : currentApp === 'website' ? 'Website' : currentApp}</span>
           <ChevronsUpDown size={18} className={`${currentApp === 'spreaker' || currentApp === 'sponsorships' || currentApp === 'crm' ? 'text-slate-900/60' : 'text-white/60'} ml-1`} />
         </button>
         {isAppSwitcherOpen && (
@@ -66,14 +94,13 @@ export default function TopBar({
               
               {(currentUser.isAdmin || currentUser.canViewLedger) && <button onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors border-b border-slate-100 ${currentApp === 'ledger' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'ledger' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}><Calculator size={18} /></div>Creator Ledger</button>}
               
-              {(currentUser.isAdmin || currentUser.canViewDomains) && <button onClick={() => { setCurrentApp('domains'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'domains' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'domains' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Domains</button>}
-              
-              {currentUser.isAdmin && <button onClick={() => { setCurrentApp('analytics'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'analytics' ? 'bg-orange-50 text-orange-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'analytics' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}><BarChart3 size={18} /></div>Web Traffic</button>}
+              {(currentUser.isAdmin || currentUser.canViewDomains) && <button onClick={() => { setCurrentApp('website'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'website' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'website' ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-500'}`}><Globe size={18} /></div>Website</button>}
 
               {(currentUser.isAdmin || currentUser.canViewYoutube || currentUser.canViewShows) && <button onClick={() => { setCurrentApp('youtube'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'youtube' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'youtube' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}><Youtube size={18} /></div>YouTube</button>}
               {(currentUser.isAdmin || currentUser.canViewSponsorships) && <button onClick={() => { setCurrentApp('sponsorships'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'sponsorships' ? 'bg-amber-50 text-amber-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'sponsorships' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}><Award size={18} /></div>Sponsorships</button>}
               {(currentUser.isAdmin || currentUser.canViewCRM) && <button onClick={() => { setCurrentApp('crm'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'crm' ? 'bg-sky-50 text-sky-700' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'crm' ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-500'}`}><BookUser size={18} /></div>CRM</button>}
               {canViewPasswordsApp && <button onClick={() => { setCurrentApp('passwords'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors border-t border-slate-100 ${currentApp === 'passwords' ? 'bg-slate-50 text-slate-800' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'passwords' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'}`}><Lock size={18} /></div>Password Vault</button>}
+              {(currentUser.isAdmin || currentUser.canViewSpreaker) && <button onClick={() => { setCurrentApp('spreaker'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${currentApp === 'spreaker' ? 'bg-[#ffc005]/10 text-[#d9a304]' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'spreaker' ? 'bg-[#ffc005]/20 text-[#d9a304]' : 'bg-slate-100 text-slate-500'}`}><Mic size={18} /></div>Spreaker</button>}
               {(currentUser.isAdmin) && <button onClick={() => { setCurrentApp('activity'); setIsAppSwitcherOpen(false); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors border-t border-slate-100 ${currentApp === 'activity' ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-50'}`}><div className={`p-1.5 rounded-md ${currentApp === 'activity' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-500'}`}><Activity size={18} /></div>Activity Log</button>}
             </div>
           </>
@@ -150,7 +177,7 @@ export default function TopBar({
            </>
         )}
         
-        {isAnalyticsView && currentUser?.isAdmin && (
+        {isWebsiteAnalyticsView && currentUser?.isAdmin && (
            <>
              <div className="relative flex items-center bg-orange-700/50 rounded-lg border border-orange-500/50 px-3 py-1.5 hover:bg-orange-700 transition-colors cursor-pointer mr-3">
                <Clock size={16} className="text-orange-200 mr-2" />
@@ -234,7 +261,7 @@ export default function TopBar({
              </button>
            </>
         )}
-        {isDomainView && (
+        {isWebsiteDomainsView && (
            <>
              <div className="flex bg-teal-700/50 rounded-lg p-1 border border-teal-500/50">
                 <button onClick={() => setDomainDisplayMode('list')} className={`p-1.5 rounded-md transition-colors ${domainDisplayMode === 'list' ? 'bg-white text-teal-600 shadow-sm' : 'text-teal-100 hover:text-white hover:bg-teal-500/50'}`}><ListTodo size={16} /></button>
