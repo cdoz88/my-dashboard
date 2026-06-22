@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
+import { API_URL } from '../../utils/constants';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -22,6 +23,78 @@ export default function LedgerDashboard({
 }) {
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
   const [historyModalItem, setHistoryModalItem] = useState(null);
+
+  // --- NEW: Local Stripe State ---
+  const [stripePromos, setStripePromos] = useState([]);
+  const [isSyncingStripe, setIsSyncingStripe] = useState(false);
+  const [editingPromos, setEditingPromos] = useState({});
+
+  useEffect(() => {
+    if (currentUser?.isAdmin) {
+        fetch(`${API_URL}?action=get_all`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.stripe_promos) setStripePromos(data.stripe_promos);
+            });
+    }
+  }, [currentUser]);
+
+  const handleSyncStripe = async () => {
+    const stripeKey = import.meta.env.VITE_STRIPE_SECRET_KEY;
+    if (!stripeKey) {
+        alert("Stripe Secret Key is missing! Please add VITE_STRIPE_SECRET_KEY to your Vercel Environment Variables.");
+        return;
+    }
+    setIsSyncingStripe(true);
+    try {
+        const res = await fetch(`${API_URL}?action=sync_stripe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stripeKey })
+        });
+        const data = await res.json();
+        if (data.error) {
+            alert("Stripe Sync Error: " + data.error);
+        } else {
+            alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`);
+            window.location.reload(); 
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Error syncing with Stripe API.");
+    }
+    setIsSyncingStripe(false);
+  };
+
+  const handleSaveStripePromo = async (promo) => {
+    try {
+        await fetch(`${API_URL}?action=save_stripe_promo`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(promo)
+        });
+        setStripePromos(prev => prev.map(p => p.id === promo.id ? promo : p));
+        setEditingPromos(prev => {
+            const newState = { ...prev };
+            delete newState[promo.id];
+            return newState;
+        });
+    } catch (err) { console.error(err); }
+  };
+
+  const handleUpdatePromoField = (promoId, field, value) => {
+      setEditingPromos(prev => ({
+          ...prev,
+          [promoId]: {
+              ...(prev[promoId] || stripePromos.find(p => p.id === promoId)),
+              [field]: value
+          }
+      }));
+  };
+
+  const savePromo = (promoId) => {
+      if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]);
+  };
 
   const currentFilter = ['all', 'youtube', 'wordpress'].includes(activeTab) ? activeTab : 'all';
 
@@ -92,346 +165,512 @@ export default function LedgerDashboard({
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
-  // --- 3. FILTERING FOR DISPLAY ---
+  // --- 3. STRIPE AFFILIATES LOGIC ---
+  const getStripeLedgerRows = () => {
+      const usersWithCommissions = users.filter(u => payouts.some(p => p.showId === u.id && p.transactionType === 'Stripe Commission'));
+      
+      return usersWithCommissions.map(u => {
+          const earned = payouts.filter(p => p.showId === u.id && p.transactionType === 'Stripe Commission').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+          const paid = payouts.filter(p => p.showId === u.id && p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+          const deducted = payouts.filter(p => p.showId === u.id && p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+          const balance = earned - paid - deducted;
+
+          return {
+              id: u.id,
+              source: 'Stripe Affiliates',
+              title: 'Promo Code Commissions',
+              channelName: 'fytsolutions.com',
+              members: u.name,
+              rate: 'Variable %',
+              earned: earned,
+              paid: paid,
+              deducted: deducted,
+              balance: balance,
+              link: '#'
+          };
+      }).filter(row => currentUser?.isAdmin || row.id === currentUser?.id);
+  };
+
+  // --- 4. FILTERING FOR DISPLAY ---
   const filteredPlaylists = (currentFilter === 'all' || currentFilter === 'youtube') ? eligiblePlaylists : [];
   const filteredWpLedger = (currentFilter === 'all' || currentFilter === 'wordpress') ? visibleWpLedger : [];
+  const stripeRows = (currentFilter === 'all') ? getStripeLedgerRows() : [];
 
   const allowedFilteredPlaylistIds = filteredPlaylists.map(s => s.normalizedPlaylistId);
   const rawAllowedFilteredPlaylistIds = filteredPlaylists.map(s => s.playlistId);
   const allowedFilteredWpShowIds = filteredWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
+  const allowedStripeUserIds = stripeRows.map(s => s.id);
   
   const visiblePayouts = payouts.filter(p => {
-      if (currentFilter === 'youtube') {
-          return allowedFilteredPlaylistIds.includes(p.showId) || rawAllowedFilteredPlaylistIds.includes(p.showId);
-      }
-      if (currentFilter === 'wordpress') {
-          return allowedFilteredWpShowIds.includes(p.showId);
-      }
+      if (currentFilter === 'youtube') return allowedFilteredPlaylistIds.includes(p.showId) || rawAllowedFilteredPlaylistIds.includes(p.showId);
+      if (currentFilter === 'wordpress') return allowedFilteredWpShowIds.includes(p.showId);
+      
       return (
           allowedFilteredPlaylistIds.includes(p.showId) || 
           rawAllowedFilteredPlaylistIds.includes(p.showId) || 
-          allowedFilteredWpShowIds.includes(p.showId)
+          allowedFilteredWpShowIds.includes(p.showId) ||
+          (allowedStripeUserIds.includes(p.showId) && p.transactionType !== 'Stripe Commission')
       );
   });
 
-  // --- 4. DYNAMIC GRAND TOTALS ---
+  // --- 5. DYNAMIC GRAND TOTALS ---
   const ytTotalEarned = filteredPlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
   const wpTotalEarned = filteredWpLedger.reduce((sum, wp) => sum + parseFloat(wp.total_earned || 0), 0);
+  const stripeTotalEarned = stripeRows.reduce((sum, r) => sum + r.earned, 0);
   
-  const grandTotalEarned = ytTotalEarned + wpTotalEarned;
+  const grandTotalEarned = ytTotalEarned + wpTotalEarned + stripeTotalEarned;
   const grandTotalPaid = visiblePayouts.filter(p => p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   const grandTotalDeducted = visiblePayouts.filter(p => p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   const grandTotalOwed = grandTotalEarned - grandTotalPaid - grandTotalDeducted;
 
   return (
     <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-             <Calculator className="text-emerald-600" size={28} />
-             Creator Payout Ledger
-          </h2>
-          <p className="text-slate-500 text-sm mt-1">
-             {currentUser?.isAdmin 
-                 ? "Running balance calculator driven by YouTube video revenue and WordPress articles." 
-                 : "Your personal earnings calculator driven by YouTube video revenue and WordPress articles."}
-          </p>
-        </div>
-
-        {currentUser?.isAdmin && (
-            <div className="flex items-center gap-3">
-               <button 
-                 onClick={handleSyncLedger} 
-                 disabled={isSyncingLedger}
-                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${isSyncingLedger ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-               >
-                 <RefreshCw size={16} className={isSyncingLedger ? 'animate-spin' : ''} />
-                 {isSyncingLedger ? 'Syncing...' : 'Sync Latest Data'}
-               </button>
-
-               <button 
-                 onClick={() => openPayoutModal()} 
-                 className="bg-slate-900 text-emerald-400 hover:bg-slate-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-               >
-                 <Plus size={16} strokeWidth={2.5} /> Log Transaction
-               </button>
+      
+      {/* Stripe Admin Tab View */}
+      {activeLedgerTab === 'promos' && currentUser?.isAdmin ? (
+        <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <LinkIcon className="text-blue-600" size={28} />
+                        Affiliate Promos
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-1">Map Stripe promotion codes to creators to calculate recurring commissions.</p>
+                </div>
+                <button onClick={handleSyncStripe} disabled={isSyncingStripe} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                    <RefreshCw size={18} className={isSyncingStripe ? "animate-spin" : ""} /> Sync Stripe
+                </button>
             </div>
+
+            <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-6 flex-shrink-0 border border-slate-200">
+                <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
+                <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
+                {currentUser?.isAdmin && <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Affiliate Promos</button>}
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left min-w-[700px]">
+                        <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-4">Stripe Promo Code</th>
+                                <th className="px-6 py-4">Assigned Creator</th>
+                                <th className="px-6 py-4">Commission %</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {stripePromos && stripePromos.length > 0 ? stripePromos.map((promo) => {
+                                const isEditing = editingPromos.hasOwnProperty(promo.id);
+                                const currentPromoState = editingPromos[promo.id] || promo;
+
+                                return (
+                                <tr key={promo.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-6 py-4 font-bold text-slate-800">{promo.code}</td>
+                                    <td className="px-6 py-4">
+                                        <select 
+                                            value={currentPromoState.userId || ''} 
+                                            onChange={(e) => handleUpdatePromoField(promo.id, 'userId', e.target.value)}
+                                            className="w-full max-w-[200px] border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm bg-white"
+                                        >
+                                            <option value="">-- Unassigned --</option>
+                                            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                        </select>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="number" 
+                                                value={currentPromoState.commissionRate || ''} 
+                                                onChange={(e) => handleUpdatePromoField(promo.id, 'commissionRate', e.target.value)}
+                                                className="w-20 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm text-right"
+                                            />
+                                            <span className="text-slate-500 font-bold">%</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        {isEditing ? (
+                                            <button onClick={() => savePromo(promo.id)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center gap-1 ml-auto">
+                                                <Save size={14} /> Save
+                                            </button>
+                                        ) : (
+                                            <span className="text-slate-400 text-xs italic">Saved</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            )}) : (
+                                <tr>
+                                    <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <LinkIcon size={48} className="text-slate-300 mb-3" />
+                                            <p className="font-semibold">No promo codes found.</p>
+                                            <p className="text-sm">Click "Sync Stripe" to pull your active promotion codes.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+      ) : (
+        /* Original Ledger & History Views */
+        <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <Calculator className="text-emerald-600" size={28} />
+                Creator Payout Ledger
+              </h2>
+              <p className="text-slate-500 text-sm mt-1">
+                 {currentUser?.isAdmin 
+                     ? "Running balance calculator driven by YouTube video revenue and WordPress articles." 
+                     : "Your personal earnings calculator driven by YouTube video revenue and WordPress articles."}
+              </p>
+            </div>
+            
+            {currentUser?.isAdmin && (
+                <div className="flex items-center gap-3">
+                   <button 
+                     onClick={handleSyncLedger} 
+                     disabled={isSyncingLedger}
+                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${isSyncingLedger ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                   >
+                     <RefreshCw size={16} className={isSyncingLedger ? 'animate-spin' : ''} />
+                     {isSyncingLedger ? 'Syncing...' : 'Sync Latest Data'}
+                   </button>
+
+                   <button 
+                     onClick={() => openPayoutModal()} 
+                     className="bg-slate-900 text-emerald-400 hover:bg-slate-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                   >
+                     <Plus size={16} strokeWidth={2.5} /> Log Transaction
+                   </button>
+                </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
+              <div className="text-slate-500 text-sm font-medium mb-1">Total Lifetime Earned</div>
+              <div className="text-3xl font-bold text-slate-800">{formatCurrency(grandTotalEarned)}</div>
+            </div>
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
+              <div className="text-slate-500 text-sm font-medium mb-1">Total Lifetime Paid</div>
+              <div className="text-3xl font-bold text-slate-800">{formatCurrency(grandTotalPaid)}</div>
+            </div>
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
+              <div className="text-slate-500 text-sm font-medium mb-1">Current Outstanding Balance</div>
+              <div className={`text-3xl font-bold ${grandTotalOwed < 0 ? 'text-red-500' : 'text-emerald-600'}`}>{formatCurrency(grandTotalOwed)}</div>
+            </div>
+          </div>
+
+          <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-4 flex-shrink-0 border border-slate-200">
+              <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
+              <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
+              {currentUser?.isAdmin && <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Affiliate Promos</button>}
+          </div>
+
+          <div className="flex-1 min-h-0 flex flex-col">
+             {activeLedgerTab === 'balances' ? (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
+                   <div className="overflow-x-auto flex-1">
+                       <table className="w-full text-left min-w-[1000px]">
+                           <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                               <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                   <th className="p-4 w-56">Target Account Name</th>
+                                   <th className="p-4 w-32">Pay Rates</th>
+                                   <th className="p-4 w-40 text-center">Eligible Stats<br/><span className="text-[9px] font-normal normal-case">(Since Start Date)</span></th>
+                                   <th className="p-4 w-32 text-right">Total Earned</th>
+                                   <th className="p-4 w-32 text-right">Total Paid/Deducted</th>
+                                   <th className="p-4 w-32 text-right bg-slate-50">Current Balance</th>
+                                   {currentUser?.isAdmin && <th className="p-4 w-12 text-center"></th>}
+                               </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-100">
+                               
+                               {/* YouTube Shows */}
+                               {filteredPlaylists.map(show => {
+                                   const displayName = show.playlistName || show.title;
+                                   const earned = calculateTotalEarned(show);
+                                   const paid = calculateTotalPaid(show.normalizedPlaylistId);
+                                   const deducted = calculateTotalDeducted(show.normalizedPlaylistId);
+                                   const balance = earned - paid - deducted;
+                                   
+                                   return (
+                                       <tr key={show.normalizedPlaylistId} className="hover:bg-slate-50 transition-colors">
+                                           <td className="p-4">
+                                               <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: show.normalizedPlaylistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
+                                               <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                                   <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
+                                               </div>
+                                           </td>
+                                           <td className="p-4 text-xs font-medium text-slate-600">
+                                               <div>Base: {formatCurrency(show.basePay)}/ep</div>
+                                               <div className="mt-1">Rev Share: {show.revShare ?? 100}%</div>
+                                           </td>
+                                           <td className="p-4">
+                                               <div className="flex justify-center gap-4 text-xs">
+                                                   <div className="text-center"><div className="font-bold text-slate-800">{show.ledgerVideos || 0}</div><div className="text-[9px] text-slate-400 uppercase">Videos</div></div>
+                                                   <div className="text-center"><div className="font-bold text-emerald-600">{formatCurrency(show.ledgerRevenue || 0)}</div><div className="text-[9px] text-slate-400 uppercase">Total Rev</div></div>
+                                               </div>
+                                           </td>
+                                           <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>
+                                           <td className="p-4 text-right font-medium text-slate-700">
+                                               {formatCurrency(paid)}
+                                               {deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(deducted)} (Fines)</div>}
+                                           </td>
+                                           <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-emerald-600 bg-emerald-50/30'}`}>
+                                               {formatCurrency(balance)}
+                                           </td>
+                                           {currentUser?.isAdmin && (
+                                               <td className="p-4 text-center">
+                                                   <button onClick={() => openPayoutModal({ showId: show.normalizedPlaylistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                                       Pay Now
+                                                   </button>
+                                               </td>
+                                           )}
+                                       </tr>
+                                   )
+                               })}
+
+                               {/* Stripe Affiliate Commissions */}
+                               {stripeRows.map(stripeData => {
+                                   return (
+                                       <tr key={`stripe_${stripeData.id}`} className="hover:bg-slate-50 transition-colors bg-blue-50/30">
+                                           <td className="p-4">
+                                               <div className="font-bold text-slate-800 cursor-pointer hover:text-blue-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: stripeData.id, name: `${stripeData.members}'s Affiliates`, type: 'stripe' })} title="View Payment History">Affiliate Commissions</div>
+                                               <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                                   <LinkIcon size={10} className="text-blue-500" /> User: {stripeData.members}
+                                               </div>
+                                           </td>
+                                           <td className="p-4 text-xs font-medium text-slate-400 italic">
+                                               Via Stripe Promo
+                                           </td>
+                                           <td className="p-4 text-center text-xs text-slate-400 italic">
+                                                Auto-Synced
+                                           </td>
+                                           <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(stripeData.earned)}</td>
+                                           <td className="p-4 text-right font-medium text-slate-700">
+                                               {formatCurrency(stripeData.paid)}
+                                               {stripeData.deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(stripeData.deducted)} (Fines)</div>}
+                                           </td>
+                                           <td className={`p-4 text-right font-bold ${stripeData.balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-blue-600 bg-blue-50/30'}`}>
+                                               {formatCurrency(stripeData.balance)}
+                                           </td>
+                                           {currentUser?.isAdmin && (
+                                               <td className="p-4 text-center">
+                                                   <button onClick={() => openPayoutModal({ showId: stripeData.id, amount: stripeData.balance > 0 ? stripeData.balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment', notes: 'Payout for Stripe Commissions' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                                       Pay Now
+                                                   </button>
+                                               </td>
+                                           )}
+                                       </tr>
+                                   )
+                               })}
+
+                               {/* WordPress Articles */}
+                               {filteredWpLedger.map(wpRecord => {
+                                   const earned = parseFloat(wpRecord.total_earned || 0);
+                                   const paid = calculateTotalWpPaid(wpRecord.wp_user_id);
+                                   const deducted = calculateTotalWpDeducted(wpRecord.wp_user_id);
+                                   const balance = earned - paid - deducted;
+                                   const wpShowId = `wp_articles_${wpRecord.wp_user_id}`;
+                                   const displayName = `Articles: ${wpRecord.name}`;
+                                   
+                                   return (
+                                       <tr key={wpShowId} className="hover:bg-slate-50 transition-colors bg-sky-50/30">
+                                           <td className="p-4">
+                                               <div className="font-bold text-slate-800 cursor-pointer hover:text-sky-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: wpShowId, name: displayName, type: 'wordpress', wpUserId: wpRecord.wp_user_id })} title="View Payment History">{displayName}</div>
+                                               <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                                                   <Globe size={10} className="text-sky-500" /> WordPress Writer
+                                               </div>
+                                           </td>
+                                           <td className="p-4 text-xs font-medium text-slate-400 italic">
+                                               Rates on Wordpress
+                                           </td>
+                                           <td className="p-4">
+                                               <div className="flex justify-center gap-4 text-xs">
+                                                   <div className="text-center"><div className="font-bold text-slate-800">{wpRecord.articles || 0}</div><div className="text-[9px] text-slate-400 uppercase">Articles</div></div>
+                                                   <div className="text-center"><div className="font-bold text-slate-800">{parseInt(wpRecord.views || 0).toLocaleString()}</div><div className="text-[9px] text-slate-400 uppercase">Views</div></div>
+                                               </div>
+                                           </td>
+                                           <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>
+                                           <td className="p-4 text-right font-medium text-slate-700">
+                                               {formatCurrency(paid)}
+                                               {deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(deducted)} (Fines)</div>}
+                                           </td>
+                                           <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-sky-600 bg-sky-50/30'}`}>
+                                               {formatCurrency(balance)}
+                                           </td>
+                                           {currentUser?.isAdmin && (
+                                               <td className="p-4 text-center">
+                                                   <button onClick={() => openPayoutModal({ showId: wpShowId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                                       Pay Now
+                                                   </button>
+                                               </td>
+                                           )}
+                                       </tr>
+                                   );
+                               })}
+                               {(filteredPlaylists.length === 0 && filteredWpLedger.length === 0 && stripeRows.length === 0) && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows, promos, or articles currently available on the ledger.</td></tr>}
+                           </tbody>
+                       </table>
+                   </div>
+                </div>
+             ) : (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
+                   <div className="overflow-x-auto flex-1">
+                       <table className="w-full text-left min-w-[800px]">
+                           <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                               <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                   <th className="p-4">Date Logged</th>
+                                   <th className="p-4">Target Account</th>
+                                   <th className="p-4 text-right">Amount</th>
+                                   <th className="p-4">Type / Account</th>
+                                   <th className="p-4">Memo</th>
+                               </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-100">
+                               {visiblePayouts.map(p => {
+                                   let displayName = 'Unknown Target';
+                                   if (p.showId.startsWith('wp_articles_')) {
+                                       const wpId = p.showId.replace('wp_articles_', '');
+                                       const wpUser = filteredWpLedger.find(u => u.wp_user_id == wpId);
+                                       if (wpUser) displayName = `Articles: ${wpUser.name}`;
+                                   } else if (p.transactionType === 'Stripe Commission' || stripeRows.some(r => r.id === p.showId)) {
+                                       const userMatch = users.find(u => u.id === p.showId);
+                                       if (userMatch) displayName = `Affiliate Comm. (${userMatch.name})`;
+                                   } else {
+                                       const playlist = filteredPlaylists.find(s => s.normalizedPlaylistId === p.showId || s.playlistId === p.showId || s.id === p.showId);
+                                       if (playlist) displayName = playlist.playlistName || playlist.title;
+                                   }
+                                   
+                                   return (
+                                       <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) openPayoutModal(p); }}>
+                                           <td className="p-4 text-sm font-medium text-slate-700">
+                                              {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
+                                           </td>
+                                           <td className="p-4 font-bold text-slate-800">{displayName}</td>
+                                           <td className="p-4 text-right font-bold">
+                                               {p.transactionType === 'Deduction' ? (
+                                                   <span className="text-red-500">-{formatCurrency(p.amount)}</span>
+                                               ) : (
+                                                   <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
+                                               )}
+                                           </td>
+                                           <td className="p-4">
+                                               {p.transactionType === 'Deduction' ? (
+                                                   <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
+                                               ) : p.transactionType === 'Stripe Commission' ? (
+                                                   <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">Stripe Earnings</span>
+                                               ) : (
+                                                   <>
+                                                       <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
+                                                       <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
+                                                   </>
+                                               )}
+                                           </td>
+                                           <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
+                                               {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
+                                           </td>
+                                       </tr>
+                                   )
+                               })}
+                               {visiblePayouts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged yet.</td></tr>}
+                           </tbody>
+                       </table>
+                   </div>
+                </div>
+             )}
+
+             {/* HISTORY MODAL OVERLAY */}
+             {historyModalItem && (
+               <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                 <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
+                   <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                            <Wallet size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg text-slate-800 leading-tight">Payment History</h3>
+                            <p className="text-xs text-slate-500 font-medium">History for "{historyModalItem.name}"</p>
+                        </div>
+                     </div>
+                     <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+                   </div>
+                   
+                   <div className="overflow-y-auto flex-1 bg-slate-50">
+                      <table className="w-full text-left">
+                         <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                             <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                 <th className="p-4">Date Logged</th>
+                                 <th className="p-4 text-right">Amount</th>
+                                 <th className="p-4">Type / Account</th>
+                                 <th className="p-4">Memo</th>
+                             </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-100">
+                             {(() => {
+                                 let filteredPayouts = [];
+                                 if (historyModalItem.type === 'youtube') {
+                                     const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.id);
+                                     const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.playlistId);
+                                     filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || rawPlaylistIds.includes(p.showId) || relatedShowIds.includes(p.showId));
+                                 } else if (historyModalItem.type === 'wordpress') {
+                                     filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id);
+                                 } else if (historyModalItem.type === 'stripe') {
+                                     filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id && (p.transactionType === 'Payment' || p.transactionType === 'Stripe Commission'));
+                                 }
+                                 
+                                 if (filteredPayouts.length === 0) {
+                                     return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this target yet.</td></tr>;
+                                 }
+                                 
+                                 return filteredPayouts.map(p => (
+                                     <tr key={p.id} className={`hover:bg-white transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) { setHistoryModalItem(null); openPayoutModal(p); } }}>
+                                         <td className="p-4 text-sm font-medium text-slate-700">
+                                            {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
+                                         </td>
+                                         <td className="p-4 text-right font-bold">
+                                             {p.transactionType === 'Deduction' ? (
+                                                 <span className="text-red-500">-{formatCurrency(p.amount)}</span>
+                                             ) : (
+                                                 <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
+                                             )}
+                                         </td>
+                                         <td className="p-4">
+                                             {p.transactionType === 'Deduction' ? (
+                                                 <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
+                                             ) : p.transactionType === 'Stripe Commission' ? (
+                                                 <span className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">Stripe Earnings</span>
+                                             ) : (
+                                                 <>
+                                                     <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
+                                                     <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
+                                                 </>
+                                             )}
+                                         </td>
+                                         <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
+                                             {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
+                                         </td>
+                                     </tr>
+                                 ));
+                             })()}
+                         </tbody>
+                      </table>
+                   </div>
+                   
+                   <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0 bg-white">
+                     <button type="button" onClick={() => setHistoryModalItem(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
+                   </div>
+                 </div>
+               </div>
+             )}
+          </div>
         )}
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
-          <div className="text-slate-500 text-sm font-medium mb-1">Total Lifetime Earned</div>
-          <div className="text-3xl font-bold text-slate-800">{formatCurrency(grandTotalEarned)}</div>
-        </div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
-          <div className="text-slate-500 text-sm font-medium mb-1">Total Lifetime Paid</div>
-          <div className="text-3xl font-bold text-slate-800">{formatCurrency(grandTotalPaid)}</div>
-        </div>
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
-          <div className="text-slate-500 text-sm font-medium mb-1">Current Outstanding Balance</div>
-          <div className={`text-3xl font-bold ${grandTotalOwed < 0 ? 'text-red-500' : 'text-emerald-600'}`}>{formatCurrency(grandTotalOwed)}</div>
-        </div>
-      </div>
-
-      <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-4 flex-shrink-0 border border-slate-200">
-          <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
-          <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
-      </div>
-
-      <div className="flex-1 min-h-0 flex flex-col">
-         {activeLedgerTab === 'balances' ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
-               <div className="overflow-x-auto flex-1">
-                   <table className="w-full text-left min-w-[1000px]">
-                       <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-                           <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                               <th className="p-4 w-56">Playlist / Show Name</th>
-                               <th className="p-4 w-32">Pay Rates</th>
-                               <th className="p-4 w-40 text-center">Eligible Stats<br/><span className="text-[9px] font-normal normal-case">(Since Start Date)</span></th>
-                               <th className="p-4 w-32 text-right">Total Earned</th>
-                               <th className="p-4 w-32 text-right">Total Paid/Deducted</th>
-                               <th className="p-4 w-32 text-right bg-slate-50">Current Balance</th>
-                               {currentUser?.isAdmin && <th className="p-4 w-12 text-center"></th>}
-                           </tr>
-                       </thead>
-                       <tbody className="divide-y divide-slate-100">
-                           {/* YouTube Shows */}
-                           {filteredPlaylists.map(show => {
-                               const displayName = show.playlistName || show.title;
-                               const earned = calculateTotalEarned(show);
-                               const paid = calculateTotalPaid(show.normalizedPlaylistId);
-                               const deducted = calculateTotalDeducted(show.normalizedPlaylistId);
-                               const balance = earned - paid - deducted;
-                               
-                               return (
-                                   <tr key={show.normalizedPlaylistId} className="hover:bg-slate-50 transition-colors">
-                                       <td className="p-4">
-                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: show.normalizedPlaylistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
-                                           <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                                               <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
-                                           </div>
-                                       </td>
-                                       <td className="p-4 text-xs font-medium text-slate-600">
-                                           <div>Base: {formatCurrency(show.basePay)}/ep</div>
-                                           <div className="mt-1">Rev Share: {show.revShare ?? 100}%</div>
-                                       </td>
-                                       <td className="p-4">
-                                           <div className="flex justify-center gap-4 text-xs">
-                                               <div className="text-center"><div className="font-bold text-slate-800">{show.ledgerVideos || 0}</div><div className="text-[9px] text-slate-400 uppercase">Videos</div></div>
-                                               <div className="text-center"><div className="font-bold text-emerald-600">{formatCurrency(show.ledgerRevenue || 0)}</div><div className="text-[9px] text-slate-400 uppercase">Total Rev</div></div>
-                                           </div>
-                                       </td>
-                                       <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>
-                                       <td className="p-4 text-right font-medium text-slate-700">
-                                           {formatCurrency(paid)}
-                                           {deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(deducted)} (Fines)</div>}
-                                       </td>
-                                       <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-emerald-600 bg-emerald-50/30'}`}>
-                                           {formatCurrency(balance)}
-                                       </td>
-                                       {currentUser?.isAdmin && (
-                                           <td className="p-4 text-center">
-                                               <button onClick={() => openPayoutModal({ showId: show.normalizedPlaylistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
-                                                   Pay Now
-                                               </button>
-                                           </td>
-                                       )}
-                                   </tr>
-                               )
-                           })}
-
-                           {/* WordPress Articles */}
-                           {filteredWpLedger.map(wpRecord => {
-                               const earned = parseFloat(wpRecord.total_earned || 0);
-                               const paid = calculateTotalWpPaid(wpRecord.wp_user_id);
-                               const deducted = calculateTotalWpDeducted(wpRecord.wp_user_id);
-                               const balance = earned - paid - deducted;
-                               const wpShowId = `wp_articles_${wpRecord.wp_user_id}`;
-                               const displayName = `Articles: ${wpRecord.name}`;
-                               
-                               return (
-                                   <tr key={wpShowId} className="hover:bg-slate-50 transition-colors bg-sky-50/30">
-                                       <td className="p-4">
-                                           <div className="font-bold text-slate-800 cursor-pointer hover:text-sky-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: wpShowId, name: displayName, type: 'wordpress', wpUserId: wpRecord.wp_user_id })} title="View Payment History">{displayName}</div>
-                                           <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                                               <Globe size={10} className="text-sky-500" /> WordPress Writer
-                                           </div>
-                                       </td>
-                                       <td className="p-4 text-xs font-medium text-slate-400 italic">
-                                           Rates on Wordpress
-                                       </td>
-                                       <td className="p-4">
-                                           <div className="flex justify-center gap-4 text-xs">
-                                               <div className="text-center"><div className="font-bold text-slate-800">{wpRecord.articles || 0}</div><div className="text-[9px] text-slate-400 uppercase">Articles</div></div>
-                                               <div className="text-center"><div className="font-bold text-slate-800">{parseInt(wpRecord.views || 0).toLocaleString()}</div><div className="text-[9px] text-slate-400 uppercase">Views</div></div>
-                                           </div>
-                                       </td>
-                                       <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>
-                                       <td className="p-4 text-right font-medium text-slate-700">
-                                           {formatCurrency(paid)}
-                                           {deducted > 0 && <div className="text-[10px] text-red-500 mt-0.5 font-bold">- {formatCurrency(deducted)} (Fines)</div>}
-                                       </td>
-                                       <td className={`p-4 text-right font-bold ${balance < 0 ? 'text-red-600 bg-red-50/30' : 'text-sky-600 bg-sky-50/30'}`}>
-                                           {formatCurrency(balance)}
-                                       </td>
-                                       {currentUser?.isAdmin && (
-                                           <td className="p-4 text-center">
-                                               <button onClick={() => openPayoutModal({ showId: wpShowId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
-                                                   Pay Now
-                                               </button>
-                                           </td>
-                                       )}
-                                   </tr>
-                               );
-                           })}
-                           {(filteredPlaylists.length === 0 && filteredWpLedger.length === 0) && <tr><td colSpan={currentUser?.isAdmin ? "7" : "6"} className="p-8 text-center text-slate-500">No shows or articles currently available on the ledger.</td></tr>}
-                       </tbody>
-                   </table>
-               </div>
-            </div>
-         ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col">
-               <div className="overflow-x-auto flex-1">
-                   <table className="w-full text-left min-w-[800px]">
-                       <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
-                           <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                               <th className="p-4">Date Logged</th>
-                               <th className="p-4">Target Account</th>
-                               <th className="p-4 text-right">Amount</th>
-                               <th className="p-4">Type / Account</th>
-                               <th className="p-4">Memo</th>
-                           </tr>
-                       </thead>
-                       <tbody className="divide-y divide-slate-100">
-                           {visiblePayouts.map(p => {
-                               let displayName = 'Unknown Target';
-                               if (p.showId.startsWith('wp_articles_')) {
-                                   const wpId = p.showId.replace('wp_articles_', '');
-                                   const wpUser = filteredWpLedger.find(u => u.wp_user_id == wpId);
-                                   if (wpUser) displayName = `Articles: ${wpUser.name}`;
-                               } else {
-                                   const playlist = filteredPlaylists.find(s => s.normalizedPlaylistId === p.showId || s.playlistId === p.showId || s.id === p.showId);
-                                   if (playlist) displayName = playlist.playlistName || playlist.title;
-                               }
-                               
-                               return (
-                                   <tr key={p.id} className={`hover:bg-slate-50 transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) openPayoutModal(p); }}>
-                                       <td className="p-4 text-sm font-medium text-slate-700">
-                                          {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
-                                       </td>
-                                       <td className="p-4 font-bold text-slate-800">{displayName}</td>
-                                       <td className="p-4 text-right font-bold">
-                                           {p.transactionType === 'Deduction' ? (
-                                               <span className="text-red-500">-{formatCurrency(p.amount)}</span>
-                                           ) : (
-                                               <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
-                                           )}
-                                       </td>
-                                       <td className="p-4">
-                                           {p.transactionType === 'Deduction' ? (
-                                               <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
-                                           ) : (
-                                               <>
-                                                   <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
-                                                   <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
-                                               </>
-                                           )}
-                                       </td>
-                                       <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
-                                           {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
-                                       </td>
-                                   </tr>
-                               )
-                           })}
-                           {visiblePayouts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged yet.</td></tr>}
-                       </tbody>
-                   </table>
-               </div>
-            </div>
-         )}
-
-         {/* HISTORY MODAL OVERLAY */}
-         {historyModalItem && (
-           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-             <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-emerald-500">
-               <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-                        <Wallet size={20} />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-lg text-slate-800 leading-tight">Payment History</h3>
-                        <p className="text-xs text-slate-500 font-medium">History for "{historyModalItem.name}"</p>
-                    </div>
-                 </div>
-                 <button onClick={() => setHistoryModalItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
-               </div>
-               
-               <div className="overflow-y-auto flex-1 bg-slate-50">
-                  <table className="w-full text-left">
-                     <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                         <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                             <th className="p-4">Date Logged</th>
-                             <th className="p-4 text-right">Amount</th>
-                             <th className="p-4">Type / Account</th>
-                             <th className="p-4">Memo</th>
-                         </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-100">
-                         {(() => {
-                             let filteredPayouts = [];
-                             if (historyModalItem.type === 'youtube') {
-                                 const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.id);
-                                 const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.playlistId);
-                                 filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || rawPlaylistIds.includes(p.showId) || relatedShowIds.includes(p.showId));
-                             } else if (historyModalItem.type === 'wordpress') {
-                                 filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id);
-                             }
-                             
-                             if (filteredPayouts.length === 0) {
-                                 return <tr><td colSpan="4" className="p-12 text-center text-slate-500"><History size={32} className="mx-auto mb-2 opacity-20"/> No payment history logged for this target yet.</td></tr>;
-                             }
-                             
-                             return filteredPayouts.map(p => (
-                                 <tr key={p.id} className={`hover:bg-white transition-colors group ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`} onClick={() => { if(currentUser?.isAdmin) { setHistoryModalItem(null); openPayoutModal(p); } }}>
-                                     <td className="p-4 text-sm font-medium text-slate-700">
-                                        {new Date(`${p.paymentDate}T12:00:00`).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}
-                                     </td>
-                                     <td className="p-4 text-right font-bold">
-                                         {p.transactionType === 'Deduction' ? (
-                                             <span className="text-red-500">-{formatCurrency(p.amount)}</span>
-                                         ) : (
-                                             <span className="text-emerald-600">{formatCurrency(p.amount)}</span>
-                                         )}
-                                     </td>
-                                     <td className="p-4">
-                                         {p.transactionType === 'Deduction' ? (
-                                             <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">Penalty / Deduction</span>
-                                         ) : (
-                                             <>
-                                                 <div className="text-xs font-bold text-slate-700">{p.paymentMethod}</div>
-                                                 <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.paymentAccount}</div>
-                                             </>
-                                         )}
-                                     </td>
-                                     <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
-                                         {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
-                                     </td>
-                                 </tr>
-                             ));
-                         })()}
-                     </tbody>
-                  </table>
-               </div>
-               
-               <div className="p-6 border-t border-slate-100 flex justify-end flex-shrink-0 bg-white">
-                 <button type="button" onClick={() => setHistoryModalItem(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-bold shadow-sm">Close</button>
-               </div>
-             </div>
-           </div>
-         )}
-      </div>
-    </div>
-  );
+    );
 }
