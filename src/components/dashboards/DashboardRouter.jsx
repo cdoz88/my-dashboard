@@ -34,7 +34,7 @@ export default function DashboardRouter({
   contacts, activeCRMTab, crmDisplayMode, openContactModal, handleDeleteContact, passwords, activePasswordTab, 
   openPasswordModal, handleDeletePassword, handleUpdateUser, setIsOnboardingModalOpen, visibleCompanies, activeTeamTab, 
   globalChecklist, handleGenerateOnboarding, handleGenerateOffboarding, setIsAvatarMakerModalOpen, teamDisplayMode, 
-  openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs
+  openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs, youtubeSection
 }) {
 
   if (currentApp === 'home') {
@@ -75,15 +75,14 @@ export default function DashboardRouter({
   }
   
   if (currentApp === 'youtube') {
+    if (youtubeSection === 'shows') {
+        return <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />;
+    }
     return <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />;
   }
   
   if (currentApp === 'analytics') {
     return <AnalyticsDashboard analyticsProperties={analyticsProperties} activeAnalyticsId={activeAnalyticsId} />;
-  }
-  
-  if (currentApp === 'shows') {
-    return <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />;
   }
   
   if (currentApp === 'sponsorships') {

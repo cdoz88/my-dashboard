@@ -11,6 +11,7 @@ import CompanyLogo from '../shared/CompanyLogo';
 export default function Sidebar({
   currentApp, setCurrentApp, activeTab, setActiveTab,
   isMobileMenuOpen, setIsMobileMenuOpen, currentUser,
+  youtubeSection, setYoutubeSection,
   users, companies, visibleCompanies, projects, tasks, events,
   youtubeChannels, spreakerShows, activeBudgetTab, setActiveBudgetTab,
   activeDomainTab, setActiveDomainTab, activeEventTab, setActiveEventTab,
@@ -42,7 +43,7 @@ export default function Sidebar({
                <button onClick={() => { setCurrentApp('projects'); setActiveTab('mytasks'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
                   <CheckCircle size={18} /> My Tasks
                </button>
-               <button onClick={() => { setCurrentApp('shows'); setActiveTab('overview'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
+               <button onClick={() => { setCurrentApp('youtube'); setYoutubeSection('shows'); setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
                   <Tv size={18} /> My Shows
                </button>
                <button onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
@@ -354,49 +355,61 @@ export default function Sidebar({
         {currentApp === 'youtube' && (
           <>
             <div className="px-4 mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Channels</p>
-                {currentUser?.isAdmin && <button onClick={() => openYoutubeModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Channel"><Plus size={16} /></button>}
-              </div>
-              <div className="flex flex-col gap-1">
-                {youtubeChannels.length > 0 ? youtubeChannels.map(channel => (
-                  <div key={channel.id} className="flex items-center justify-between group/channel">
-                    <button onClick={() => { setActiveYoutubeChannelId(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeYoutubeChannelId === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                      <Youtube size={16} className={`flex-shrink-0 ${activeYoutubeChannelId === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
-                      <span className="truncate">{channel.name}</span>
-                    </button>
-                    {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button></div>}
-                  </div>
-                )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div> )}
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">YouTube Studio</p>
+              <div className="space-y-1">
+                 <button onClick={() => { setYoutubeSection('stats'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'stats' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <BarChart3 size={18} /> Channel Stats
+                 </button>
+                 <button onClick={() => { setYoutubeSection('shows'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'shows' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <Tv size={18} /> Show Schedule
+                 </button>
               </div>
             </div>
-          </>
-        )}
 
-        {currentApp === 'shows' && (
-          <>
-            <div className="px-4 mb-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Schedule</p>
-              <button onClick={() => { setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeShowTab === 'overview' ? 'bg-red-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
-                <CalendarDays size={18} /> All Shows
-              </button>
-            </div>
-            
-            <div className="px-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Channel</p>
+            {youtubeSection === 'stats' && (
+              <div className="px-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Channels</p>
+                  {currentUser?.isAdmin && <button onClick={() => openYoutubeModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Channel"><Plus size={16} /></button>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {youtubeChannels.length > 0 ? youtubeChannels.map(channel => (
+                    <div key={channel.id} className="flex items-center justify-between group/channel">
+                      <button onClick={() => { setActiveYoutubeChannelId(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeYoutubeChannelId === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                        <Youtube size={16} className={`flex-shrink-0 ${activeYoutubeChannelId === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
+                        <span className="truncate">{channel.name}</span>
+                      </button>
+                      {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button></div>}
+                    </div>
+                  )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div> )}
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                {youtubeChannels.map(channel => (
-                  <div key={channel.id} className="flex items-center justify-between group/channel">
-                    <button onClick={() => { setActiveShowTab(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeShowTab === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                      <Youtube size={16} className={`flex-shrink-0 ${activeShowTab === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
-                      <span className="truncate">{channel.name}</span>
-                    </button>
+            )}
+
+            {youtubeSection === 'shows' && (
+              <>
+                <div className="px-4 mb-4">
+                  <button onClick={() => { setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeShowTab === 'overview' ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                    <CalendarDays size={16} className={`${activeShowTab === 'overview' ? 'text-red-500' : 'text-slate-500'}`} /> All Shows
+                  </button>
+                </div>
+                <div className="px-4 mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Channel</p>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="flex flex-col gap-1">
+                    {youtubeChannels.map(channel => (
+                      <div key={channel.id} className="flex items-center justify-between group/channel">
+                        <button onClick={() => { setActiveShowTab(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeShowTab === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                          <Youtube size={16} className={`flex-shrink-0 ${activeShowTab === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
+                          <span className="truncate">{channel.name}</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
 

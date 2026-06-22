@@ -11,16 +11,25 @@ export function useUI() {
   const initialTab = initialParams.get('tab');
 
   // Core App State
-  const [currentApp, setCurrentApp] = useState(() => initialApp || localStorage.getItem('fyt_currentApp') || 'home'); 
+  const [currentApp, setCurrentApp] = useState(() => {
+      const app = initialApp || localStorage.getItem('fyt_currentApp') || 'home';
+      return app === 'shows' ? 'youtube' : app; // Migration logic for old bookmarks
+  }); 
   const [isAppSwitcherOpen, setIsAppSwitcherOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // New YouTube Sub-Navigation
+  const [youtubeSection, setYoutubeSection] = useState(() => {
+      if (initialApp === 'shows') return 'shows';
+      return localStorage.getItem('fyt_youtubeSection') || 'stats';
+  });
 
   // View States
   const [activeTab, setActiveTab] = useState(() => (initialApp === 'projects' || initialApp === 'home' || initialApp === 'ledger' || !initialApp) && initialTab ? initialTab : localStorage.getItem('fyt_activeTab') || 'mytasks'); 
   const [activeBudgetTab, setActiveBudgetTab] = useState(() => initialApp === 'budget' && initialTab ? initialTab : localStorage.getItem('fyt_activeBudgetTab') || 'overview'); 
   const [activeDomainTab, setActiveDomainTab] = useState(() => initialApp === 'domains' && initialTab ? initialTab : localStorage.getItem('fyt_activeDomainTab') || 'overview');
   const [activeEventTab, setActiveEventTab] = useState(() => initialApp === 'events' && initialTab ? initialTab : localStorage.getItem('fyt_activeEventTab') || 'overview');
-  const [activeShowTab, setActiveShowTab] = useState(() => initialApp === 'shows' && initialTab ? initialTab : localStorage.getItem('fyt_activeShowTab') || 'overview');
+  const [activeShowTab, setActiveShowTab] = useState(() => (initialApp === 'shows' || initialApp === 'youtube') && initialTab ? initialTab : localStorage.getItem('fyt_activeShowTab') || 'overview');
   const [activeSponsorshipTab, setActiveSponsorshipTab] = useState(() => initialApp === 'sponsorships' && initialTab ? initialTab : localStorage.getItem('fyt_activeSponsorshipTab') || 'overview');
   const [activeTeamTab, setActiveTeamTab] = useState(() => initialApp === 'team' && initialTab ? initialTab : localStorage.getItem('fyt_activeTeamTab') || 'overview');
   const [activeActivityTab, setActiveActivityTab] = useState(() => initialApp === 'activity' && initialTab ? initialTab : localStorage.getItem('fyt_activeActivityTab') || 'overview');
@@ -57,7 +66,7 @@ export function useUI() {
     if (currentApp === 'budget') currentTab = activeBudgetTab;
     else if (currentApp === 'domains') currentTab = activeDomainTab;
     else if (currentApp === 'events') currentTab = activeEventTab;
-    else if (currentApp === 'shows') currentTab = activeShowTab;
+    else if (currentApp === 'youtube') currentTab = youtubeSection === 'shows' ? activeShowTab : activeYoutubeChannelId;
     else if (currentApp === 'sponsorships') currentTab = activeSponsorshipTab;
     else if (currentApp === 'team') currentTab = activeTeamTab;
     else if (currentApp === 'activity') currentTab = activeActivityTab;
@@ -73,6 +82,7 @@ export function useUI() {
     }
 
     localStorage.setItem('fyt_currentApp', currentApp);
+    localStorage.setItem('fyt_youtubeSection', youtubeSection);
     localStorage.setItem('fyt_activeTab', activeTab);
     localStorage.setItem('fyt_activeBudgetTab', activeBudgetTab);
     localStorage.setItem('fyt_activeDomainTab', activeDomainTab);
@@ -83,7 +93,7 @@ export function useUI() {
     localStorage.setItem('fyt_activeActivityTab', activeActivityTab);
     localStorage.setItem('fyt_activeCRMTab', activeCRMTab);
     localStorage.setItem('fyt_activePasswordTab', activePasswordTab);
-  }, [currentApp, activeTab, activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab, activeActivityTab, activeCRMTab, activePasswordTab, activeAnalyticsId]);
+  }, [currentApp, youtubeSection, activeTab, activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab, activeActivityTab, activeCRMTab, activePasswordTab, activeAnalyticsId, activeYoutubeChannelId]);
 
   // Handle Browser Back/Forward Buttons
   useEffect(() => {
@@ -98,7 +108,6 @@ export function useUI() {
             else if (app === 'budget') setActiveBudgetTab(tab);
             else if (app === 'domains') setActiveDomainTab(tab);
             else if (app === 'events') setActiveEventTab(tab);
-            else if (app === 'shows') setActiveShowTab(tab);
             else if (app === 'sponsorships') setActiveSponsorshipTab(tab);
             else if (app === 'team') setActiveTeamTab(tab);
             else if (app === 'activity') setActiveActivityTab(tab);
@@ -125,6 +134,7 @@ export function useUI() {
     isUploading, setIsUploading,
     isSyncingLedger, setIsSyncingLedger,
     currentApp, setCurrentApp,
+    youtubeSection, setYoutubeSection,
     isAppSwitcherOpen, setIsAppSwitcherOpen,
     isMobileMenuOpen, setIsMobileMenuOpen,
     activeTab, setActiveTab,
