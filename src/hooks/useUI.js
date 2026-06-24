@@ -28,7 +28,7 @@ export function useUI() {
   
   const [websiteSection, setWebsiteSection] = useState(() => {
       if (initialApp === 'analytics' || localStorage.getItem('fyt_currentApp') === 'analytics') return 'analytics';
-      return localStorage.getItem('fyt_websiteSection') || 'domains';
+      return localStorage.getItem('fyt_websiteSection') || 'analytics';
   });
 
   // View States

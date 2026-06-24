@@ -131,16 +131,36 @@ export default function Sidebar({
             <div className="px-4 mb-6">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Website</p>
               <div className="space-y-1">
-                 <button onClick={() => { setWebsiteSection('domains'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${websiteSection === 'domains' ? 'bg-teal-500 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
-                    <Globe size={18} /> Domains
-                 </button>
                  {currentUser?.isAdmin && (
                    <button onClick={() => { setWebsiteSection('analytics'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${websiteSection === 'analytics' ? 'bg-orange-500 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
                       <BarChart3 size={18} /> Web Traffic
                    </button>
                  )}
+                 <button onClick={() => { setWebsiteSection('domains'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${websiteSection === 'domains' ? 'bg-teal-500 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <Globe size={18} /> Domains
+                 </button>
               </div>
             </div>
+
+            {websiteSection === 'analytics' && currentUser?.isAdmin && (
+              <div className="px-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Properties</p>
+                  <button onClick={() => openAnalyticsModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add GA4 Property"><Plus size={16} /></button>
+                </div>
+                <div className="flex flex-col gap-1">
+                  {analyticsProperties && analyticsProperties.length > 0 ? analyticsProperties.map(property => (
+                    <div key={property.id} className="flex items-center justify-between group/property">
+                      <button onClick={() => { setActiveAnalyticsId(property.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeAnalyticsId === property.id ? 'bg-slate-800 text-orange-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                        <BarChart3 size={16} className={`flex-shrink-0 ${activeAnalyticsId === property.id ? 'text-orange-500' : 'text-slate-500'}`} />
+                        <span className="truncate">{property.name}</span>
+                      </button>
+                      {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/property:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openAnalyticsModal(property); }} className="text-slate-500 hover:text-white p-1" title="Edit Property"><Pencil size={12} /></button></div>}
+                    </div>
+                  )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No properties added yet.</div> )}
+                </div>
+              </div>
+            )}
 
             {websiteSection === 'domains' && (
               <>
@@ -171,26 +191,6 @@ export default function Sidebar({
                   </div>
                 </div>
               </>
-            )}
-
-            {websiteSection === 'analytics' && currentUser?.isAdmin && (
-              <div className="px-4 mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Properties</p>
-                  <button onClick={() => openAnalyticsModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add GA4 Property"><Plus size={16} /></button>
-                </div>
-                <div className="flex flex-col gap-1">
-                  {analyticsProperties && analyticsProperties.length > 0 ? analyticsProperties.map(property => (
-                    <div key={property.id} className="flex items-center justify-between group/property">
-                      <button onClick={() => { setActiveAnalyticsId(property.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeAnalyticsId === property.id ? 'bg-slate-800 text-orange-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                        <BarChart3 size={16} className={`flex-shrink-0 ${activeAnalyticsId === property.id ? 'text-orange-500' : 'text-slate-500'}`} />
-                        <span className="truncate">{property.name}</span>
-                      </button>
-                      {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/property:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openAnalyticsModal(property); }} className="text-slate-500 hover:text-white p-1" title="Edit Property"><Pencil size={12} /></button></div>}
-                    </div>
-                  )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No properties added yet.</div> )}
-                </div>
-              </div>
             )}
           </>
         )}
