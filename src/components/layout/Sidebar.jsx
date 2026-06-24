@@ -126,6 +126,39 @@ export default function Sidebar({
           </>
         )}
 
+        {currentApp === 'budget' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Finance</p>
+              <button onClick={() => { setActiveBudgetTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${activeBudgetTab === 'overview' ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}>
+                <PieChart size={18} /> All Expenses
+              </button>
+            </div>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
+                {currentUser?.isAdmin && <button onClick={() => openCompanyModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Company"><Plus size={16} /></button>}
+              </div>
+              <div className="flex flex-col gap-1">
+                {visibleCompanies.map(company => (
+                  <div key={company.id} className="flex items-center justify-between group/company">
+                    <button onClick={() => { setActiveBudgetTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeBudgetTab === company.id ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <CompanyLogo company={company} sizeClass="w-5 h-5" />
+                      <span className="truncate">{company.name}</span>
+                    </button>
+                    {currentUser?.isAdmin && (
+                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/company:opacity-100 transition-opacity ml-1">
+                        <button onClick={(e) => { e.stopPropagation(); openCompanyModal(company); }} className="text-slate-500 hover:text-white p-1" title="Edit Company"><Pencil size={12} /></button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
         {currentApp === 'website' && (
           <>
             <div className="px-4 mb-6">
