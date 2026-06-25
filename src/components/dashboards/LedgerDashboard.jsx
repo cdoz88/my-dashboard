@@ -68,6 +68,20 @@ export default function LedgerDashboard({
     } catch (err) { console.error(err); }
   };
 
+  const handleUpdatePromoField = (promoId, field, value) => {
+      setEditingPromos(prev => ({
+          ...prev,
+          [promoId]: {
+              ...(prev[promoId] || stripePromos.find(p => p.id === promoId)),
+              [field]: value
+          }
+      }));
+  };
+
+  const savePromo = (promoId) => {
+      if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]);
+  };
+
   // --- YOUTUBE PLAYLIST LOGIC ---
   const handleAddYtPlaylist = () => {
       const newId = 'yt_pl_' + Date.now();
@@ -94,8 +108,6 @@ export default function LedgerDashboard({
       try { await fetch(`${API_URL}?action=delete_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } 
       catch (err) { console.error(err); }
   };
-
-  const currentFilter = ['all', 'youtube', 'wordpress', 'promos'].includes(activeTab) ? activeTab : 'all';
 
   // --- 1. NEW YOUTUBE LEDGER LOGIC (Percentage Only) ---
   const allowedPlaylists = ytPlaylists.filter(pl => currentUser?.isAdmin || pl.userId === currentUser?.id);
@@ -139,6 +151,7 @@ export default function LedgerDashboard({
   };
 
   // --- 4. FILTERING FOR DISPLAY ---
+  const currentFilter = ['all', 'youtube', 'wordpress', 'promos', 'yt_playlists'].includes(activeTab) ? activeTab : 'all';
   const filteredPlaylists = (currentFilter === 'all' || currentFilter === 'youtube') ? allowedPlaylists : [];
   const filteredWpLedger = (currentFilter === 'all' || currentFilter === 'wordpress') ? visibleWpLedger : [];
   const stripeRows = (currentFilter === 'all') ? getStripeLedgerRows() : [];
@@ -168,9 +181,9 @@ export default function LedgerDashboard({
   const grandTotalOwed = grandTotalEarned - grandTotalPaid - grandTotalDeducted;
 
   // ---------------------------------------------------------
-  // EARLY RETURN: YOUTUBE PLAYLISTS ADMIN DASHBOARD
+  // EARLY RETURN 1: YOUTUBE PLAYLISTS ADMIN DASHBOARD
   // ---------------------------------------------------------
-  if (activeLedgerTab === 'yt_playlists' && currentUser?.isAdmin) {
+  if (activeTab === 'yt_playlists' && currentUser?.isAdmin) {
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -185,13 +198,6 @@ export default function LedgerDashboard({
                 <button onClick={handleAddYtPlaylist} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
                     <Plus size={18} /> Add Playlist
                 </button>
-            </div>
-
-            <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-6 flex-shrink-0 border border-slate-200">
-                <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
-                <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
-                <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Stripe Promos</button>
-                <button onClick={() => setActiveLedgerTab('yt_playlists')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'yt_playlists' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>YouTube Playlists</button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -279,9 +285,9 @@ export default function LedgerDashboard({
   }
 
   // ---------------------------------------------------------
-  // EARLY RETURN: STRIPE PROMOS ADMIN DASHBOARD
+  // EARLY RETURN 2: STRIPE PROMOS ADMIN DASHBOARD
   // ---------------------------------------------------------
-  if (activeLedgerTab === 'promos' && currentUser?.isAdmin) {
+  if (activeTab === 'promos' && currentUser?.isAdmin) {
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -296,13 +302,6 @@ export default function LedgerDashboard({
                 <button onClick={handleSyncStripe} disabled={isSyncingStripe} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
                     <RefreshCw size={18} className={isSyncingStripe ? "animate-spin" : ""} /> Sync Stripe
                 </button>
-            </div>
-
-            <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-6 flex-shrink-0 border border-slate-200">
-                <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
-                <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
-                <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Stripe Promos</button>
-                <button onClick={() => setActiveLedgerTab('yt_playlists')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'yt_playlists' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>YouTube Playlists</button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -325,14 +324,23 @@ export default function LedgerDashboard({
                                 <tr key={promo.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4 font-bold text-slate-800">{promo.code}</td>
                                     <td className="px-6 py-4">
-                                        <select value={currentPromoState.userId || ''} onChange={(e) => handleUpdatePromoField(promo.id, 'userId', e.target.value)} className="w-full max-w-[200px] border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm bg-white">
+                                        <select 
+                                            value={currentPromoState.userId || ''} 
+                                            onChange={(e) => handleUpdatePromoField(promo.id, 'userId', e.target.value)}
+                                            className="w-full max-w-[200px] border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm bg-white"
+                                        >
                                             <option value="">-- Unassigned --</option>
                                             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            <input type="number" value={currentPromoState.commissionRate || ''} onChange={(e) => handleUpdatePromoField(promo.id, 'commissionRate', e.target.value)} className="w-20 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm text-right" />
+                                            <input 
+                                                type="number" 
+                                                value={currentPromoState.commissionRate || ''} 
+                                                onChange={(e) => handleUpdatePromoField(promo.id, 'commissionRate', e.target.value)}
+                                                className="w-20 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm text-right"
+                                            />
                                             <span className="text-slate-500 font-bold">%</span>
                                         </div>
                                     </td>
@@ -424,12 +432,6 @@ export default function LedgerDashboard({
         <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-4 flex-shrink-0 border border-slate-200">
             <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
             <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
-            {currentUser?.isAdmin && (
-                <>
-                   <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Stripe Promos</button>
-                   <button onClick={() => setActiveLedgerTab('yt_playlists')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'yt_playlists' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>YouTube Playlists</button>
-                </>
-            )}
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
