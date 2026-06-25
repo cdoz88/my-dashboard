@@ -1,231 +1,175 @@
-import React from 'react';
-import { Tv, X, Link as LinkIcon, MapPin, AlignLeft, Users, UserCircle, ToggleRight, ToggleLeft, Award, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar, Clock, Tv, Users, Link2, AlignLeft, Info } from 'lucide-react';
 
-export default function ShowModal({
-  editingShow, setEditingShow, handleSaveShow, handleDeleteShow, handleArchiveSeries, setIsShowModalOpen, youtubeChannels, users,
-  sponsorships, openSponsorshipModal, currentUser
-}) {
-  const studios = ['Studio 1', 'Studio 2', 'Studio 3', 'Studio 4', 'Streamyard'];
-  
-  const isSeriesEdit = editingShow.editScope === 'series';
+export default function ShowModal({ isOpen, onClose, onSave, show = null, youtubeChannels = [], users = [], currentUser }) {
+  const [formData, setFormData] = useState({
+    title: '',
+    channelId: youtubeChannels.length > 0 ? youtubeChannels[0].id : '',
+    showDate: new Date().toISOString().split('T')[0],
+    showTime: '12:00',
+    isLive: false,
+    studio: 'Studio 1',
+    guestLink: '',
+    notes: '',
+    userIds: [],
+    status: 'Active'
+  });
 
-  const showSponsors = (sponsorships || []).filter(sp => (sp.showTitles || []).includes(editingShow.title));
+  useEffect(() => {
+    if (show && isOpen) {
+      setFormData({
+        title: show.title || '',
+        channelId: show.channelId || (youtubeChannels.length > 0 ? youtubeChannels[0].id : ''),
+        showDate: show.showDate || new Date().toISOString().split('T')[0],
+        showTime: show.showTime || '12:00',
+        isLive: show.isLive ? true : false,
+        studio: show.studio || 'Studio 1',
+        guestLink: show.guestLink || '',
+        notes: show.notes || '',
+        userIds: show.userIds || [],
+        status: show.status || 'Active'
+      });
+    } else if (isOpen) {
+      setFormData({
+        title: '',
+        channelId: youtubeChannels.length > 0 ? youtubeChannels[0].id : '',
+        showDate: new Date().toISOString().split('T')[0],
+        showTime: '12:00',
+        isLive: false,
+        studio: 'Studio 1',
+        guestLink: '',
+        notes: '',
+        userIds: [],
+        status: 'Active'
+      });
+    }
+  }, [show, isOpen, youtubeChannels]);
 
-  const timeParts = editingShow.showTime ? editingShow.showTime.split(':') : ['12', '00'];
-  let showH = parseInt(timeParts[0], 10);
-  const showM = timeParts[1] || '00';
-  const showAmPm = showH >= 12 ? 'PM' : 'AM';
-  showH = showH % 12 || 12;
+  if (!isOpen) return null;
 
-  const updateTime = (newH, newM, newAmPm) => {
-      let hrs = parseInt(newH, 10);
-      if (newAmPm === 'PM' && hrs !== 12) hrs += 12;
-      if (newAmPm === 'AM' && hrs === 12) hrs = 0;
-      setEditingShow({...editingShow, showTime: `${String(hrs).padStart(2, '0')}:${newM}`});
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave({
+      ...formData,
+      id: show ? show.id : 'show_' + Date.now()
+    });
+  };
+
+  const handleUserToggle = (userId) => {
+    setFormData(prev => ({
+      ...prev,
+      userIds: prev.userIds.includes(userId)
+        ? prev.userIds.filter(id => id !== userId)
+        : [...prev.userIds, userId]
+    }));
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border-t-4 border-t-red-600">
-        <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0">
-          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-              <Tv className="text-red-600" size={20} />
-              {editingShow.id ? (isSeriesEdit ? 'Edit Entire Series' : 'Edit Single Episode') : 'Schedule Show'}
-          </h3>
-          <button onClick={() => setIsShowModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden my-auto border-t-4 border-t-red-600">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                <Tv size={20} />
+             </div>
+             <div>
+                 <h3 className="font-bold text-lg text-slate-800 leading-tight">{show ? 'Edit Show' : 'Schedule New Show'}</h3>
+                 <p className="text-xs text-slate-500 font-medium">{show ? 'Update broadcast details' : 'Add to the network calendar'}</p>
+             </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
         </div>
-        <div className="overflow-y-auto flex-1 p-6">
-          
-          {isSeriesEdit && (
-              <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-200 mb-5 text-sm font-medium">
-                  You are editing the Master List series. Changes made here will bulk-update all upcoming episodes of <b>"{editingShow.originalTitle}"</b>.
-              </div>
-          )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="p-6 space-y-6">
             
-          <form id="showForm" onSubmit={handleSaveShow} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Show / Episode Title</label>
-              <input required type="text" value={editingShow.title} onChange={(e) => setEditingShow({...editingShow, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., Weekly Draft Recap" />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">YouTube Channel</label>
-              <select required value={editingShow.channelId} onChange={(e) => setEditingShow({...editingShow, channelId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-slate-50">
-                <option value="" disabled>Select a channel</option>
-                {youtubeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">YouTube Playlist ID / URL</label>
-              <input type="text" value={editingShow.playlistId || ''} onChange={(e) => setEditingShow({...editingShow, playlistId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g., PLxxxxxx or full playlist URL" />
-              <p className="text-[10px] text-slate-500 mt-1">Required to automatically pull revenue statistics for this show.</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-                <input required type="date" value={editingShow.showDate} onChange={(e) => setEditingShow({...editingShow, showDate: e.target.value})} disabled={isSeriesEdit} className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${isSeriesEdit ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`} />
-                {isSeriesEdit && <p className="text-[10px] text-slate-500 mt-1">Date cannot be changed when editing an entire series.</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Show Title <span className="text-red-500">*</span></label>
+                <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500" placeholder="e.g. The Fantasy Forecast" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Time</label>
-                <div className="flex gap-2">
-                    <select value={String(showH)} onChange={(e) => updateTime(e.target.value, showM, showAmPm)} className="w-1/3 px-2 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
-                        {[...Array(12)].map((_,i) => <option key={i+1} value={String(i+1)}>{i+1}</option>)}
-                    </select>
-                    <span className="text-slate-500 font-bold py-2">:</span>
-                    <select value={showM} onChange={(e) => updateTime(String(showH), e.target.value, showAmPm)} className="w-1/3 px-2 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
-                        <option value="00">00</option>
-                        <option value="15">15</option>
-                        <option value="30">30</option>
-                        <option value="45">45</option>
-                    </select>
-                    <select value={showAmPm} onChange={(e) => updateTime(String(showH), showM, e.target.value)} className="w-1/3 px-2 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
-                        <option value="AM">AM</option>
-                        <option value="PM">PM</option>
-                    </select>
-                </div>
-              </div>
-            </div>
 
-            {!editingShow.id && (
-               <div className="pt-2 border-b border-slate-100 pb-4">
-                   <div className="flex items-center justify-between mb-2">
-                       <div><div className="text-sm font-bold text-slate-800">Repeat Weekly</div><div className="text-[10px] text-slate-500">Auto-generates upcoming episodes for this show.</div></div>
-                       <button type="button" onClick={() => setEditingShow({...editingShow, isRecurring: !editingShow.isRecurring})} className={`${editingShow.isRecurring ? 'text-red-600' : 'text-slate-300'} transition-colors`}>{editingShow.isRecurring ? <ToggleRight size={36} /> : <ToggleLeft size={36} />}</button>
-                   </div>
-                   {editingShow.isRecurring && (
-                       <div className="flex items-center gap-2 bg-red-50 p-3 rounded-lg border border-red-100 animate-in fade-in slide-in-from-top-2">
-                           <span className="text-sm font-medium text-red-800 flex-shrink-0">Occurrences:</span>
-                           <input type="number" min="0" value={editingShow.occurrences} onChange={(e) => setEditingShow({...editingShow, occurrences: parseInt(e.target.value) || 0})} className="w-16 px-2 py-1 text-sm border border-red-200 rounded focus:outline-none focus:ring-2 focus:ring-red-500 font-bold text-center" />
-                           <span className="text-xs font-medium text-red-600 flex-shrink-0">(0 = Indefinitely)</span>
-                       </div>
-                   )}
-               </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4 pt-2">
               <div>
-                 <label className="block text-sm font-medium text-slate-700 mb-2">Show Format</label>
-                 <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button type="button" onClick={() => setEditingShow({...editingShow, isLive: true})} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${editingShow.isLive ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>LIVE</button>
-                    <button type="button" onClick={() => setEditingShow({...editingShow, isLive: false})} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${!editingShow.isLive ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>PRE-RECORDED</button>
-                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><MapPin size={14} className="text-slate-400"/> Location / Studio</label>
-                <select value={editingShow.studio} onChange={(e) => setEditingShow({...editingShow, studio: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
-                  {studios.map(s => <option key={s} value={s}>{s}</option>)}
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">YouTube Channel</label>
+                <select value={formData.channelId} onChange={e => setFormData({...formData, channelId: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white">
+                  {youtubeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> Show Cast / Members</label>
-              <div className="space-y-2 max-h-32 overflow-y-auto pr-2 border border-slate-200 rounded-lg p-2 bg-slate-50">
-                {users.map(u => (
-                  <label key={u.id} className="flex items-center gap-3 p-1.5 hover:bg-white rounded-md cursor-pointer transition-colors">
-                    <input type="checkbox" checked={editingShow.userIds?.includes(u.id) || false} onChange={(e) => {
-                       const newIds = e.target.checked 
-                          ? [...(editingShow.userIds || []), u.id]
-                          : (editingShow.userIds || []).filter(id => id !== u.id);
-                       setEditingShow({...editingShow, userIds: newIds});
-                    }} className="w-4 h-4 accent-red-600 rounded" />
-                    {u.avatarUrl ? <img src={u.avatarUrl} className="w-6 h-6 rounded-full object-cover bg-white" /> : <UserCircle size={24} className="text-slate-400" />}
-                    <span className="text-sm font-medium text-slate-700">{u.name}</span>
-                  </label>
-                ))}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Status</label>
+                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white">
+                  <option value="Active">Active</option>
+                  <option value="Hiatus">On Hiatus</option>
+                  <option value="Ended">Ended / Cancelled</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><Calendar size={14}/> Broadcast Date <span className="text-red-500">*</span></label>
+                <input required type="date" value={formData.showDate} onChange={e => setFormData({...formData, showDate: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><Clock size={14}/> Broadcast Time <span className="text-red-500">*</span></label>
+                <input required type="time" value={formData.showTime} onChange={e => setFormData({...formData, showTime: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Studio Location</label>
+                <select value={formData.studio} onChange={e => setFormData({...formData, studio: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white">
+                  <option value="Studio 1">Studio 1</option>
+                  <option value="Studio 2">Studio 2</option>
+                  <option value="Remote">Remote</option>
+                </select>
+              </div>
+
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input type="checkbox" checked={formData.isLive} onChange={e => setFormData({...formData, isLive: e.target.checked})} className="peer sr-only" />
+                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500"></div>
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wider group-hover:text-red-600 transition-colors">Is Live Broadcast?</span>
+                </label>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100">
-              <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><LinkIcon size={14} className="text-slate-400"/> Guest Link <span className="text-xs text-slate-400 font-normal">(Optional)</span></label>
-              <input type="url" value={editingShow.guestLink || ''} onChange={(e) => setEditingShow({...editingShow, guestLink: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="https://streamyard.com/..." />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><AlignLeft size={14} className="text-slate-400"/> Show Notes / Topics</label>
-              <textarea rows="3" value={editingShow.notes || ''} onChange={(e) => setEditingShow({...editingShow, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Talking points, outlines, etc..." />
-            </div>
-
-            {currentUser?.isAdmin && (
-              <div className="pt-4 border-t border-slate-100">
-                <h4 className="text-sm font-bold text-slate-800 mb-3">Admin-Only Payment Settings</h4>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Base Pay ($)</label>
-                    <input type="number" step="0.01" min="0" value={editingShow.basePay || ''} onChange={(e) => setEditingShow({...editingShow, basePay: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Revenue Share (%)</label>
-                    <input type="number" step="1" min="0" max="100" value={editingShow.revShare ?? 100} onChange={(e) => setEditingShow({...editingShow, revShare: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="100" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Start Date</label>
-                    <input type="date" value={editingShow.paymentStartDate || ''} onChange={(e) => setEditingShow({...editingShow, paymentStartDate: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
-                    <select value={editingShow.paymentMethod || ''} onChange={(e) => setEditingShow({...editingShow, paymentMethod: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white">
-                      <option value="">Select Method</option>
-                      <option value="PayPal">PayPal</option>
-                      <option value="Venmo">Venmo</option>
-                      <option value="Zelle">Zelle</option>
-                      <option value="Bank Transfer">Bank Transfer</option>
-                      <option value="Other">Other...</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 truncate">
-                      {editingShow.paymentMethod === 'PayPal' ? 'PayPal Email' : 
-                       editingShow.paymentMethod === 'Venmo' ? 'Venmo Username (@)' : 
-                       editingShow.paymentMethod === 'Zelle' ? 'Zelle Phone/Email' : 
-                       'Account Details'}
+            <div className="border-t border-slate-200 pt-4">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><Users size={14}/> Hosts & Talent</label>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-2">
+                  {users.map(user => (
+                    <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1.5 rounded transition-colors border border-transparent hover:border-slate-200">
+                      <input type="checkbox" checked={formData.userIds.includes(user.id)} onChange={() => handleUserToggle(user.id)} className="rounded text-red-500 focus:ring-red-500 bg-slate-100 border-slate-300 cursor-pointer" />
+                      <span className="text-sm text-slate-700 font-medium truncate">{user.name}</span>
                     </label>
-                    <input type="text" value={editingShow.paymentAccount || ''} onChange={(e) => setEditingShow({...editingShow, paymentAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Username, Email, etc." />
-                  </div>
+                  ))}
                 </div>
               </div>
-            )}
+            </div>
 
-            {showSponsors.length > 0 && (
-               <div className="pt-4 border-t border-slate-100">
-                 <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5"><Award size={14} className="text-amber-500" /> Active Sponsors</label>
-                 <div className="flex flex-col gap-2">
-                    {showSponsors.map(sp => (
-                        <button 
-                            key={sp.id} 
-                            type="button" 
-                            onClick={() => { setIsShowModalOpen(false); openSponsorshipModal(sp); }} 
-                            className="flex items-center justify-between bg-amber-50 border border-amber-200 p-3 rounded-lg hover:bg-amber-100 transition-colors text-left group"
-                        >
-                            <div>
-                               <div className="font-bold text-amber-800 text-sm group-hover:text-amber-900">{sp.name}</div>
-                               <div className="text-[10px] text-amber-600 mt-0.5 font-semibold bg-amber-200/50 px-1.5 py-0.5 rounded w-fit">{sp.promoCode ? `Promo: ${sp.promoCode}` : 'View Deliverables'}</div>
-                            </div>
-                            <ExternalLink size={16} className="text-amber-500 group-hover:text-amber-600" />
-                        </button>
-                    ))}
-                 </div>
-               </div>
-            )}
+            <div className="space-y-4 border-t border-slate-200 pt-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><Link2 size={14}/> Guest Link / Resource Link</label>
+                <input type="text" value={formData.guestLink} onChange={e => setFormData({...formData, guestLink: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500" placeholder="e.g. Streamyard link or Google Doc..." />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><AlignLeft size={14}/> Production Notes</label>
+                <textarea rows="3" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500" placeholder="Outline, topics, sponsors to mention..."></textarea>
+              </div>
+            </div>
 
-          </form>
-        </div>
-        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
-          {editingShow.id && (
-             isSeriesEdit ? (
-                <button type="button" onClick={() => handleArchiveSeries(editingShow.originalTitle)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">End Series (Archive)</button>
-             ) : (
-                <button type="button" onClick={() => handleDeleteShow(editingShow.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete Episode</button>
-             )
-          )}
-          <button type="button" onClick={() => setIsShowModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
-          <button type="submit" form="showForm" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium">{editingShow.id ? 'Save Changes' : 'Schedule Show'}</button>
-        </div>
+          </div>
+
+          <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0 rounded-b-xl">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-800 transition-colors">Cancel</button>
+            <button type="submit" className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-sm transition-colors">
+              {show ? 'Update Show' : 'Schedule Show'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
