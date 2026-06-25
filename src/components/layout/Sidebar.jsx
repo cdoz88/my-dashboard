@@ -12,7 +12,7 @@ export default function Sidebar({
   currentApp, setCurrentApp, activeTab, setActiveTab,
   isMobileMenuOpen, setIsMobileMenuOpen, currentUser,
   youtubeSection, setYoutubeSection, websiteSection, setWebsiteSection,
-  users, companies, visibleCompanies, projects, tasks, events,
+  users, companies, visibleCompanies, projects, visibleProjects, tasks, visibleTasks, events,
   youtubeChannels, spreakerShows, activeBudgetTab, setActiveBudgetTab,
   activeDomainTab, setActiveDomainTab, activeEventTab, setActiveEventTab,
   activeYoutubeChannelId, setActiveYoutubeChannelId,
@@ -105,14 +105,14 @@ export default function Sidebar({
                     )}
                   </div>
                   <div className="pl-4 flex flex-col gap-0.5">
-                    {projects.filter(p => p.companyId === company.id && !p.isArchived).map(project => (
+                    {(visibleProjects || projects).filter(p => p.companyId === company.id && !p.isArchived).map(project => (
                       <div key={project.id} className="flex items-center justify-between group/project">
                         <button onClick={() => { setActiveTab(project.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${activeTab === project.id ? 'bg-slate-800 text-white font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                           <DynamicIcon name={project.icon} size={14} className={`flex-shrink-0 ${activeTab === project.id ? colorStyles[project.color]?.text : ''}`} />
                           <div className="flex-1 flex flex-col items-start overflow-hidden w-full">
                              <span className="truncate w-full text-left">{project.name}</span>
                              <div className="w-full bg-slate-700/50 h-1 mt-1 rounded-full overflow-hidden">
-                               <div className={`h-full ${colorStyles[project.color]?.bar} transition-all duration-500`} style={{ width: `${calculateProjectProgress(project.id, tasks)}%` }} />
+                               <div className={`h-full ${colorStyles[project.color]?.bar} transition-all duration-500`} style={{ width: `${calculateProjectProgress(project.id, visibleTasks || tasks)}%` }} />
                              </div>
                           </div>
                         </button>

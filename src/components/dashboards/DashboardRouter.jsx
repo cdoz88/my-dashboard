@@ -38,7 +38,7 @@ export default function DashboardRouter({
 }) {
 
   if (currentApp === 'home') {
-    return <HomeDashboard currentUser={currentUser} tasks={tasks} projects={projects} shows={shows} payouts={payouts} wpLedgerData={wpLedgerData} youtubeChannels={youtubeChannels} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} openTaskModal={openTaskModal} handleToggleTaskStatus={handleToggleTaskStatus} openShowModal={openShowModal} />;
+    return <HomeDashboard currentUser={currentUser} tasks={visibleTasks || tasks} projects={visibleProjects || projects} shows={shows} payouts={payouts} wpLedgerData={wpLedgerData} youtubeChannels={youtubeChannels} setCurrentApp={setCurrentApp} setActiveTab={setActiveTab} openTaskModal={openTaskModal} handleToggleTaskStatus={handleToggleTaskStatus} openShowModal={openShowModal} />;
   }
   
   if (currentApp === 'knowledge') {
