@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 
@@ -351,10 +351,96 @@ export default function LedgerDashboard({
   }
 
   // ---------------------------------------------------------
-  // EARLY RETURN 3: WP ARTICLES INFORMATIONAL VIEW
+  // EARLY RETURN 3: WP ARTICLES VIEW (Admin Master List vs Creator Breakdown)
   // ---------------------------------------------------------
   if (activeTab === 'wordpress') {
     const visibleWpLedger = wpLedgerData.filter(wpRecord => currentUser?.isAdmin || wpRecord.wp_user_id == currentUser?.wpUserId);
+
+    // --- NON-ADMIN CREATOR VIEW (Article Breakdown) ---
+    if (!currentUser?.isAdmin) {
+        const myWpData = visibleWpLedger[0] || null;
+        const totalArticles = myWpData ? parseInt(myWpData.articles || 0) : 0;
+        const totalViews = myWpData ? parseInt(myWpData.views || 0) : 0;
+        const totalRevenue = myWpData ? parseFloat(myWpData.total_earned || 0) : 0;
+        const articleDetails = myWpData?.article_details || myWpData?.posts || []; // Relies on WP API passing this array
+
+        return (
+          <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+            <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                            <Globe className="text-sky-600" size={28} />
+                            Your Article Performance
+                        </h2>
+                        <p className="text-slate-500 text-sm mt-1">Detailed breakdown of your published WordPress articles.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
+                    <div className="text-slate-500 text-sm font-medium mb-1">Total Articles</div>
+                    <div className="text-3xl font-bold text-slate-800">{totalArticles.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-sky-500">
+                    <div className="text-slate-500 text-sm font-medium mb-1">Total Views</div>
+                    <div className="text-3xl font-bold text-slate-800">{totalViews.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
+                    <div className="text-slate-500 text-sm font-medium mb-1">Total Earnings</div>
+                    <div className="text-3xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}</div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left min-w-[700px]">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4">Article Title</th>
+                                    <th className="px-6 py-4 text-center">Views</th>
+                                    <th className="px-6 py-4 text-right">Revenue Generated</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {articleDetails.length > 0 ? articleDetails.map((article, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-slate-800 flex items-center gap-2">
+                                                <FileText size={16} className="text-sky-500 flex-shrink-0" />
+                                                <span className="truncate max-w-[300px]" title={article.title}>{article.title}</span>
+                                                {article.url && (
+                                                    <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-sky-600 transition-colors">
+                                                        <ExternalLink size={14} />
+                                                    </a>
+                                                )}
+                                            </div>
+                                            {article.date && <div className="text-[10px] text-slate-500 mt-1">{new Date(article.date).toLocaleDateString()}</div>}
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-medium text-slate-700">{parseInt(article.views || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatCurrency(parseFloat(article.earned || 0))}</td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <Globe size={48} className="text-slate-300 mb-3" />
+                                                <p className="font-semibold text-slate-700">No individual article data available yet.</p>
+                                                <p className="text-sm mt-1 max-w-md mx-auto">If you believe this is an error, please ensure your WordPress profile is linked and your articles are actively tracking views.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+          </div>
+        );
+    }
+
+    // --- ADMIN VIEW (Master List) ---
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -496,18 +582,18 @@ export default function LedgerDashboard({
                                      </td>
                                      <td className="p-4 text-xs">
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className="text-red-500"/> YouTube:</span> 
-                                             <span className={`font-medium ${u.ytEarned > 0 ? 'text-slate-700' : 'text-slate-400'}`}>{formatCurrency(u.ytEarned)}</span> 
-                                             <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span>
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className={u.ytEarned > 0 ? "text-red-500" : "text-slate-400"}/> YouTube:</span> 
+                                             <span className={`font-medium ${u.ytEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.ytEarned)}</span> 
+                                             {u.ytVideos > 0 && <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className="text-sky-500"/> Articles:</span> 
-                                             <span className={`font-medium ${u.wpEarned > 0 ? 'text-slate-700' : 'text-slate-400'}`}>{formatCurrency(u.wpEarned)}</span> 
-                                             <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className={u.wpEarned > 0 ? "text-sky-500" : "text-slate-400"}/> Articles:</span> 
+                                             <span className={`font-medium ${u.wpEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.wpEarned)}</span> 
+                                             {u.wpArticles > 0 && <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className="text-blue-500"/> Promos:</span> 
-                                             <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400'}`}>{formatCurrency(u.stripeEarned)}</span>
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeEarned > 0 ? "text-blue-500" : "text-slate-400"}/> Promos:</span> 
+                                             <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeEarned)}</span>
                                          </div>
                                      </td>
                                      <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(u.totalEarned)}</td>
