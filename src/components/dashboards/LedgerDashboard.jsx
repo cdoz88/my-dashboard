@@ -495,10 +495,20 @@ export default function LedgerDashboard({
                                          </div>
                                      </td>
                                      <td className="p-4 text-xs">
-                                         {u.ytEarned > 0 && <div className="flex items-center gap-2 mb-1"><span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className="text-red-500"/> YouTube:</span> <span className="font-medium text-slate-700">{formatCurrency(u.ytEarned)}</span> <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span></div>}
-                                         {u.wpEarned > 0 && <div className="flex items-center gap-2 mb-1"><span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className="text-sky-500"/> Articles:</span> <span className="font-medium text-slate-700">{formatCurrency(u.wpEarned)}</span> <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span></div>}
-                                         {u.stripeEarned > 0 && <div className="flex items-center gap-2 mb-1"><span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className="text-blue-500"/> Promos:</span> <span className="font-medium text-slate-700">{formatCurrency(u.stripeEarned)}</span></div>}
-                                         {u.totalEarned === 0 && <span className="text-slate-400 italic">No earnings yet</span>}
+                                         <div className="flex items-center gap-2 mb-1">
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className="text-red-500"/> YouTube:</span> 
+                                             <span className={`font-medium ${u.ytEarned > 0 ? 'text-slate-700' : 'text-slate-400'}`}>{formatCurrency(u.ytEarned)}</span> 
+                                             <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span>
+                                         </div>
+                                         <div className="flex items-center gap-2 mb-1">
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className="text-sky-500"/> Articles:</span> 
+                                             <span className={`font-medium ${u.wpEarned > 0 ? 'text-slate-700' : 'text-slate-400'}`}>{formatCurrency(u.wpEarned)}</span> 
+                                             <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>
+                                         </div>
+                                         <div className="flex items-center gap-2 mb-1">
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className="text-blue-500"/> Promos:</span> 
+                                             <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400'}`}>{formatCurrency(u.stripeEarned)}</span>
+                                         </div>
                                      </td>
                                      <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(u.totalEarned)}</td>
                                      <td className="p-4 text-right font-medium text-slate-700">
