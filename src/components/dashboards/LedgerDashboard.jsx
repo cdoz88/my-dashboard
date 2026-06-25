@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 
@@ -22,6 +22,7 @@ export default function LedgerDashboard({
   shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
 }) {
   const [historyModalItem, setHistoryModalItem] = useState(null);
+  const [selectedWpUserId, setSelectedWpUserId] = useState(null);
 
   // --- Local State for Admin Mapping ---
   const [stripePromos, setStripePromos] = useState([]);
@@ -41,6 +42,11 @@ export default function LedgerDashboard({
             });
     }
   }, [currentUser]);
+
+  // Clear selected WP user if we leave the WordPress tab
+  useEffect(() => {
+    if (activeTab !== 'wordpress') setSelectedWpUserId(null);
+  }, [activeTab]);
 
   // --- STRIPE LOGIC ---
   const handleSyncStripe = async () => {
@@ -356,24 +362,34 @@ export default function LedgerDashboard({
   if (activeTab === 'wordpress') {
     const visibleWpLedger = wpLedgerData.filter(wpRecord => currentUser?.isAdmin || wpRecord.wp_user_id == currentUser?.wpUserId);
 
-    // --- NON-ADMIN CREATOR VIEW (Article Breakdown) ---
-    if (!currentUser?.isAdmin) {
-        const myWpData = visibleWpLedger[0] || null;
+    // --- CREATOR VIEW OR ADMIN VIEWING SPECIFIC CREATOR ---
+    if (!currentUser?.isAdmin || selectedWpUserId) {
+        const targetUserId = currentUser?.isAdmin ? selectedWpUserId : currentUser?.wpUserId;
+        const myWpData = visibleWpLedger.find(wp => wp.wp_user_id == targetUserId) || null;
+        
         const totalArticles = myWpData ? parseInt(myWpData.articles || 0) : 0;
         const totalViews = myWpData ? parseInt(myWpData.views || 0) : 0;
         const totalRevenue = myWpData ? parseFloat(myWpData.total_earned || 0) : 0;
-        const articleDetails = myWpData?.article_details || myWpData?.posts || []; // Relies on WP API passing this array
+        const articleDetails = myWpData?.article_details || myWpData?.posts || []; 
+        const writerName = myWpData?.name || 'Writer';
 
         return (
           <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
             <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <Globe className="text-sky-600" size={28} />
-                            Your Article Performance
-                        </h2>
-                        <p className="text-slate-500 text-sm mt-1">Detailed breakdown of your published WordPress articles.</p>
+                    <div className="flex items-center gap-3">
+                        {currentUser?.isAdmin && (
+                            <button onClick={() => setSelectedWpUserId(null)} className="p-2 bg-white shadow-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 flex-shrink-0" title="Back to Master List">
+                                <ArrowLeft size={20} />
+                            </button>
+                        )}
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <Globe className="text-sky-600" size={28} />
+                                {currentUser?.isAdmin ? `${writerName}'s Article Performance` : 'Your Article Performance'}
+                            </h2>
+                            <p className="text-slate-500 text-sm mt-1">Detailed breakdown of {currentUser?.isAdmin ? 'their' : 'your'} published WordPress articles.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -473,8 +489,10 @@ export default function LedgerDashboard({
                                 
                                 return (
                                 <tr key={wpRecord.wp_user_id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-2">
-                                        <Globe size={16} className="text-sky-500" /> {wpRecord.name}
+                                    <td className="px-6 py-4">
+                                        <div className="font-bold text-slate-800 flex items-center gap-2 cursor-pointer hover:text-sky-600 transition-colors w-fit" onClick={() => setSelectedWpUserId(wpRecord.wp_user_id)} title="View Article Breakdown">
+                                            <Globe size={16} className="text-sky-500" /> {wpRecord.name}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 font-medium">
                                         {linkedUser ? linkedUser.name : <span className="text-slate-400 italic">Unlinked</span>}
