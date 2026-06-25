@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft, Play } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 
@@ -16,6 +16,14 @@ const normalizePlaylistId = (input) => {
         } catch(e) {}
     }
     return id;
+};
+
+const formatAVD = (minutes, views) => {
+  if (!views || views === 0 || !minutes) return '0:00';
+  const avgMin = Number(minutes) / Number(views);
+  const m = Math.floor(avgMin);
+  const s = Math.floor((avgMin - m) * 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
 export default function LedgerDashboard({
@@ -44,7 +52,6 @@ export default function LedgerDashboard({
                 if (data.youtube_playlists) setYtPlaylists(data.youtube_playlists);
             });
     } else {
-        // If creator, just fetch their assigned playlists/promos
         fetch(`${API_URL}?action=get_all`)
             .then(res => res.json())
             .then(data => {
@@ -54,7 +61,6 @@ export default function LedgerDashboard({
     }
   }, [currentUser]);
 
-  // Clear drill-down filters if we navigate to a different tab
   useEffect(() => {
     if (activeTab !== 'wordpress') setSelectedWpUserId(null);
     if (activeTab !== 'yt_playlists') setSelectedYtUserId(null);
@@ -177,6 +183,25 @@ export default function LedgerDashboard({
             return sum + (rev * pct);
         }, 0);
 
+        // Build the combined list of all individual videos!
+        const allVideos = [];
+        myPlaylists.forEach(pl => {
+            let vids = [];
+            try { if (pl.video_details) vids = JSON.parse(pl.video_details); } catch(e){}
+            
+            vids.forEach(v => {
+                const pct = parseFloat(pl.revShare ?? 100) / 100;
+                allVideos.push({
+                    ...v,
+                    playlistName: pl.playlistName,
+                    revShare: pl.revShare,
+                    earned: parseFloat(v.revenue || 0) * pct
+                });
+            });
+        });
+        // Sort videos newest first
+        allVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
         return (
           <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
             <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -212,10 +237,13 @@ export default function LedgerDashboard({
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">Playlists</h3>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left min-w-[700px]">
-                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                            <thead className="bg-slate-50/50 text-slate-500 font-semibold border-b border-slate-200">
                                 <tr>
                                     <th className="px-6 py-4">Playlist Info</th>
                                     <th className="px-6 py-4">Channel</th>
@@ -245,7 +273,7 @@ export default function LedgerDashboard({
                                     )
                                 }) : (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                                        <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Youtube size={48} className="text-slate-300 mb-3" />
                                                 <p className="font-semibold text-slate-700">No playlists assigned yet.</p>
@@ -257,6 +285,62 @@ export default function LedgerDashboard({
                         </table>
                     </div>
                 </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">Individual Video Performance</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left min-w-[800px]">
+                            <thead className="bg-slate-50/50 text-slate-500 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4">Video</th>
+                                    <th className="px-6 py-4 text-center">Avg. View Duration</th>
+                                    <th className="px-6 py-4 text-center">Views</th>
+                                    <th className="px-6 py-4 text-right">Revenue Generated</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {allVideos.length > 0 ? allVideos.map((video, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-4">
+                                               {video.thumbnail ? (
+                                                  <img src={video.thumbnail} alt={video.title} className="w-[80px] h-[45px] object-cover rounded shadow-sm border border-slate-200" />
+                                               ) : (
+                                                  <div className="w-[80px] h-[45px] bg-slate-100 rounded border border-slate-200 flex items-center justify-center">
+                                                      <Play size={20} className="text-slate-300" />
+                                                  </div>
+                                               )}
+                                               <div className="flex flex-col justify-center">
+                                                  <div className="font-bold text-slate-800 line-clamp-2 max-w-[300px] leading-snug">{video.title}</div>
+                                                  <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1.5">
+                                                      <span className="bg-slate-100 px-1.5 rounded">{video.playlistName}</span> • 
+                                                      {new Date(video.publishedAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}
+                                                  </div>
+                                               </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-medium text-slate-600">{formatAVD(video.minutes, video.views)}</td>
+                                        <td className="px-6 py-4 text-center font-bold text-slate-700">{parseInt(video.views || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatCurrency(parseFloat(video.earned || 0))}</td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <Youtube size={48} className="text-slate-300 mb-3" />
+                                                <p className="font-semibold text-slate-700">No individual video data available yet.</p>
+                                                <p className="text-sm mt-1 max-w-md mx-auto">Make sure the Start Date on the playlist is set properly and you have clicked Sync Latest Data.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
           </div>
         );
@@ -325,7 +409,7 @@ export default function LedgerDashboard({
                                             </select>
                                         ) : ( 
                                             <span 
-                                                className={`font-medium ${pl.userId ? 'text-slate-700 hover:text-red-600 cursor-pointer' : 'text-slate-400 italic'}`} 
+                                                className={`font-medium ${pl.userId ? 'text-slate-700 hover:text-red-600 cursor-pointer transition-colors w-fit' : 'text-slate-400 italic'}`} 
                                                 onClick={() => pl.userId ? setSelectedYtUserId(pl.userId) : null}
                                                 title={pl.userId ? "View Creator Breakdown" : ""}
                                             >
@@ -531,7 +615,7 @@ export default function LedgerDashboard({
   }
 
   // ---------------------------------------------------------
-  // EARLY RETURN 3: WP ARTICLES VIEW
+  // EARLY RETURN 3: WP ARTICLES VIEW (Admin Master List vs Creator Breakdown)
   // ---------------------------------------------------------
   if (activeTab === 'wordpress') {
     const visibleWpLedger = wpLedgerData.filter(wpRecord => currentUser?.isAdmin || wpRecord.wp_user_id == currentUser?.wpUserId);
@@ -616,6 +700,7 @@ export default function LedgerDashboard({
                                             <div className="flex flex-col items-center justify-center">
                                                 <Globe size={48} className="text-slate-300 mb-3" />
                                                 <p className="font-semibold text-slate-700">No individual article data available yet.</p>
+                                                <p className="text-sm mt-1 max-w-md mx-auto">If you believe this is an error, please ensure your WordPress profile is linked and your articles are actively tracking views.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -792,11 +877,7 @@ export default function LedgerDashboard({
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeEarned > 0 ? "text-blue-500" : "text-slate-400"}/> Promos:</span> 
-                                             {u.stripeEarned > 0 ? (
-                                                 <span className="font-medium text-slate-700">{formatCurrency(u.stripeEarned)}</span>
-                                             ) : (
-                                                 <span className="font-medium text-slate-400 font-light">{formatCurrency(u.stripeEarned)}</span>
-                                             )}
+                                             <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeEarned)}</span>
                                          </div>
                                      </td>
                                      <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(u.totalEarned)}</td>
