@@ -183,7 +183,6 @@ export default function LedgerDashboard({
             return sum + (rev * pct);
         }, 0);
 
-        // Build the combined list of all individual videos!
         const allVideos = [];
         myPlaylists.forEach(pl => {
             let vids = [];
@@ -199,7 +198,6 @@ export default function LedgerDashboard({
                 });
             });
         });
-        // Sort videos newest first
         allVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
         return (
@@ -273,7 +271,7 @@ export default function LedgerDashboard({
                                     )
                                 }) : (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
+                                        <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Youtube size={48} className="text-slate-300 mb-3" />
                                                 <p className="font-semibold text-slate-700">No playlists assigned yet.</p>
@@ -478,15 +476,15 @@ export default function LedgerDashboard({
                         <div>
                             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                                 <LinkIcon className="text-blue-600" size={28} />
-                                Your Stripe Promos
+                                Your FSAN Subs
                             </h2>
-                            <p className="text-slate-500 text-sm mt-1">Your assigned promotion codes and affiliate earnings.</p>
+                            <p className="text-slate-500 text-sm mt-1">Your assigned subscription codes and affiliate earnings.</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 flex-shrink-0">
                       <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
-                        <div className="text-slate-500 text-sm font-medium mb-1">Active Promo Codes</div>
+                        <div className="text-slate-500 text-sm font-medium mb-1">Active Subscription Codes</div>
                         <div className="text-3xl font-bold text-slate-800">{totalPromos}</div>
                       </div>
                       <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
@@ -499,8 +497,9 @@ export default function LedgerDashboard({
                         <table className="w-full text-sm text-left min-w-[700px]">
                             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4">Promo Code</th>
+                                    <th className="px-6 py-4">Code</th>
                                     <th className="px-6 py-4 text-center">Commission %</th>
+                                    <th className="px-6 py-4 text-center">Uses</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -508,13 +507,14 @@ export default function LedgerDashboard({
                                     <tr key={promo.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-2"><LinkIcon size={16} className="text-blue-500 flex-shrink-0"/> {promo.code}</td>
                                         <td className="px-6 py-4 text-center font-bold text-blue-600">{promo.commissionRate}%</td>
+                                        <td className="px-6 py-4 text-center font-bold text-slate-700">{promo.uses || 0}</td>
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan="2" className="px-6 py-12 text-center text-slate-500">
+                                        <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <LinkIcon size={48} className="text-slate-300 mb-3" />
-                                                <p className="font-semibold text-slate-700">No promo codes assigned.</p>
+                                                <p className="font-semibold text-slate-700">No subscription codes assigned.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -552,6 +552,7 @@ export default function LedgerDashboard({
                                 <th className="px-6 py-4">Stripe Promo Code</th>
                                 <th className="px-6 py-4">Assigned Creator</th>
                                 <th className="px-6 py-4">Commission %</th>
+                                <th className="px-6 py-4 text-center">Uses</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -584,6 +585,7 @@ export default function LedgerDashboard({
                                             <span className="text-slate-500 font-bold">%</span>
                                         </div>
                                     </td>
+                                    <td className="px-6 py-4 text-center font-bold text-slate-700">{promo.uses || 0}</td>
                                     <td className="px-6 py-4 text-right">
                                         {isEditing ? (
                                             <button onClick={() => savePromo(promo.id)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center gap-1 ml-auto">
@@ -596,7 +598,7 @@ export default function LedgerDashboard({
                                 </tr>
                             )}) : (
                                 <tr>
-                                    <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
+                                    <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
                                         <div className="flex flex-col items-center justify-center">
                                             <LinkIcon size={48} className="text-slate-300 mb-3" />
                                             <p className="font-semibold">No promo codes found.</p>
@@ -615,7 +617,7 @@ export default function LedgerDashboard({
   }
 
   // ---------------------------------------------------------
-  // EARLY RETURN 3: WP ARTICLES VIEW (Admin Master List vs Creator Breakdown)
+  // EARLY RETURN 3: WP ARTICLES VIEW
   // ---------------------------------------------------------
   if (activeTab === 'wordpress') {
     const visibleWpLedger = wpLedgerData.filter(wpRecord => currentUser?.isAdmin || wpRecord.wp_user_id == currentUser?.wpUserId);
@@ -700,7 +702,6 @@ export default function LedgerDashboard({
                                             <div className="flex flex-col items-center justify-center">
                                                 <Globe size={48} className="text-slate-300 mb-3" />
                                                 <p className="font-semibold text-slate-700">No individual article data available yet.</p>
-                                                <p className="text-sm mt-1 max-w-md mx-auto">If you believe this is an error, please ensure your WordPress profile is linked and your articles are actively tracking views.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -859,24 +860,16 @@ export default function LedgerDashboard({
                                      <td className="p-4 text-xs">
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className={u.ytEarned > 0 ? "text-red-500" : "text-slate-400"}/> YouTube:</span> 
-                                             {u.ytEarned > 0 ? (
-                                                 <span className="font-medium text-slate-700 cursor-pointer hover:text-red-600 transition-colors" title="View Breakown" onClick={() => { if(currentUser?.isAdmin) { setSelectedYtUserId(u.id); setActiveTab('yt_playlists'); } }}>{formatCurrency(u.ytEarned)}</span>
-                                             ) : (
-                                                 <span className="font-medium text-slate-400 font-light">{formatCurrency(u.ytEarned)}</span>
-                                             )}
+                                             <span className={`font-medium ${u.ytEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.ytEarned)}</span> 
                                              {u.ytVideos > 0 && <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className={u.wpEarned > 0 ? "text-sky-500" : "text-slate-400"}/> Articles:</span> 
-                                             {u.wpEarned > 0 ? (
-                                                 <span className="font-medium text-slate-700 cursor-pointer hover:text-sky-600 transition-colors" title="View Breakdown" onClick={() => { if(currentUser?.isAdmin && u.wpUserId) { setSelectedWpUserId(u.wpUserId); setActiveTab('wordpress'); } }}>{formatCurrency(u.wpEarned)}</span>
-                                             ) : (
-                                                 <span className="font-medium text-slate-400 font-light">{formatCurrency(u.wpEarned)}</span>
-                                             )}
+                                             <span className={`font-medium ${u.wpEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.wpEarned)}</span> 
                                              {u.wpArticles > 0 && <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeEarned > 0 ? "text-blue-500" : "text-slate-400"}/> Promos:</span> 
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeEarned > 0 ? "text-blue-500" : "text-slate-400"}/> {currentUser?.isAdmin ? 'Promos:' : 'Subs:'}</span> 
                                              <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeEarned)}</span>
                                          </div>
                                      </td>
