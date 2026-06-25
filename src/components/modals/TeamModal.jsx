@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, Mic, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock, Calculator } from 'lucide-react';
+import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock, Calculator, BarChart3 } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
@@ -25,13 +25,13 @@ export default function TeamModal({
                     isAdmin: false, 
                     canViewProjects: true, 
                     canViewEvents: true, 
-                    canViewSpreaker: true, 
                     canViewYoutube: true, 
                     canViewShows: true, 
                     canViewSponsorships: true, 
                     canViewLedger: true,
                     canViewBudget: false, 
                     canViewDomains: false, 
+                    canViewAnalytics: false,
                     canViewCRM: false, 
                     companyIds: fsanComp ? [fsanComp.id] : [], 
                     generateOnboarding: true, 
@@ -103,12 +103,6 @@ export default function TeamModal({
                   <textarea rows="3" value={editingTeamMember.responsibilities || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, responsibilities: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="List core duties, projects owned, etc..." />
                 </div>
               </div>
-              
-              <div className="mb-8 pt-2">
-                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Google Chat Webhook URL <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Push Notifications</span></label>
-                 <input type="text" value={editingTeamMember.webhookUrl || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, webhookUrl: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://chat.googleapis.com/v1/spaces/..." />
-                 <p className="text-[10px] text-slate-400 mt-1.5">Paste the incoming webhook URL from this user's Google Chat Space to enable push notifications for task assignments.</p>
-              </div>
 
               {!editingTeamMember.id && (
                 <div className="mb-6">
@@ -122,7 +116,7 @@ export default function TeamModal({
                 </div>
               )}
 
-              <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">Team Assignments</h3>
+              <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4 mt-6">Team Assignments</h3>
               <div className="space-y-2 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50 mb-8">
                  {companies.map(c => (
                    <label key={c.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-md cursor-pointer transition-colors">
@@ -166,15 +160,19 @@ export default function TeamModal({
                     <input type="checkbox" className="w-5 h-5 accent-emerald-600 rounded" checked={editingTeamMember.canViewLedger !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewLedger: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                    <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Domains App</div>
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><Globe size={16} className="text-teal-500"/> Website: Domains</div>
                     <input type="checkbox" className="w-5 h-5 accent-teal-600 rounded" checked={editingTeamMember.canViewDomains === true} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewDomains: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                    <div className="font-medium text-slate-700 flex items-center gap-2"><Youtube size={16} className="text-red-500"/> YouTube App</div>
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><BarChart3 size={16} className="text-orange-500"/> Website: Analytics</div>
+                    <input type="checkbox" className="w-5 h-5 accent-orange-600 rounded" checked={editingTeamMember.canViewAnalytics === true} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewAnalytics: e.target.checked})} />
+                  </label>
+                  <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><Youtube size={16} className="text-red-500"/> YouTube: Channel Stats</div>
                     <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewYoutube !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewYoutube: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                    <div className="font-medium text-slate-700 flex items-center gap-2"><Tv size={16} className="text-red-500"/> Shows App</div>
+                    <div className="font-medium text-slate-700 flex items-center gap-2"><Tv size={16} className="text-red-500"/> YouTube: Show Schedule</div>
                     <input type="checkbox" className="w-5 h-5 accent-red-600 rounded" checked={editingTeamMember.canViewShows !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewShows: e.target.checked})} />
                   </label>
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
@@ -184,10 +182,6 @@ export default function TeamModal({
                   <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
                     <div className="font-medium text-slate-700 flex items-center gap-2"><BookUser size={16} className="text-sky-500"/> CRM Contacts App</div>
                     <input type="checkbox" className="w-5 h-5 accent-sky-500 rounded" checked={editingTeamMember.canViewCRM === true} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewCRM: e.target.checked})} />
-                  </label>
-                  <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
-                    <div className="font-medium text-slate-700 flex items-center gap-2"><Mic size={16} className="text-[#ffc005]"/> Spreaker App</div>
-                    <input type="checkbox" className="w-5 h-5 accent-[#ffc005] rounded" checked={editingTeamMember.canViewSpreaker !== false} onChange={(e) => setEditingTeamMember({...editingTeamMember, canViewSpreaker: e.target.checked})} />
                   </label>
                 </div>
               </div>

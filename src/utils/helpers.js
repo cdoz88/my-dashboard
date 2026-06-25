@@ -1,19 +1,25 @@
 export const isOverdue = (dateStr, status) => {
-  if (status === 'done' || !dateStr) return false;
+  // If the date is empty or MySQL's default "0000-00-00", it is not overdue
+  if (status === 'done' || !dateStr || dateStr === '0000-00-00') return false;
+  
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   return dateStr < todayStr;
 };
 
 export const formatDate = (dateStr) => {
-  if (!dateStr) return '';
+  // If the date is empty or MySQL's default "0000-00-00", display a clean double dash
+  if (!dateStr || dateStr === '0000-00-00') return '--';
+  
   const [year, month, day] = dateStr.split('-');
+  if (!year || !month || !day) return '--'; // safety fallback
+  
   return `${month}-${day}-${year.slice(2)}`;
 };
 
 export const formatExpenseDate = (dateStr, cycle) => {
   if (cycle !== 'one-time') return dateStr || '--';
-  if (!dateStr) return '--';
+  if (!dateStr || dateStr === '0000-00-00') return '--';
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return dateStr;
 };
@@ -37,7 +43,7 @@ export const calculateProjectProgress = (projectId, tasks) => {
 export const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
 
 export const parseNextDate = (cycle, dateStr) => {
-  if (!dateStr) return new Date(9999, 11, 31);
+  if (!dateStr || dateStr === '0000-00-00') return new Date(9999, 11, 31);
   const today = new Date();
   if (cycle === 'monthly') {
     const match = dateStr.match(/(\d+)/);

@@ -6,7 +6,7 @@ export function useData({
   isLoading, setIsLoading, isUploading, setIsUploading, currentApp, setCurrentApp, activeTab, setActiveTab,
   activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab,
   activeActivityTab, activeCRMTab, activePasswordTab, loggedInUserId, setLoggedInUserId,
-  activeYoutubeChannelId, setActiveYoutubeChannelId, activeSpreakerShowId, setActiveSpreakerShowId,
+  activeYoutubeChannelId, setActiveYoutubeChannelId,
   activeAnalyticsId, setActiveAnalyticsId,
   isTaskModalOpen, setIsTaskModalOpen, currentTask, setCurrentTask, newCommentText, setNewCommentText,
   isExpenseModalOpen, setIsExpenseModalOpen, currentExpense, setCurrentExpense,
@@ -37,7 +37,6 @@ export function useData({
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
   const [youtubeChannels, setYoutubeChannels] = useState([]);
-  const [spreakerShows, setSpreakerShows] = useState([]);
   const [analyticsProperties, setAnalyticsProperties] = useState([]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
@@ -74,8 +73,8 @@ export function useData({
                canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
                canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
+               canViewAnalytics: u.canViewAnalytics == 1 || u.canViewAnalytics === true,
                canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
-               canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
                canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
                canViewShows: u.canViewShows == 1 || u.canViewShows === true || u.canViewShows === undefined,
                canViewSponsorships: u.canViewSponsorships == 1 || u.canViewSponsorships === true || u.canViewSponsorships === undefined,
@@ -109,10 +108,6 @@ export function useData({
         if(data.youtube_channels) {
             setYoutubeChannels(data.youtube_channels);
             if(data.youtube_channels.length > 0 && !activeYoutubeChannelId) setActiveYoutubeChannelId(data.youtube_channels[0].id);
-        }
-        if(data.spreaker_shows) {
-            setSpreakerShows(data.spreaker_shows);
-            if(data.spreaker_shows.length > 0 && !activeSpreakerShowId) setActiveSpreakerShowId(data.spreaker_shows[0].id);
         }
         if(data.analytics_properties) {
             setAnalyticsProperties(data.analytics_properties);
@@ -597,7 +592,7 @@ export function useData({
 
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id), wpUserId: userToEdit.wpUserId || '' });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewAnalytics: false, canViewEvents: true, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
     setIsTeamModalOpen(true);
   };
 
@@ -708,56 +703,6 @@ export function useData({
     sendToAPI('save_user', updatedUser);
   };
 
-  const handleSaveTeamMember = (e) => {
-    e.preventDefault();
-    const isNew = !editingTeamMember.id;
-    const generateOnboarding = editingTeamMember.generateOnboarding !== false;
-    const userToSave = { ...editingTeamMember };
-    if (!userToSave.id) userToSave.id = 'u' + Date.now();
-    delete userToSave.generateOnboarding; 
-    const localUser = { ...userToSave };
-    if (isNew) logActivity('Team', 'New Member Added', `Added "${userToSave.name}" to the team directory.`);
-
-    if (users.find(u => u.id === userToSave.id)) setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
-    else setUsers([...users, localUser]);
-
-    const oldCompanyIds = !isNew && users.find(u => u.id === userToSave.id) ? companies.filter(c => c.userIds?.includes(userToSave.id)).map(c => c.id) : [];
-    const newCompanyIds = editingTeamMember.companyIds || [];
-    const newlyAddedCompanyIds = newCompanyIds.filter(id => !oldCompanyIds.includes(id));
-    const notifyNewCompanies = newlyAddedCompanyIds.map(id => companies.find(c => c.id === id)?.name).filter(Boolean);
-
-    if (editingTeamMember.companyIds !== undefined) {
-        const newCompanies = companies.map(c => {
-           const hasUser = editingTeamMember.companyIds.includes(c.id);
-           const userIds = c.userIds || [];
-           if (hasUser && !userIds.includes(userToSave.id)) return { ...c, userIds: [...userIds, userToSave.id] };
-           if (!hasUser && userIds.includes(userToSave.id)) return { ...c, userIds: userIds.filter(id => id !== userToSave.id) };
-           return c;
-        });
-        setCompanies(newCompanies);
-    }
-
-    sendToAPI('save_user', { ...userToSave, notifyNewCompanies });
-    if (isNew && generateOnboarding) handleGenerateOnboarding(userToSave);
-    setEditingTeamMember(null);
-    setIsTeamModalOpen(false);
-  };
-
-  const handleDeleteUser = (userId) => {
-    const userToDelete = users.find(u => u.id === userId);
-    if (!userToDelete) return;
-    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace?`)) return;
-    logActivity('Team', 'Team Member Removed', `Removed team member "${userToDelete.name}" from the directory.`);
-    setUsers(users.filter(u => u.id !== userId));
-    setIsTeamModalOpen(false);
-    sendToAPI('delete_user', { id: userId });
-  };
-
-  const handleUpdateUser = (updatedUser) => {
-    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
-    sendToAPI('save_user', updatedUser);
-  };
-
   const handleCompanyLogoUpload = async (e) => {
     if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingCompany({ ...editingCompany, logoUrl: url }); setIsUploading(false); }
   };
@@ -770,7 +715,6 @@ export function useData({
   const handleSponsorshipLogoUpload = async (e) => {
     if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingSponsorship({ ...editingSponsorship, logoUrl: url }); setIsUploading(false); }
   };
-
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     setIsUploading(true);
@@ -781,7 +725,6 @@ export function useData({
     e.target.value = null; 
   };
   const removeFile = (indexToRemove) => setCurrentTask({ ...currentTask, files: currentTask.files.filter((_, i) => i !== indexToRemove) });
-
   const handleDragStart = (e, taskId) => e.dataTransfer.setData('taskId', taskId);
   const handleDrop = (e, newStatus) => {
      const taskId = e.dataTransfer.getData('taskId');
@@ -801,7 +744,7 @@ export function useData({
     expenses, setExpenses, events, setEvents, shows, setShows, sponsorships, setSponsorships,
     contacts, setContacts, passwords, setPasswords, payouts, setPayouts,
     globalChecklist, setGlobalChecklist, activityLogs, setActivityLogs, wpLedgerData, setWpLedgerData,
-    youtubeChannels, setYoutubeChannels, spreakerShows, setSpreakerShows, analyticsProperties, setAnalyticsProperties,
+    youtubeChannels, setYoutubeChannels, analyticsProperties, setAnalyticsProperties,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
     sendToAPI, uploadFileToServer, fetchData, handleScanBusinessCard, logActivity, handleSaveGlobalChecklist,
     handleGenerateOnboarding, handleGenerateOffboarding, handleReorderTasks, handleImportCSV,
