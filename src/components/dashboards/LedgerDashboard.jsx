@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 
@@ -24,10 +24,13 @@ export default function LedgerDashboard({
   const [activeLedgerTab, setActiveLedgerTab] = useState('balances');
   const [historyModalItem, setHistoryModalItem] = useState(null);
 
-  // --- Local Stripe State ---
+  // --- Local State for Admin Mapping ---
   const [stripePromos, setStripePromos] = useState([]);
-  const [isSyncingStripe, setIsSyncingStripe] = useState(false);
   const [editingPromos, setEditingPromos] = useState({});
+  const [isSyncingStripe, setIsSyncingStripe] = useState(false);
+
+  const [ytPlaylists, setYtPlaylists] = useState([]);
+  const [editingYt, setEditingYt] = useState({});
 
   useEffect(() => {
     if (currentUser?.isAdmin) {
@@ -35,10 +38,12 @@ export default function LedgerDashboard({
             .then(res => res.json())
             .then(data => {
                 if (data.stripe_promos) setStripePromos(data.stripe_promos);
+                if (data.youtube_playlists) setYtPlaylists(data.youtube_playlists);
             });
     }
   }, [currentUser]);
 
+  // --- STRIPE LOGIC ---
   const handleSyncStripe = async () => {
     const stripeKey = import.meta.env.VITE_STRIPE_SECRET_KEY;
     if (!stripeKey) {
@@ -47,165 +52,112 @@ export default function LedgerDashboard({
     }
     setIsSyncingStripe(true);
     try {
-        const res = await fetch(`${API_URL}?action=sync_stripe`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stripeKey })
-        });
+        const res = await fetch(`${API_URL}?action=sync_stripe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stripeKey }) });
         const data = await res.json();
-        if (data.error) {
-            alert("Stripe Sync Error: " + data.error);
-        } else {
-            alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`);
-            window.location.reload(); 
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Error syncing with Stripe API.");
-    }
+        if (data.error) alert("Stripe Sync Error: " + data.error);
+        else { alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); window.location.reload(); }
+    } catch (err) { alert("Error syncing with Stripe API."); }
     setIsSyncingStripe(false);
   };
 
   const handleSaveStripePromo = async (promo) => {
     try {
-        await fetch(`${API_URL}?action=save_stripe_promo`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(promo)
-        });
+        await fetch(`${API_URL}?action=save_stripe_promo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(promo) });
         setStripePromos(prev => prev.map(p => p.id === promo.id ? promo : p));
-        setEditingPromos(prev => {
-            const newState = { ...prev };
-            delete newState[promo.id];
-            return newState;
-        });
+        setEditingPromos(prev => { const newState = { ...prev }; delete newState[promo.id]; return newState; });
     } catch (err) { console.error(err); }
   };
 
-  const handleUpdatePromoField = (promoId, field, value) => {
-      setEditingPromos(prev => ({
-          ...prev,
-          [promoId]: {
-              ...(prev[promoId] || stripePromos.find(p => p.id === promoId)),
-              [field]: value
-          }
-      }));
+  // --- YOUTUBE PLAYLIST LOGIC ---
+  const handleAddYtPlaylist = () => {
+      const newId = 'yt_pl_' + Date.now();
+      const newPl = { id: newId, channelId: youtubeChannels[0]?.id || '', playlistId: '', playlistName: 'New Playlist', userId: '', revShare: 100, paymentStartDate: '' };
+      setYtPlaylists([newPl, ...ytPlaylists]);
+      setEditingYt(prev => ({ ...prev, [newId]: newPl }));
   };
 
-  const savePromo = (promoId) => {
-      if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]);
+  const handleSaveYtPlaylist = async (playlist) => {
+      if (!playlist.playlistId || !playlist.userId || !playlist.paymentStartDate) {
+          alert("Please fill in the Playlist URL, Creator, and Start Date before saving.");
+          return;
+      }
+      try {
+          await fetch(`${API_URL}?action=save_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(playlist) });
+          setYtPlaylists(prev => prev.map(p => p.id === playlist.id ? playlist : p));
+          setEditingYt(prev => { const newState = { ...prev }; delete newState[playlist.id]; return newState; });
+      } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteYtPlaylist = async (id) => {
+      if (!window.confirm("Are you sure you want to remove this playlist from the ledger?")) return;
+      setYtPlaylists(prev => prev.filter(p => p.id !== id));
+      try { await fetch(`${API_URL}?action=delete_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } 
+      catch (err) { console.error(err); }
   };
 
   const currentFilter = ['all', 'youtube', 'wordpress', 'promos'].includes(activeTab) ? activeTab : 'all';
 
-  // --- YOUTUBE SHOWS LOGIC ---
-  const allowedShows = shows.filter(s => 
-      currentUser?.isAdmin || (s.userIds || []).includes(currentUser?.id)
-  );
+  // --- 1. NEW YOUTUBE LEDGER LOGIC (Percentage Only) ---
+  const allowedPlaylists = ytPlaylists.filter(pl => currentUser?.isAdmin || pl.userId === currentUser?.id);
 
-  const uniquePlaylistsMap = new Map();
-  allowedShows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
-      const cleanId = normalizePlaylistId(s.playlistId);
-      if (!uniquePlaylistsMap.has(cleanId)) {
-          uniquePlaylistsMap.set(cleanId, { ...s, normalizedPlaylistId: cleanId });
-      }
-  });
-  const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
-
-  const calculateTotalEarned = (show) => {
-      const videos = parseInt(show.ledgerVideos || 0);
-      const revenue = parseFloat(show.ledgerRevenue || 0);
-      const baseTotal = videos * parseFloat(show.basePay || 0);
-      const revSharePct = parseFloat(show.revShare ?? 100) / 100;
-      const revShareTotal = revenue * revSharePct;
-      return baseTotal + revShareTotal;
+  const calculateTotalEarned = (pl) => {
+      const revenue = parseFloat(pl.ledgerRevenue || 0);
+      const revSharePct = parseFloat(pl.revShare ?? 100) / 100;
+      return revenue * revSharePct;
   };
 
-  const calculateTotalPaid = (normalizedPlaylistId) => {
-      const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.id);
-      const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.playlistId);
-      
-      return payouts
-          .filter(p => (p.showId === normalizedPlaylistId || rawPlaylistIds.includes(p.showId) || relatedShowIds.includes(p.showId)) && p.transactionType === 'Payment')
+  const calculateTotalPaid = (playlistId) => {
+      const normId = normalizePlaylistId(playlistId);
+      return payouts.filter(p => (p.showId === normId || p.showId === playlistId) && p.transactionType === 'Payment')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
   
-  const calculateTotalDeducted = (normalizedPlaylistId) => {
-      const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.id);
-      const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === normalizedPlaylistId).map(s => s.playlistId);
-      
-      return payouts
-          .filter(p => (p.showId === normalizedPlaylistId || rawPlaylistIds.includes(p.showId) || relatedShowIds.includes(p.showId)) && p.transactionType === 'Deduction')
+  const calculateTotalDeducted = (playlistId) => {
+      const normId = normalizePlaylistId(playlistId);
+      return payouts.filter(p => (p.showId === normId || p.showId === playlistId) && p.transactionType === 'Deduction')
           .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   };
 
-  // --- WORDPRESS ARTICLES LOGIC ---
+  // --- 2. WORDPRESS ARTICLES LOGIC ---
   const visibleWpLedger = wpLedgerData.filter(wpRecord => {
       if (currentUser?.isAdmin) return true;
       return wpRecord.wp_user_id == currentUser?.wpUserId;
   });
 
-  const calculateTotalWpPaid = (wpUserId) => {
-      return payouts
-          .filter(p => p.showId === `wp_articles_${wpUserId}` && p.transactionType === 'Payment')
-          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-  };
+  const calculateTotalWpPaid = (wpUserId) => payouts.filter(p => p.showId === `wp_articles_${wpUserId}` && p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  const calculateTotalWpDeducted = (wpUserId) => payouts.filter(p => p.showId === `wp_articles_${wpUserId}` && p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
-  const calculateTotalWpDeducted = (wpUserId) => {
-      return payouts
-          .filter(p => p.showId === `wp_articles_${wpUserId}` && p.transactionType === 'Deduction')
-          .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-  };
-
-  // --- STRIPE AFFILIATES LOGIC ---
+  // --- 3. STRIPE AFFILIATES LOGIC ---
   const getStripeLedgerRows = () => {
       const usersWithCommissions = users.filter(u => payouts.some(p => p.showId === u.id && p.transactionType === 'Stripe Commission'));
-      
       return usersWithCommissions.map(u => {
           const earned = payouts.filter(p => p.showId === u.id && p.transactionType === 'Stripe Commission').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
           const paid = payouts.filter(p => p.showId === u.id && p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
           const deducted = payouts.filter(p => p.showId === u.id && p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-          const balance = earned - paid - deducted;
-
-          return {
-              id: u.id,
-              source: 'Stripe Affiliates',
-              title: 'Promo Code Commissions',
-              channelName: 'fytsolutions.com',
-              members: u.name,
-              rate: 'Variable %',
-              earned: earned,
-              paid: paid,
-              deducted: deducted,
-              balance: balance,
-              link: '#'
-          };
+          return { id: u.id, source: 'Stripe Affiliates', title: 'Promo Code Commissions', channelName: 'fytsolutions.com', members: u.name, rate: 'Variable %', earned, paid, deducted, balance: earned - paid - deducted, link: '#' };
       }).filter(row => currentUser?.isAdmin || row.id === currentUser?.id);
   };
 
-  // --- FILTERING FOR DISPLAY ---
-  const filteredPlaylists = (currentFilter === 'all' || currentFilter === 'youtube') ? eligiblePlaylists : [];
+  // --- 4. FILTERING FOR DISPLAY ---
+  const filteredPlaylists = (currentFilter === 'all' || currentFilter === 'youtube') ? allowedPlaylists : [];
   const filteredWpLedger = (currentFilter === 'all' || currentFilter === 'wordpress') ? visibleWpLedger : [];
   const stripeRows = (currentFilter === 'all') ? getStripeLedgerRows() : [];
 
-  const allowedFilteredPlaylistIds = filteredPlaylists.map(s => s.normalizedPlaylistId);
-  const rawAllowedFilteredPlaylistIds = filteredPlaylists.map(s => s.playlistId);
+  const allowedFilteredPlaylistIds = filteredPlaylists.map(s => s.playlistId);
+  const allowedFilteredNormIds = filteredPlaylists.map(s => normalizePlaylistId(s.playlistId));
   const allowedFilteredWpShowIds = filteredWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
   const allowedStripeUserIds = stripeRows.map(s => s.id);
   
   const visiblePayouts = payouts.filter(p => {
-      if (currentFilter === 'youtube') return allowedFilteredPlaylistIds.includes(p.showId) || rawAllowedFilteredPlaylistIds.includes(p.showId);
+      if (currentFilter === 'youtube') return allowedFilteredNormIds.includes(p.showId) || allowedFilteredPlaylistIds.includes(p.showId);
       if (currentFilter === 'wordpress') return allowedFilteredWpShowIds.includes(p.showId);
-      
       return (
-          allowedFilteredPlaylistIds.includes(p.showId) || 
-          rawAllowedFilteredPlaylistIds.includes(p.showId) || 
-          allowedFilteredWpShowIds.includes(p.showId) ||
-          (allowedStripeUserIds.includes(p.showId) && p.transactionType !== 'Stripe Commission')
+          allowedFilteredNormIds.includes(p.showId) || allowedFilteredPlaylistIds.includes(p.showId) || 
+          allowedFilteredWpShowIds.includes(p.showId) || (allowedStripeUserIds.includes(p.showId) && p.transactionType !== 'Stripe Commission')
       );
   });
 
-  // --- DYNAMIC GRAND TOTALS ---
+  // --- 5. DYNAMIC GRAND TOTALS ---
   const ytTotalEarned = filteredPlaylists.reduce((sum, p) => sum + calculateTotalEarned(p), 0);
   const wpTotalEarned = filteredWpLedger.reduce((sum, wp) => sum + parseFloat(wp.total_earned || 0), 0);
   const stripeTotalEarned = stripeRows.reduce((sum, r) => sum + r.earned, 0);
@@ -215,11 +167,121 @@ export default function LedgerDashboard({
   const grandTotalDeducted = visiblePayouts.filter(p => p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
   const grandTotalOwed = grandTotalEarned - grandTotalPaid - grandTotalDeducted;
 
+  // ---------------------------------------------------------
+  // EARLY RETURN: YOUTUBE PLAYLISTS ADMIN DASHBOARD
+  // ---------------------------------------------------------
+  if (activeLedgerTab === 'yt_playlists' && currentUser?.isAdmin) {
+    return (
+      <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+        <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <Youtube className="text-red-600" size={28} />
+                        YouTube Playlists
+                    </h2>
+                    <p className="text-slate-500 text-sm mt-1">Map YouTube playlists to creators to auto-calculate their revenue share.</p>
+                </div>
+                <button onClick={handleAddYtPlaylist} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                    <Plus size={18} /> Add Playlist
+                </button>
+            </div>
+
+            <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-6 flex-shrink-0 border border-slate-200">
+                <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
+                <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
+                <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Stripe Promos</button>
+                <button onClick={() => setActiveLedgerTab('yt_playlists')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'yt_playlists' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>YouTube Playlists</button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left min-w-[900px]">
+                        <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                            <tr>
+                                <th className="px-4 py-4 w-48">YouTube Channel</th>
+                                <th className="px-4 py-4">Playlist URL / ID</th>
+                                <th className="px-4 py-4 w-40">Creator</th>
+                                <th className="px-4 py-4 w-28">Rev Share %</th>
+                                <th className="px-4 py-4 w-40">Start Date</th>
+                                <th className="px-4 py-4 text-right w-24">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {ytPlaylists && ytPlaylists.length > 0 ? ytPlaylists.map((pl) => {
+                                const isEditing = editingYt.hasOwnProperty(pl.id);
+                                const currentPl = editingYt[pl.id] || pl;
+
+                                return (
+                                <tr key={pl.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-4 py-3">
+                                        {isEditing ? (
+                                            <select value={currentPl.channelId} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, channelId: e.target.value}}))} className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm">
+                                                <option value="">Select Channel</option>
+                                                {youtubeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        ) : ( <span className="font-medium text-slate-700">{youtubeChannels.find(c => c.id === pl.channelId)?.name || 'Unknown'}</span> )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {isEditing ? (
+                                            <input type="text" value={currentPl.playlistId} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, playlistId: e.target.value}}))} className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm" placeholder="Paste full URL..." />
+                                        ) : ( 
+                                            <div>
+                                                <div className="font-bold text-slate-800">{pl.playlistName || 'Unknown Playlist'}</div>
+                                                <div className="text-xs text-slate-400 font-mono mt-0.5 truncate max-w-[200px]">{pl.playlistId}</div>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {isEditing ? (
+                                            <select value={currentPl.userId} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, userId: e.target.value}}))} className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm bg-white">
+                                                <option value="">Select Creator</option>
+                                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                            </select>
+                                        ) : ( <span className="font-medium text-slate-700">{users.find(u => u.id === pl.userId)?.name || 'Unassigned'}</span> )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {isEditing ? (
+                                            <div className="flex items-center gap-1">
+                                                <input type="number" value={currentPl.revShare} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, revShare: e.target.value}}))} className="w-16 border border-slate-300 rounded-md py-1.5 px-2 text-sm text-right" />
+                                                <span className="text-slate-500 font-bold">%</span>
+                                            </div>
+                                        ) : ( <span className="font-bold text-emerald-600">{pl.revShare}%</span> )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {isEditing ? (
+                                            <input type="date" value={currentPl.paymentStartDate || ''} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, paymentStartDate: e.target.value}}))} className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm" />
+                                        ) : ( <span className="text-slate-600">{pl.paymentStartDate ? new Date(`${pl.paymentStartDate}T12:00:00`).toLocaleDateString() : 'None'}</span> )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {isEditing ? (
+                                                <button onClick={() => handleSaveYtPlaylist(currentPl)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center gap-1">
+                                                    <Save size={14} /> Save
+                                                </button>
+                                            ) : (
+                                                <button onClick={() => setEditingYt(prev => ({...prev, [pl.id]: pl}))} className="text-slate-400 hover:text-blue-600 px-2 py-1 transition-colors text-xs font-bold">Edit</button>
+                                            )}
+                                            <button onClick={() => handleDeleteYtPlaylist(pl.id)} className="text-slate-400 hover:text-red-600 p-1 transition-colors"><Trash2 size={16} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}) : (
+                                <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500"><div className="flex flex-col items-center justify-center"><Youtube size={48} className="text-slate-300 mb-3" /><p className="font-semibold">No YouTube Playlists mapped.</p><p className="text-sm">Click "Add Playlist" to start tracking revenue share.</p></div></td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---------------------------------------------------------
   // EARLY RETURN: STRIPE PROMOS ADMIN DASHBOARD
   // ---------------------------------------------------------
-  if (activeTab === 'promos' && currentUser?.isAdmin) {
+  if (activeLedgerTab === 'promos' && currentUser?.isAdmin) {
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -234,6 +296,13 @@ export default function LedgerDashboard({
                 <button onClick={handleSyncStripe} disabled={isSyncingStripe} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
                     <RefreshCw size={18} className={isSyncingStripe ? "animate-spin" : ""} /> Sync Stripe
                 </button>
+            </div>
+
+            <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-6 flex-shrink-0 border border-slate-200">
+                <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
+                <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
+                <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Stripe Promos</button>
+                <button onClick={() => setActiveLedgerTab('yt_playlists')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'yt_playlists' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>YouTube Playlists</button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -256,23 +325,14 @@ export default function LedgerDashboard({
                                 <tr key={promo.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4 font-bold text-slate-800">{promo.code}</td>
                                     <td className="px-6 py-4">
-                                        <select 
-                                            value={currentPromoState.userId || ''} 
-                                            onChange={(e) => handleUpdatePromoField(promo.id, 'userId', e.target.value)}
-                                            className="w-full max-w-[200px] border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm bg-white"
-                                        >
+                                        <select value={currentPromoState.userId || ''} onChange={(e) => handleUpdatePromoField(promo.id, 'userId', e.target.value)} className="w-full max-w-[200px] border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm bg-white">
                                             <option value="">-- Unassigned --</option>
                                             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            <input 
-                                                type="number" 
-                                                value={currentPromoState.commissionRate || ''} 
-                                                onChange={(e) => handleUpdatePromoField(promo.id, 'commissionRate', e.target.value)}
-                                                className="w-20 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm text-right"
-                                            />
+                                            <input type="number" value={currentPromoState.commissionRate || ''} onChange={(e) => handleUpdatePromoField(promo.id, 'commissionRate', e.target.value)} className="w-20 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 py-1.5 px-2 text-sm text-right" />
                                             <span className="text-slate-500 font-bold">%</span>
                                         </div>
                                     </td>
@@ -364,6 +424,12 @@ export default function LedgerDashboard({
         <div className="flex bg-slate-200/50 p-1 rounded-lg w-fit mb-4 flex-shrink-0 border border-slate-200">
             <button onClick={() => setActiveLedgerTab('balances')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'balances' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Current Balances</button>
             <button onClick={() => setActiveLedgerTab('history')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'history' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Payment History</button>
+            {currentUser?.isAdmin && (
+                <>
+                   <button onClick={() => setActiveLedgerTab('promos')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'promos' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Stripe Promos</button>
+                   <button onClick={() => setActiveLedgerTab('yt_playlists')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${activeLedgerTab === 'yt_playlists' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>YouTube Playlists</button>
+                </>
+            )}
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col">
@@ -384,30 +450,29 @@ export default function LedgerDashboard({
                          </thead>
                          <tbody className="divide-y divide-slate-100">
                              
-                             {/* YouTube Shows */}
-                             {filteredPlaylists.map(show => {
-                                 const displayName = show.playlistName || show.title;
-                                 const earned = calculateTotalEarned(show);
-                                 const paid = calculateTotalPaid(show.normalizedPlaylistId);
-                                 const deducted = calculateTotalDeducted(show.normalizedPlaylistId);
+                             {/* YouTube Playlists Ledger Math */}
+                             {filteredPlaylists.map(pl => {
+                                 const displayName = pl.playlistName || 'Unknown Playlist';
+                                 const earned = calculateTotalEarned(pl);
+                                 const paid = calculateTotalPaid(pl.playlistId);
+                                 const deducted = calculateTotalDeducted(pl.playlistId);
                                  const balance = earned - paid - deducted;
                                  
                                  return (
-                                     <tr key={show.normalizedPlaylistId} className="hover:bg-slate-50 transition-colors">
+                                     <tr key={pl.id} className="hover:bg-slate-50 transition-colors">
                                          <td className="p-4">
-                                             <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: show.normalizedPlaylistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
+                                             <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors w-fit" onClick={() => setHistoryModalItem({ id: pl.playlistId, name: displayName, type: 'youtube' })} title="View Payment History">{displayName}</div>
                                              <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                                                 <Youtube size={10} className="text-red-500" /> Start: {new Date(`${show.paymentStartDate}T12:00:00`).toLocaleDateString()}
+                                                 <Youtube size={10} className="text-red-500" /> Start: {new Date(`${pl.paymentStartDate}T12:00:00`).toLocaleDateString()}
                                              </div>
                                          </td>
                                          <td className="p-4 text-xs font-medium text-slate-600">
-                                             <div>Base: {formatCurrency(show.basePay)}/ep</div>
-                                             <div className="mt-1">Rev Share: {show.revShare ?? 100}%</div>
+                                             <div>Rev Share: {pl.revShare ?? 100}%</div>
                                          </td>
                                          <td className="p-4">
                                              <div className="flex justify-center gap-4 text-xs">
-                                                 <div className="text-center"><div className="font-bold text-slate-800">{show.ledgerVideos || 0}</div><div className="text-[9px] text-slate-400 uppercase">Videos</div></div>
-                                                 <div className="text-center"><div className="font-bold text-emerald-600">{formatCurrency(show.ledgerRevenue || 0)}</div><div className="text-[9px] text-slate-400 uppercase">Total Rev</div></div>
+                                                 <div className="text-center"><div className="font-bold text-slate-800">{pl.ledgerVideos || 0}</div><div className="text-[9px] text-slate-400 uppercase">Videos</div></div>
+                                                 <div className="text-center"><div className="font-bold text-emerald-600">{formatCurrency(pl.ledgerRevenue || 0)}</div><div className="text-[9px] text-slate-400 uppercase">Total Rev</div></div>
                                              </div>
                                          </td>
                                          <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(earned)}</td>
@@ -420,7 +485,7 @@ export default function LedgerDashboard({
                                          </td>
                                          {currentUser?.isAdmin && (
                                              <td className="p-4 text-center">
-                                                 <button onClick={() => openPayoutModal({ showId: show.normalizedPlaylistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                                 <button onClick={() => openPayoutModal({ showId: pl.playlistId, amount: balance > 0 ? balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
                                                      Pay Now
                                                  </button>
                                              </td>
@@ -537,8 +602,8 @@ export default function LedgerDashboard({
                                      const userMatch = users.find(u => u.id === p.showId);
                                      if (userMatch) displayName = `Affiliate Comm. (${userMatch.name})`;
                                  } else {
-                                     const playlist = filteredPlaylists.find(s => s.normalizedPlaylistId === p.showId || s.playlistId === p.showId || s.id === p.showId);
-                                     if (playlist) displayName = playlist.playlistName || playlist.title;
+                                     const playlist = filteredPlaylists.find(s => normalizePlaylistId(s.playlistId) === p.showId || s.playlistId === p.showId);
+                                     if (playlist) displayName = playlist.playlistName || 'YouTube Playlist';
                                  }
                                  
                                  return (
@@ -610,9 +675,7 @@ export default function LedgerDashboard({
                            {(() => {
                                let filteredPayouts = [];
                                if (historyModalItem.type === 'youtube') {
-                                   const relatedShowIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.id);
-                                   const rawPlaylistIds = allowedShows.filter(s => normalizePlaylistId(s.playlistId) === historyModalItem.id).map(s => s.playlistId);
-                                   filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || rawPlaylistIds.includes(p.showId) || relatedShowIds.includes(p.showId));
+                                   filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id || normalizePlaylistId(p.showId) === normalizePlaylistId(historyModalItem.id));
                                } else if (historyModalItem.type === 'wordpress') {
                                    filteredPayouts = visiblePayouts.filter(p => p.showId === historyModalItem.id);
                                } else if (historyModalItem.type === 'stripe') {
