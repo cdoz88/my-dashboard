@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Tv, Users, Link2, AlignLeft, Info } from 'lucide-react';
+import { X, Calendar, Clock, Tv, Users, Link2, AlignLeft } from 'lucide-react';
 
 export default function ShowModal({ isOpen, onClose, onSave, show = null, youtubeChannels = [], users = [], currentUser }) {
+  // Defensive fallbacks to guarantee arrays even if the API sends null
+  const safeChannels = Array.isArray(youtubeChannels) ? youtubeChannels : [];
+  const safeUsers = Array.isArray(users) ? users : [];
+
   const [formData, setFormData] = useState({
     title: '',
-    channelId: youtubeChannels.length > 0 ? youtubeChannels[0].id : '',
+    channelId: safeChannels.length > 0 ? safeChannels[0].id : '',
     showDate: new Date().toISOString().split('T')[0],
     showTime: '12:00',
     isLive: false,
@@ -16,34 +20,21 @@ export default function ShowModal({ isOpen, onClose, onSave, show = null, youtub
   });
 
   useEffect(() => {
-    if (show && isOpen) {
+    if (isOpen) {
       setFormData({
-        title: show.title || '',
-        channelId: show.channelId || (youtubeChannels.length > 0 ? youtubeChannels[0].id : ''),
-        showDate: show.showDate || new Date().toISOString().split('T')[0],
-        showTime: show.showTime || '12:00',
-        isLive: show.isLive ? true : false,
-        studio: show.studio || 'Studio 1',
-        guestLink: show.guestLink || '',
-        notes: show.notes || '',
-        userIds: show.userIds || [],
-        status: show.status || 'Active'
-      });
-    } else if (isOpen) {
-      setFormData({
-        title: '',
-        channelId: youtubeChannels.length > 0 ? youtubeChannels[0].id : '',
-        showDate: new Date().toISOString().split('T')[0],
-        showTime: '12:00',
-        isLive: false,
-        studio: 'Studio 1',
-        guestLink: '',
-        notes: '',
-        userIds: [],
-        status: 'Active'
+        title: show?.title || '',
+        channelId: show?.channelId || (safeChannels.length > 0 ? safeChannels[0].id : ''),
+        showDate: show?.showDate || new Date().toISOString().split('T')[0],
+        showTime: show?.showTime || '12:00',
+        isLive: show?.isLive ? true : false,
+        studio: show?.studio || 'Studio 1',
+        guestLink: show?.guestLink || '',
+        notes: show?.notes || '',
+        userIds: Array.isArray(show?.userIds) ? show.userIds : [],
+        status: show?.status || 'Active'
       });
     }
-  }, [show, isOpen, youtubeChannels]);
+  }, [show, isOpen]); 
 
   if (!isOpen) return null;
 
@@ -51,17 +42,20 @@ export default function ShowModal({ isOpen, onClose, onSave, show = null, youtub
     e.preventDefault();
     onSave({
       ...formData,
-      id: show ? show.id : 'show_' + Date.now()
+      id: show?.id ? show.id : 'show_' + Date.now()
     });
   };
 
   const handleUserToggle = (userId) => {
-    setFormData(prev => ({
-      ...prev,
-      userIds: prev.userIds.includes(userId)
-        ? prev.userIds.filter(id => id !== userId)
-        : [...prev.userIds, userId]
-    }));
+    setFormData(prev => {
+      const currentUsers = Array.isArray(prev.userIds) ? prev.userIds : [];
+      return {
+        ...prev,
+        userIds: currentUsers.includes(userId)
+          ? currentUsers.filter(id => id !== userId)
+          : [...currentUsers, userId]
+      };
+    });
   };
 
   return (
@@ -92,7 +86,7 @@ export default function ShowModal({ isOpen, onClose, onSave, show = null, youtub
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">YouTube Channel</label>
                 <select value={formData.channelId} onChange={e => setFormData({...formData, channelId: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2.5 px-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white">
-                  {youtubeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {safeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
 
@@ -139,7 +133,7 @@ export default function ShowModal({ isOpen, onClose, onSave, show = null, youtub
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1"><Users size={14}/> Hosts & Talent</label>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 max-h-40 overflow-y-auto">
                 <div className="grid grid-cols-2 gap-2">
-                  {users.map(user => (
+                  {safeUsers.map(user => (
                     <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1.5 rounded transition-colors border border-transparent hover:border-slate-200">
                       <input type="checkbox" checked={formData.userIds.includes(user.id)} onChange={() => handleUserToggle(user.id)} className="rounded text-red-500 focus:ring-red-500 bg-slate-100 border-slate-300 cursor-pointer" />
                       <span className="text-sm text-slate-700 font-medium truncate">{user.name}</span>
