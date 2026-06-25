@@ -22,7 +22,10 @@ export default function LedgerDashboard({
   shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
 }) {
   const [historyModalItem, setHistoryModalItem] = useState(null);
+  
+  // Drill-down states for Admins
   const [selectedWpUserId, setSelectedWpUserId] = useState(null);
+  const [selectedYtUserId, setSelectedYtUserId] = useState(null);
 
   // --- Local State for Admin Mapping ---
   const [stripePromos, setStripePromos] = useState([]);
@@ -40,21 +43,27 @@ export default function LedgerDashboard({
                 if (data.stripe_promos) setStripePromos(data.stripe_promos);
                 if (data.youtube_playlists) setYtPlaylists(data.youtube_playlists);
             });
+    } else {
+        // If creator, just fetch their assigned playlists/promos
+        fetch(`${API_URL}?action=get_all`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.stripe_promos) setStripePromos(data.stripe_promos.filter(p => p.userId === currentUser?.id));
+                if (data.youtube_playlists) setYtPlaylists(data.youtube_playlists.filter(pl => pl.userId === currentUser?.id));
+            });
     }
   }, [currentUser]);
 
-  // Clear selected WP user if we leave the WordPress tab
+  // Clear drill-down filters if we navigate to a different tab
   useEffect(() => {
     if (activeTab !== 'wordpress') setSelectedWpUserId(null);
+    if (activeTab !== 'yt_playlists') setSelectedYtUserId(null);
   }, [activeTab]);
 
   // --- STRIPE LOGIC ---
   const handleSyncStripe = async () => {
     const stripeKey = import.meta.env.VITE_STRIPE_SECRET_KEY;
-    if (!stripeKey) {
-        alert("Stripe Secret Key is missing! Please add VITE_STRIPE_SECRET_KEY to your Vercel Environment Variables.");
-        return;
-    }
+    if (!stripeKey) { alert("Stripe Secret Key is missing! Please add VITE_STRIPE_SECRET_KEY to your Vercel Environment Variables."); return; }
     setIsSyncingStripe(true);
     try {
         const res = await fetch(`${API_URL}?action=sync_stripe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stripeKey }) });
@@ -76,7 +85,6 @@ export default function LedgerDashboard({
   const handleUpdatePromoField = (promoId, field, value) => {
       setEditingPromos(prev => ({ ...prev, [promoId]: { ...(prev[promoId] || stripePromos.find(p => p.id === promoId)), [field]: value } }));
   };
-
   const savePromo = (promoId) => { if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]); };
 
   // --- YOUTUBE PLAYLIST LOGIC ---
@@ -105,11 +113,9 @@ export default function LedgerDashboard({
 
   // --- UNIFIED CREATOR LEDGER LOGIC ---
   const unifiedLedger = users.map(user => {
-      // 1. YouTube Earnings
       const userPlaylists = ytPlaylists.filter(pl => pl.userId === user.id);
       let ytEarned = 0; let ytVideos = 0;
       const ytNormIds = []; const ytRawIds = [];
-      
       userPlaylists.forEach(pl => {
           const rev = parseFloat(pl.ledgerRevenue || 0);
           const pct = parseFloat(pl.revShare ?? 100) / 100;
@@ -119,53 +125,144 @@ export default function LedgerDashboard({
           ytNormIds.push(normalizePlaylistId(pl.playlistId));
       });
 
-      // 2. WordPress Earnings
       const wpRecord = user.wpUserId ? wpLedgerData.find(wp => wp.wp_user_id == user.wpUserId) : null;
       const wpEarned = wpRecord ? parseFloat(wpRecord.total_earned || 0) : 0;
       const wpArticles = wpRecord ? parseInt(wpRecord.articles || 0) : 0;
       const wpShowId = `wp_articles_${user.wpUserId}`;
 
-      // 3. Stripe Promo Earnings
       let stripeEarned = 0;
       payouts.forEach(p => {
           if (p.showId === user.id && p.transactionType === 'Stripe Commission') stripeEarned += parseFloat(p.amount || 0);
       });
 
       const totalEarned = ytEarned + wpEarned + stripeEarned;
-
-      // 4. Combined Payouts & Deductions
-      let paid = 0;
-      let deducted = 0;
+      let paid = 0; let deducted = 0;
       const relatedIds = [user.id, wpShowId, ...ytNormIds, ...ytRawIds];
-      
       payouts.forEach(p => {
           if (relatedIds.includes(p.showId) && p.transactionType !== 'Stripe Commission') {
               if (p.transactionType === 'Payment') paid += parseFloat(p.amount || 0);
               if (p.transactionType === 'Deduction') deducted += parseFloat(p.amount || 0);
           }
       });
-
       const balance = totalEarned - paid - deducted;
-
       return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, totalEarned, paid, deducted, balance, relatedIds };
   }).filter(u => currentUser?.isAdmin ? (u.totalEarned > 0 || u.balance !== 0 || u.id === currentUser?.id) : u.id === currentUser?.id);
 
 
-  // --- DYNAMIC GRAND TOTALS ---
   const grandTotalEarned = unifiedLedger.reduce((sum, u) => sum + u.totalEarned, 0);
   const grandTotalPaid = unifiedLedger.reduce((sum, u) => sum + u.paid, 0);
   const grandTotalOwed = unifiedLedger.reduce((sum, u) => sum + u.balance, 0);
 
-  // --- HISTORY FILTER LOGIC ---
   const currentUserUnified = unifiedLedger.find(u => u.id === currentUser?.id);
   const validHistoryIds = currentUser?.isAdmin ? payouts.map(p=>p.showId) : (currentUserUnified?.relatedIds || []);
   const visibleHistory = payouts.filter(p => validHistoryIds.includes(p.showId) && p.transactionType !== 'Stripe Commission');
 
 
   // ---------------------------------------------------------
-  // EARLY RETURN 1: YOUTUBE PLAYLISTS ADMIN DASHBOARD
+  // EARLY RETURN 1: YOUTUBE PLAYLISTS DASHBOARD
   // ---------------------------------------------------------
-  if (activeTab === 'yt_playlists' && currentUser?.isAdmin) {
+  if (activeTab === 'yt_playlists') {
+    
+    // --- CREATOR VIEW OR ADMIN VIEWING SPECIFIC CREATOR ---
+    if (!currentUser?.isAdmin || selectedYtUserId) {
+        const targetUserId = currentUser?.isAdmin ? selectedYtUserId : currentUser?.id;
+        const targetUser = users.find(u => u.id === targetUserId);
+        const myPlaylists = ytPlaylists.filter(pl => pl.userId === targetUserId);
+        
+        const totalPlaylists = myPlaylists.length;
+        const totalTrackedVideos = myPlaylists.reduce((sum, pl) => sum + parseInt(pl.ledgerVideos || 0), 0);
+        const totalMyEarnings = myPlaylists.reduce((sum, pl) => {
+            const rev = parseFloat(pl.ledgerRevenue || 0);
+            const pct = parseFloat(pl.revShare ?? 100) / 100;
+            return sum + (rev * pct);
+        }, 0);
+
+        return (
+          <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+            <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        {currentUser?.isAdmin && (
+                            <button onClick={() => setSelectedYtUserId(null)} className="p-2 bg-white shadow-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-500 flex-shrink-0" title="Back to Master List">
+                                <ArrowLeft size={20} />
+                            </button>
+                        )}
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <Youtube className="text-red-600" size={28} />
+                                {currentUser?.isAdmin ? `${targetUser?.name}'s YouTube Performance` : 'Your YouTube Performance'}
+                            </h2>
+                            <p className="text-slate-500 text-sm mt-1">Detailed breakdown of {currentUser?.isAdmin ? 'their' : 'your'} assigned YouTube playlists.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
+                    <div className="text-slate-500 text-sm font-medium mb-1">Assigned Playlists</div>
+                    <div className="text-3xl font-bold text-slate-800">{totalPlaylists}</div>
+                  </div>
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-red-500">
+                    <div className="text-slate-500 text-sm font-medium mb-1">Eligible Videos Tracked</div>
+                    <div className="text-3xl font-bold text-slate-800">{totalTrackedVideos.toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500">
+                    <div className="text-slate-500 text-sm font-medium mb-1">Total Rev Share Earnings</div>
+                    <div className="text-3xl font-bold text-emerald-600">{formatCurrency(totalMyEarnings)}</div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left min-w-[700px]">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4">Playlist Info</th>
+                                    <th className="px-6 py-4">Channel</th>
+                                    <th className="px-6 py-4 text-center">Tracked Videos</th>
+                                    <th className="px-6 py-4 text-center">Your Rev Share</th>
+                                    <th className="px-6 py-4 text-right">Your Earnings</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {myPlaylists.length > 0 ? myPlaylists.map(pl => {
+                                    const channel = youtubeChannels.find(c => c.id === pl.channelId);
+                                    const plEarned = parseFloat(pl.ledgerRevenue || 0) * (parseFloat(pl.revShare ?? 100) / 100);
+                                    return (
+                                        <tr key={pl.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-800 flex items-center gap-2">
+                                                    <Youtube size={16} className="text-red-500 flex-shrink-0" />
+                                                    <span className="truncate max-w-[300px]" title={pl.playlistName}>{pl.playlistName || 'Unknown Playlist'}</span>
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 mt-1">{pl.playlistId}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600 font-medium">{channel?.name || '--'}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{pl.ledgerVideos || 0}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{pl.revShare}%</td>
+                                            <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatCurrency(plEarned)}</td>
+                                        </tr>
+                                    )
+                                }) : (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <Youtube size={48} className="text-slate-300 mb-3" />
+                                                <p className="font-semibold text-slate-700">No playlists assigned yet.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+          </div>
+        );
+    }
+
+    // --- ADMIN VIEW (Master Playlist Configs) ---
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -226,7 +323,15 @@ export default function LedgerDashboard({
                                                 <option value="">Select Creator</option>
                                                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                             </select>
-                                        ) : ( <span className="font-medium text-slate-700">{users.find(u => u.id === pl.userId)?.name || 'Unassigned'}</span> )}
+                                        ) : ( 
+                                            <span 
+                                                className={`font-medium ${pl.userId ? 'text-slate-700 hover:text-red-600 cursor-pointer' : 'text-slate-400 italic'}`} 
+                                                onClick={() => pl.userId ? setSelectedYtUserId(pl.userId) : null}
+                                                title={pl.userId ? "View Creator Breakdown" : ""}
+                                            >
+                                                {users.find(u => u.id === pl.userId)?.name || 'Unassigned'}
+                                            </span> 
+                                        )}
                                     </td>
                                     <td className="px-4 py-3">
                                         {isEditing ? (
@@ -267,9 +372,78 @@ export default function LedgerDashboard({
   }
 
   // ---------------------------------------------------------
-  // EARLY RETURN 2: STRIPE PROMOS ADMIN DASHBOARD
+  // EARLY RETURN 2: STRIPE PROMOS DASHBOARD
   // ---------------------------------------------------------
-  if (activeTab === 'promos' && currentUser?.isAdmin) {
+  if (activeTab === 'promos') {
+      
+    // --- CREATOR VIEW ---
+    if (!currentUser?.isAdmin) {
+        const myPromos = stripePromos.filter(p => p.userId === currentUser?.id);
+        const totalPromos = myPromos.length;
+        let promoEarnings = 0;
+        payouts.forEach(p => {
+            if (p.showId === currentUser?.id && p.transactionType === 'Stripe Commission') {
+                promoEarnings += parseFloat(p.amount || 0);
+            }
+        });
+
+        return (
+            <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+               <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <LinkIcon className="text-blue-600" size={28} />
+                                Your Stripe Promos
+                            </h2>
+                            <p className="text-slate-500 text-sm mt-1">Your assigned promotion codes and affiliate earnings.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 flex-shrink-0">
+                      <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-slate-800">
+                        <div className="text-slate-500 text-sm font-medium mb-1">Active Promo Codes</div>
+                        <div className="text-3xl font-bold text-slate-800">{totalPromos}</div>
+                      </div>
+                      <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-500">
+                        <div className="text-slate-500 text-sm font-medium mb-1">Total Affiliate Earnings</div>
+                        <div className="text-3xl font-bold text-blue-600">{formatCurrency(promoEarnings)}</div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table className="w-full text-sm text-left min-w-[700px]">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4">Promo Code</th>
+                                    <th className="px-6 py-4 text-center">Commission %</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {myPromos.length > 0 ? myPromos.map(promo => (
+                                    <tr key={promo.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-2"><LinkIcon size={16} className="text-blue-500 flex-shrink-0"/> {promo.code}</td>
+                                        <td className="px-6 py-4 text-center font-bold text-blue-600">{promo.commissionRate}%</td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan="2" className="px-6 py-12 text-center text-slate-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <LinkIcon size={48} className="text-slate-300 mb-3" />
+                                                <p className="font-semibold text-slate-700">No promo codes assigned.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+      
+    // --- ADMIN VIEW (Master List) ---
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -357,7 +531,7 @@ export default function LedgerDashboard({
   }
 
   // ---------------------------------------------------------
-  // EARLY RETURN 3: WP ARTICLES VIEW (Admin Master List vs Creator Breakdown)
+  // EARLY RETURN 3: WP ARTICLES VIEW
   // ---------------------------------------------------------
   if (activeTab === 'wordpress') {
     const visibleWpLedger = wpLedgerData.filter(wpRecord => currentUser?.isAdmin || wpRecord.wp_user_id == currentUser?.wpUserId);
@@ -442,7 +616,6 @@ export default function LedgerDashboard({
                                             <div className="flex flex-col items-center justify-center">
                                                 <Globe size={48} className="text-slate-300 mb-3" />
                                                 <p className="font-semibold text-slate-700">No individual article data available yet.</p>
-                                                <p className="text-sm mt-1 max-w-md mx-auto">If you believe this is an error, please ensure your WordPress profile is linked and your articles are actively tracking views.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -601,17 +774,29 @@ export default function LedgerDashboard({
                                      <td className="p-4 text-xs">
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className={u.ytEarned > 0 ? "text-red-500" : "text-slate-400"}/> YouTube:</span> 
-                                             <span className={`font-medium ${u.ytEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.ytEarned)}</span> 
+                                             {u.ytEarned > 0 ? (
+                                                 <span className="font-medium text-slate-700 cursor-pointer hover:text-red-600 transition-colors" title="View Breakown" onClick={() => { if(currentUser?.isAdmin) { setSelectedYtUserId(u.id); setActiveTab('yt_playlists'); } }}>{formatCurrency(u.ytEarned)}</span>
+                                             ) : (
+                                                 <span className="font-medium text-slate-400 font-light">{formatCurrency(u.ytEarned)}</span>
+                                             )}
                                              {u.ytVideos > 0 && <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className={u.wpEarned > 0 ? "text-sky-500" : "text-slate-400"}/> Articles:</span> 
-                                             <span className={`font-medium ${u.wpEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.wpEarned)}</span> 
+                                             {u.wpEarned > 0 ? (
+                                                 <span className="font-medium text-slate-700 cursor-pointer hover:text-sky-600 transition-colors" title="View Breakdown" onClick={() => { if(currentUser?.isAdmin && u.wpUserId) { setSelectedWpUserId(u.wpUserId); setActiveTab('wordpress'); } }}>{formatCurrency(u.wpEarned)}</span>
+                                             ) : (
+                                                 <span className="font-medium text-slate-400 font-light">{formatCurrency(u.wpEarned)}</span>
+                                             )}
                                              {u.wpArticles > 0 && <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeEarned > 0 ? "text-blue-500" : "text-slate-400"}/> Promos:</span> 
-                                             <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeEarned)}</span>
+                                             {u.stripeEarned > 0 ? (
+                                                 <span className="font-medium text-slate-700">{formatCurrency(u.stripeEarned)}</span>
+                                             ) : (
+                                                 <span className="font-medium text-slate-400 font-light">{formatCurrency(u.stripeEarned)}</span>
+                                             )}
                                          </div>
                                      </td>
                                      <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(u.totalEarned)}</td>

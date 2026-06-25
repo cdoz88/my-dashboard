@@ -356,11 +356,9 @@ export default function Sidebar({
                 <button onClick={() => { setActiveTab('wordpress'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'wordpress' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                   <Globe size={16} className={`${activeTab === 'wordpress' ? 'text-sky-500' : ''}`} /> WP Articles
                 </button>
-                {currentUser?.isAdmin && (
-                    <button onClick={() => { setActiveTab('promos'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'promos' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                      <CreditCard size={16} className={`${activeTab === 'promos' ? 'text-blue-500' : ''}`} /> Stripe Promos
-                    </button>
-                )}
+                <button onClick={() => { setActiveTab('promos'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'promos' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <CreditCard size={16} className={`${activeTab === 'promos' ? 'text-blue-500' : ''}`} /> Stripe Promos
+                </button>
               </div>
             </div>
           </>
