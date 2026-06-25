@@ -703,6 +703,56 @@ export function useData({
     sendToAPI('save_user', updatedUser);
   };
 
+  const handleSaveTeamMember = (e) => {
+    e.preventDefault();
+    const isNew = !editingTeamMember.id;
+    const generateOnboarding = editingTeamMember.generateOnboarding !== false;
+    const userToSave = { ...editingTeamMember };
+    if (!userToSave.id) userToSave.id = 'u' + Date.now();
+    delete userToSave.generateOnboarding; 
+    const localUser = { ...userToSave };
+    if (isNew) logActivity('Team', 'New Member Added', `Added "${userToSave.name}" to the team directory.`);
+
+    if (users.find(u => u.id === userToSave.id)) setUsers(users.map(u => u.id === userToSave.id ? localUser : u));
+    else setUsers([...users, localUser]);
+
+    const oldCompanyIds = !isNew && users.find(u => u.id === userToSave.id) ? companies.filter(c => c.userIds?.includes(userToSave.id)).map(c => c.id) : [];
+    const newCompanyIds = editingTeamMember.companyIds || [];
+    const newlyAddedCompanyIds = newCompanyIds.filter(id => !oldCompanyIds.includes(id));
+    const notifyNewCompanies = newlyAddedCompanyIds.map(id => companies.find(c => c.id === id)?.name).filter(Boolean);
+
+    if (editingTeamMember.companyIds !== undefined) {
+        const newCompanies = companies.map(c => {
+           const hasUser = editingTeamMember.companyIds.includes(c.id);
+           const userIds = c.userIds || [];
+           if (hasUser && !userIds.includes(userToSave.id)) return { ...c, userIds: [...userIds, userToSave.id] };
+           if (!hasUser && userIds.includes(userToSave.id)) return { ...c, userIds: userIds.filter(id => id !== userToSave.id) };
+           return c;
+        });
+        setCompanies(newCompanies);
+    }
+
+    sendToAPI('save_user', { ...userToSave, notifyNewCompanies });
+    if (isNew && generateOnboarding) handleGenerateOnboarding(userToSave);
+    setEditingTeamMember(null);
+    setIsTeamModalOpen(false);
+  };
+
+  const handleDeleteUser = (userId) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (!userToDelete) return;
+    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace?`)) return;
+    logActivity('Team', 'Team Member Removed', `Removed team member "${userToDelete.name}" from the directory.`);
+    setUsers(users.filter(u => u.id !== userId));
+    setIsTeamModalOpen(false);
+    sendToAPI('delete_user', { id: userId });
+  };
+
+  const handleUpdateUser = (updatedUser) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    sendToAPI('save_user', updatedUser);
+  };
+
   const handleCompanyLogoUpload = async (e) => {
     if (e.target.files[0]) { setIsUploading(true); const url = await uploadFileToServer(e.target.files[0]); if (url) setEditingCompany({ ...editingCompany, logoUrl: url }); setIsUploading(false); }
   };
