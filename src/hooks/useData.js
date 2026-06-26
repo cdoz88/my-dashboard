@@ -63,28 +63,11 @@ export function useData({
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
-  const fetchData = async () => {
-    try {
-        const response = await fetch(`${API_URL}?action=get_all`);
-        const text = await response.text();
-        
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error("CRITICAL PHP ERROR INTERCEPTED:\n\n", text);
-            alert("The server returned an invalid response. Please check the browser console.");
-            setIsLoading(false);
-            return;
-        }
-
-        if (data.error) {
-            console.error("SERVER REPORTED ERROR:", data.error);
-            alert(`Server Error: ${data.error}`);
-            setIsLoading(false);
-            return;
-        }
-
+  const fetchData = () => {
+    // ADDED CACHEBUSTER HERE to forcefully bypass your CDN's cached response!
+    fetch(`${API_URL}?action=get_all&cb=${Date.now()}`)
+      .then(res => res.json())
+      .then(data => {
         if(data.users) {
            setUsers(data.users.map(u => ({
                ...u,
@@ -138,10 +121,8 @@ export function useData({
         }
 
         setIsLoading(false);
-    } catch (err) {
-        console.error("Failed to connect to API:", err);
-        setIsLoading(false);
-    }
+      })
+      .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -617,7 +598,7 @@ export function useData({
 
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id), wpUserId: userToEdit.wpUserId || '' });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewAnalytics: false, canViewEvents: true, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
     setIsTeamModalOpen(true);
   };
 
