@@ -6,7 +6,7 @@ export function useData({
   isLoading, setIsLoading, isUploading, setIsUploading, currentApp, setCurrentApp, activeTab, setActiveTab,
   activeBudgetTab, activeDomainTab, activeEventTab, activeShowTab, activeSponsorshipTab, activeTeamTab,
   activeActivityTab, activeCRMTab, activePasswordTab, loggedInUserId, setLoggedInUserId,
-  activeYoutubeChannelId, setActiveYoutubeChannelId,
+  activeYoutubeChannelId, setActiveYoutubeChannelId, activeSpreakerShowId, setActiveSpreakerShowId,
   activeAnalyticsId, setActiveAnalyticsId,
   isTaskModalOpen, setIsTaskModalOpen, currentTask, setCurrentTask, newCommentText, setNewCommentText,
   isExpenseModalOpen, setIsExpenseModalOpen, currentExpense, setCurrentExpense,
@@ -37,6 +37,7 @@ export function useData({
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
   const [youtubeChannels, setYoutubeChannels] = useState([]);
+  const [spreakerShows, setSpreakerShows] = useState([]);
   const [analyticsProperties, setAnalyticsProperties] = useState([]);
 
   const currentUser = users.find(u => u.id === loggedInUserId);
@@ -62,10 +63,28 @@ export function useData({
     } catch (err) { alert('Upload error: Server could not be reached.'); return null; }
   };
 
-  const fetchData = () => {
-    fetch(`${API_URL}?action=get_all`)
-      .then(res => res.json())
-      .then(data => {
+  const fetchData = async () => {
+    try {
+        const response = await fetch(`${API_URL}?action=get_all`);
+        const text = await response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error("CRITICAL PHP ERROR INTERCEPTED:\n\n", text);
+            alert("The server returned an invalid response. Please check the browser console.");
+            setIsLoading(false);
+            return;
+        }
+
+        if (data.error) {
+            console.error("SERVER REPORTED ERROR:", data.error);
+            alert(`Server Error: ${data.error}`);
+            setIsLoading(false);
+            return;
+        }
+
         if(data.users) {
            setUsers(data.users.map(u => ({
                ...u,
@@ -73,8 +92,8 @@ export function useData({
                canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
                canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
-               canViewAnalytics: u.canViewAnalytics == 1 || u.canViewAnalytics === true,
                canViewEvents: u.canViewEvents == 1 || u.canViewEvents === true || u.canViewEvents === undefined, 
+               canViewSpreaker: u.canViewSpreaker == 1 || u.canViewSpreaker === true || u.canViewSpreaker === undefined, 
                canViewYoutube: u.canViewYoutube == 1 || u.canViewYoutube === true || u.canViewYoutube === undefined,
                canViewShows: u.canViewShows == 1 || u.canViewShows === true || u.canViewShows === undefined,
                canViewSponsorships: u.canViewSponsorships == 1 || u.canViewSponsorships === true || u.canViewSponsorships === undefined,
@@ -109,14 +128,20 @@ export function useData({
             setYoutubeChannels(data.youtube_channels);
             if(data.youtube_channels.length > 0 && !activeYoutubeChannelId) setActiveYoutubeChannelId(data.youtube_channels[0].id);
         }
+        if(data.spreaker_shows) {
+            setSpreakerShows(data.spreaker_shows);
+            if(data.spreaker_shows.length > 0 && !activeSpreakerShowId) setActiveSpreakerShowId(data.spreaker_shows[0].id);
+        }
         if(data.analytics_properties) {
             setAnalyticsProperties(data.analytics_properties);
             if(data.analytics_properties.length > 0 && !activeAnalyticsId) setActiveAnalyticsId(data.analytics_properties[0].id);
         }
 
         setIsLoading(false);
-      })
-      .catch(err => { console.error("Failed to connect to API:", err); setIsLoading(false); });
+    } catch (err) {
+        console.error("Failed to connect to API:", err);
+        setIsLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -794,7 +819,7 @@ export function useData({
     expenses, setExpenses, events, setEvents, shows, setShows, sponsorships, setSponsorships,
     contacts, setContacts, passwords, setPasswords, payouts, setPayouts,
     globalChecklist, setGlobalChecklist, activityLogs, setActivityLogs, wpLedgerData, setWpLedgerData,
-    youtubeChannels, setYoutubeChannels, analyticsProperties, setAnalyticsProperties,
+    youtubeChannels, setYoutubeChannels, spreakerShows, setSpreakerShows, analyticsProperties, setAnalyticsProperties,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
     sendToAPI, uploadFileToServer, fetchData, handleScanBusinessCard, logActivity, handleSaveGlobalChecklist,
     handleGenerateOnboarding, handleGenerateOffboarding, handleReorderTasks, handleImportCSV,
