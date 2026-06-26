@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv, Archive } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 import { colorStyles } from '../../utils/constants';
 
@@ -10,7 +10,6 @@ export default function TeamDirectoryView({
   setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal, shows, youtubeChannels
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
 
   let displayedUsers = [];
   if (activeTeamTab === 'overview') {
@@ -29,9 +28,6 @@ export default function TeamDirectoryView({
           displayedUsers = users.filter(u => selectedCompany.userIds?.includes(u.id));
       }
   }
-
-  // Filter out archived users unless the toggle is on
-  displayedUsers = displayedUsers.filter(u => showArchived ? u.isArchived : !u.isArchived);
 
   const filteredUsers = displayedUsers.filter(u => {
       if (!searchQuery) return true;
@@ -68,7 +64,7 @@ export default function TeamDirectoryView({
           <div key={user.id} className="relative flex flex-col">
               {/* Card */}
               <div 
-                  className={`flex items-center gap-3 bg-white border border-slate-200 p-3 rounded-xl shadow-sm w-72 mb-4 relative z-10 hover:border-indigo-300 transition-colors cursor-pointer group ${user.isArchived ? 'opacity-60 grayscale' : ''}`} 
+                  className="flex items-center gap-3 bg-white border border-slate-200 p-3 rounded-xl shadow-sm w-72 mb-4 relative z-10 hover:border-indigo-300 transition-colors cursor-pointer group" 
                   onClick={() => currentUser?.isAdmin ? openTeamModal(user) : null}
               >
                  {user.avatarUrl ? (
@@ -79,8 +75,7 @@ export default function TeamDirectoryView({
                  <div className="flex-1 min-w-0">
                      <div className="font-bold text-sm text-slate-800 truncate flex items-center gap-1">
                         {user.name}
-                        {user.isAdmin && <Shield size={12} className="text-amber-500 flex-shrink-0" title="Admin" />}
-                        {user.isArchived && <Archive size={12} className="text-slate-500 flex-shrink-0" title="Archived" />}
+                        {user.isAdmin && <Shield size={12} className="text-amber-500 flex-shrink-0" />}
                      </div>
                      <div className="text-xs text-slate-500 truncate">{user.title || 'Team Member'}</div>
                      
@@ -145,14 +140,6 @@ export default function TeamDirectoryView({
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button
-                 onClick={() => setShowArchived(!showArchived)}
-                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${showArchived ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
-              >
-                 <Archive size={16} className={showArchived ? "text-amber-500" : "text-slate-500"} />
-                 {showArchived ? 'Viewing Archived' : 'View Archived'}
-              </button>
-
               <button 
                 onClick={() => setIsAvatarMakerModalOpen(true)} 
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
@@ -160,7 +147,6 @@ export default function TeamDirectoryView({
                 <Camera size={16} />
                 Avatar Maker
               </button>
-              
               {currentUser?.isAdmin && (
                 <button 
                   onClick={() => setIsOnboardingModalOpen(true)} 
@@ -189,13 +175,13 @@ export default function TeamDirectoryView({
                   .sort((a, b) => a.title.localeCompare(b.title));
 
               return (
-                <div key={user.id} className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:border-indigo-300 transition-colors ${user.isArchived ? 'opacity-70' : ''}`}>
+                <div key={user.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col group hover:border-indigo-300 transition-colors">
                   <div 
                     className={`p-4 flex items-start gap-3 ${currentUser?.isAdmin ? 'cursor-pointer' : ''}`}
                     onClick={() => currentUser?.isAdmin ? openTeamModal(user) : null}
                   >
                     {user.avatarUrl ? ( 
-                      <img src={user.avatarUrl} alt={user.name} className={`w-12 h-12 rounded-full object-cover border border-slate-100 shadow-sm bg-slate-100 flex-shrink-0 ${user.isArchived ? 'grayscale' : ''}`} /> 
+                      <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full object-cover border border-slate-100 shadow-sm bg-slate-100 flex-shrink-0" /> 
                     ) : ( 
                       <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center border border-slate-100 shadow-sm flex-shrink-0">
                         <UserCircle size={24} className="text-slate-400" />
@@ -208,8 +194,8 @@ export default function TeamDirectoryView({
                       </h3>
                       
                       {user.title && (
-                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5 truncate flex items-center gap-1.5">
-                          {user.title} {user.isArchived && <span className="bg-amber-100 text-amber-700 px-1 py-0.5 rounded border border-amber-200">Archived</span>}
+                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5 truncate">
+                          {user.title}
                         </div>
                       )}
                       
@@ -351,9 +337,7 @@ export default function TeamDirectoryView({
             {filteredUsers.length === 0 && (
                 <div className="col-span-full p-12 text-center flex flex-col items-center bg-white rounded-xl border border-slate-200 border-dashed">
                     <Users size={32} className="text-slate-300 mb-3" />
-                    <p className="text-slate-500 font-medium">
-                       {showArchived ? "No archived users match your search." : "No team members match your search."}
-                    </p>
+                    <p className="text-slate-500 font-medium">No team members match your search.</p>
                 </div>
             )}
           </div>
@@ -370,9 +354,7 @@ export default function TeamDirectoryView({
                  {filteredUsers.length === 0 && (
                     <div className="p-12 text-center flex flex-col items-center text-slate-500">
                         <Users size={32} className="text-slate-300 mb-3" />
-                        <p className="font-medium">
-                          {showArchived ? "No archived users match your search." : "No team members match your search."}
-                        </p>
+                        <p className="font-medium">No team members match your search.</p>
                     </div>
                  )}
              </div>

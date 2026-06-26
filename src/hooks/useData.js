@@ -70,7 +70,6 @@ export function useData({
            setUsers(data.users.map(u => ({
                ...u,
                isAdmin: u.isAdmin == 1 || u.isAdmin === true,
-               isArchived: u.isArchived == 1 || u.isArchived === true,
                canViewProjects: u.canViewProjects == 1 || u.canViewProjects === true,
                canViewBudget: u.canViewBudget == 1 || u.canViewBudget === true,
                canViewDomains: u.canViewDomains == 1 || u.canViewDomains === true,
@@ -593,7 +592,7 @@ export function useData({
 
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id), wpUserId: userToEdit.wpUserId || '' });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, isArchived: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewAnalytics: false, canViewEvents: true, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewAnalytics: false, canViewEvents: true, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
     setIsTeamModalOpen(true);
   };
 
@@ -739,27 +738,11 @@ export function useData({
     setIsTeamModalOpen(false);
   };
 
-  const handleArchiveUser = (userToArchive) => {
-     const updated = { ...userToArchive, isArchived: true };
-     setUsers(users.map(u => u.id === userToArchive.id ? updated : u));
-     logActivity('Team', 'Team Member Archived', `Archived team member "${userToArchive.name}"`);
-     sendToAPI('save_user', updated);
-     setIsTeamModalOpen(false);
-  };
-
-  const handleRestoreUser = (userToRestore) => {
-     const updated = { ...userToRestore, isArchived: false };
-     setUsers(users.map(u => u.id === userToRestore.id ? updated : u));
-     logActivity('Team', 'Team Member Restored', `Restored team member "${userToRestore.name}"`);
-     sendToAPI('save_user', updated);
-     setIsTeamModalOpen(false);
-  };
-
   const handleDeleteUser = (userId) => {
     const userToDelete = users.find(u => u.id === userId);
     if (!userToDelete) return;
-    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace? All their data will be permanently deleted.`)) return;
-    logActivity('Team', 'Team Member Removed', `Permanently removed team member "${userToDelete.name}" from the directory.`);
+    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace?`)) return;
+    logActivity('Team', 'Team Member Removed', `Removed team member "${userToDelete.name}" from the directory.`);
     setUsers(users.filter(u => u.id !== userId));
     setIsTeamModalOpen(false);
     sendToAPI('delete_user', { id: userId });
@@ -823,7 +806,7 @@ export function useData({
     handleSaveContact, handleDeleteContact, openPasswordModal, handleSavePassword, handleDeletePassword,
     openTeamModal, openCompanyModal, toggleCompanyUser, handleSaveCompany, handleDeleteCompany,
     openProjectModal, handleSaveProject, handleArchiveProject, handleRestoreProject, handlePermanentDeleteProject,
-    openProfileModal, handleSaveProfile, handleSaveTeamMember, handleArchiveUser, handleRestoreUser, handleDeleteUser, handleUpdateUser,
+    openProfileModal, handleSaveProfile, handleSaveTeamMember, handleDeleteUser, handleUpdateUser,
     handleCompanyLogoUpload, handleProfileImageUpload, handleTeamMemberImageUpload, handleSponsorshipLogoUpload,
     handleFileUpload, removeFile, handleDragStart, handleDrop, handleDragOver
   };
