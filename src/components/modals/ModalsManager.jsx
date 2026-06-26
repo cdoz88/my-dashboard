@@ -41,7 +41,7 @@ export default function ModalsManager({
   isProjectModalOpen, editingProject, setEditingProject, handleSaveProject, handleArchiveProject, handlePermanentDeleteProject, setIsProjectModalOpen,
   // 7. Profile & Team Modal Props
   isProfileModalOpen, profileForm, setProfileForm, handleSaveProfile, handleProfileImageUpload, setIsProfileModalOpen, setLoggedInUserId,
-  isTeamModalOpen, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, handleDeleteUser, handleTeamMemberImageUpload, setIsTeamModalOpen,
+  isTeamModalOpen, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, handleArchiveUser, handleRestoreUser, handleDeleteUser, handleTeamMemberImageUpload, setIsTeamModalOpen,
   isSwitchUserModalOpen, loggedInUserId, setIsSwitchUserModalOpen,
   // 8. Integration Modal Props
   isYoutubeModalOpen, editingYoutubeChannel, setEditingYoutubeChannel, handleSaveYoutubeChannel, handleUpdateYoutubeChannel, handleDeleteYoutubeChannel, setIsYoutubeModalOpen,
@@ -215,6 +215,8 @@ export default function ModalsManager({
           editingTeamMember={editingTeamMember} 
           setEditingTeamMember={setEditingTeamMember} 
           handleSaveTeamMember={handleSaveTeamMember} 
+          handleArchiveUser={handleArchiveUser}
+          handleRestoreUser={handleRestoreUser}
           handleDeleteUser={handleDeleteUser} 
           handleTeamMemberImageUpload={handleTeamMemberImageUpload} 
           isUploading={isUploading} 

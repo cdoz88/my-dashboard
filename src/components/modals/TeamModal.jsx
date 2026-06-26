@@ -9,7 +9,7 @@ export default function TeamModal({
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden">
-        <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col hidden sm:flex">
+        <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
             <button onClick={() => {
