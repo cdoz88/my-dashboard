@@ -1,17 +1,18 @@
 import React from 'react';
-import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock, Calculator, BarChart3 } from 'lucide-react';
+import { X, Users, Plus, UserCircle, Shield, LayoutDashboard, CalendarDays, Wallet, Globe, ToggleRight, ToggleLeft, Youtube, Tv, Award, BookUser, Lock, Calculator, BarChart3, Archive } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
-  users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, handleDeleteUser,
+  users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, 
+  handleArchiveUser, handleRestoreUser, handleDeleteUser,
   isUploading, setIsTeamModalOpen, currentUser
 }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden">
-        <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex overflow-hidden border-t-4 border-t-indigo-600">
+        <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col hidden sm:flex">
           <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-blue-600"/> Team</h3>
+            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} className="text-indigo-600"/> Team</h3>
             <button onClick={() => {
                 const fsanComp = companies.find(c => c.name.toLowerCase().includes('fsan'));
                 setEditingTeamMember({ 
@@ -23,6 +24,7 @@ export default function TeamModal({
                     venmo: '', 
                     webhookUrl: '', 
                     isAdmin: false, 
+                    isArchived: false,
                     canViewProjects: true, 
                     canViewEvents: true, 
                     canViewYoutube: true, 
@@ -39,17 +41,21 @@ export default function TeamModal({
                     responsibilities: '', 
                     wpUserId: '' 
                 });
-            }} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
+            }} className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors"><Plus size={18}/></button>
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {users.map(u => (
               <button key={u.id} onClick={() => {
                   const userCompanyIds = companies.filter(c => c.userIds?.includes(u.id)).map(c => c.id);
                   setEditingTeamMember({...u, companyIds: userCompanyIds});
-              }} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-blue-100 border-blue-200' : 'hover:bg-white border border-transparent'}`}>
+              }} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${editingTeamMember?.id === u.id ? 'bg-indigo-100 border-indigo-200' : 'hover:bg-white border border-transparent'} ${u.isArchived ? 'opacity-50 grayscale' : ''}`}>
                 {u.avatarUrl ? <img src={u.avatarUrl} className="w-8 h-8 rounded-full object-cover bg-white" alt="Avatar" /> : <UserCircle size={32} className="text-slate-400" />}
                 <div className="overflow-hidden">
-                  <div className="font-semibold text-sm text-slate-800 truncate flex items-center gap-1">{u.name} {u.isAdmin && <Shield size={12} className="text-amber-500" title="Admin"/>}</div>
+                  <div className="font-semibold text-sm text-slate-800 truncate flex items-center gap-1">
+                      {u.name} 
+                      {u.isAdmin && <Shield size={12} className="text-amber-500" title="Admin"/>}
+                      {u.isArchived && <Archive size={12} className="text-slate-400" title="Archived"/>}
+                  </div>
                   <div className="text-xs text-slate-500 truncate">{u.email}</div>
                 </div>
               </button>
@@ -62,11 +68,14 @@ export default function TeamModal({
           
           {editingTeamMember ? (
             <div className="p-8 overflow-y-auto flex-1">
-              <h2 className="text-2xl font-bold mb-6">{editingTeamMember.id ? 'Edit Team Member' : 'Invite New Member'}</h2>
+              <div className="flex items-center gap-3 mb-6">
+                 <h2 className="text-2xl font-bold">{editingTeamMember.id ? 'Edit Team Member' : 'Invite New Member'}</h2>
+                 {editingTeamMember.isArchived && <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Archived</span>}
+              </div>
               
               <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="relative">
-                  {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className="w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white" alt="Avatar" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
+                  {editingTeamMember.avatarUrl ? <img src={editingTeamMember.avatarUrl} className={`w-24 h-24 rounded-full object-cover border-4 border-slate-100 shadow-sm bg-white ${editingTeamMember.isArchived ? 'grayscale opacity-70' : ''}`} alt="Avatar" /> : <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-50 shadow-sm"><UserCircle size={48} className="text-slate-400" /></div>}
                   <div className="absolute bottom-0 right-0 bg-slate-700 text-white p-1.5 rounded-full shadow-md cursor-help" title="Avatar managed via WordPress"><Lock size={12} /></div>
                 </div>
               </div>
@@ -74,25 +83,25 @@ export default function TeamModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                  <input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" required value={editingTeamMember.name} onChange={(e) => setEditingTeamMember({...editingTeamMember, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                  <input type="email" required value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="email" required value={editingTeamMember.email} onChange={(e) => setEditingTeamMember({...editingTeamMember, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
-                  <input type="tel" value={editingTeamMember.phone || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="(555) 555-5555" />
+                  <input type="tel" value={editingTeamMember.phone || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="(555) 555-5555" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Title / Role</label>
-                  <input type="text" value={editingTeamMember.title || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lead Designer" />
+                  <input type="text" value={editingTeamMember.title || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Lead Designer" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reports To (Manager)</label>
-                  <select value={editingTeamMember.managerId || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, managerId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <select value={editingTeamMember.managerId || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, managerId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                       <option value="">No Manager (Top Level)</option>
-                      {users.filter(u => u.id !== editingTeamMember.id).map(u => (
+                      {users.filter(u => u.id !== editingTeamMember.id && !u.isArchived).map(u => (
                           <option key={u.id} value={u.id}>{u.name}</option>
                       ))}
                   </select>
@@ -100,8 +109,14 @@ export default function TeamModal({
                 
                 <div className="md:col-span-2 pt-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Roles & Responsibilities</label>
-                  <textarea rows="3" value={editingTeamMember.responsibilities || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, responsibilities: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="List core duties, projects owned, etc..." />
+                  <textarea rows="3" value={editingTeamMember.responsibilities || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, responsibilities: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="List core duties, projects owned, etc..." />
                 </div>
+              </div>
+
+              <div className="mb-8 pt-2">
+                 <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Google Chat Webhook URL <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Push Notifications</span></label>
+                 <input type="text" value={editingTeamMember.webhookUrl || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, webhookUrl: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://chat.googleapis.com/v1/spaces/..." />
+                 <p className="text-[10px] text-slate-400 mt-1.5">Paste the incoming webhook URL from this user's Google Chat Space to enable push notifications for task assignments.</p>
               </div>
 
               {!editingTeamMember.id && (
@@ -125,7 +140,7 @@ export default function TeamModal({
                            ? [...(editingTeamMember.companyIds || []), c.id]
                            : (editingTeamMember.companyIds || []).filter(id => id !== c.id);
                         setEditingTeamMember({...editingTeamMember, companyIds: newIds});
-                     }} className="w-4 h-4 accent-blue-600 rounded" />
+                     }} className="w-4 h-4 accent-indigo-600 rounded" />
                      <CompanyLogo company={c} sizeClass="w-5 h-5" />
                      <span className="text-sm font-medium text-slate-700">{c.name}</span>
                    </label>
@@ -188,9 +203,18 @@ export default function TeamModal({
 
               <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between">
                 {editingTeamMember.id && editingTeamMember.id !== currentUser.id ? (
-                   <button type="button" onClick={() => handleDeleteUser(editingTeamMember.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">Remove Member</button>
+                   <div className="flex gap-2">
+                     {editingTeamMember.isArchived ? (
+                         <>
+                           <button type="button" onClick={() => handleRestoreUser(editingTeamMember)} className="px-4 py-2 text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-lg font-medium transition-colors">Restore Member</button>
+                           <button type="button" onClick={() => handleDeleteUser(editingTeamMember.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg font-medium transition-colors">Delete Forever</button>
+                         </>
+                     ) : (
+                         <button type="button" onClick={() => handleArchiveUser(editingTeamMember)} className="px-4 py-2 text-amber-600 hover:bg-amber-50 border border-transparent hover:border-amber-200 rounded-lg font-medium transition-colors">Archive Member</button>
+                     )}
+                   </div>
                 ) : <div></div>}
-                <button onClick={handleSaveTeamMember} disabled={isUploading} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm transition-colors">Save Member</button>
+                <button onClick={handleSaveTeamMember} disabled={isUploading} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-sm transition-colors">Save Member</button>
               </div>
             </div>
           ) : ( <div className="flex-1 flex flex-col items-center justify-center text-slate-400"><Users size={64} className="mb-4 opacity-20" /><p>Select a user to edit or create a new one.</p></div> )}
