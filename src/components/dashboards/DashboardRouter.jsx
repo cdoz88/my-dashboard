@@ -34,7 +34,9 @@ export default function DashboardRouter({
   contacts, activeCRMTab, crmDisplayMode, openContactModal, handleDeleteContact, passwords, activePasswordTab, 
   openPasswordModal, handleDeletePassword, handleUpdateUser, setIsOnboardingModalOpen, visibleCompanies, activeTeamTab, 
   globalChecklist, handleGenerateOnboarding, handleGenerateOffboarding, setIsAvatarMakerModalOpen, teamDisplayMode, 
-  openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs, youtubeSection, websiteSection
+  openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs, youtubeSection, websiteSection,
+  // Ensure these handle functions are destructured here!
+  handleSyncStripe, handleSyncYoutube, handleSyncSpreaker, handleSyncAnalytics, handleSyncGoDaddy
 }) {
 
   if (currentApp === 'home') {
