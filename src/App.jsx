@@ -1,4 +1,5 @@
 import React from 'react';
+import { Menu, CheckCircle, Tv, Wallet } from 'lucide-react';
 
 // Shared Components
 import AuthScreen from './components/auth/AuthScreen';
@@ -11,6 +12,50 @@ import ModalsManager from './components/modals/ModalsManager';
 
 // Context Provider
 import { AppProvider, useAppContext } from './context/AppContext';
+
+function MobileBottomNav({ appState }) {
+  const {
+    currentApp, activeTab, setCurrentApp, setActiveTab,
+    setIsMobileMenuOpen, setYoutubeSection, setActiveShowTab,
+    youtubeSection
+  } = appState;
+
+  return (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center h-16 z-40 px-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <button
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="flex flex-col items-center justify-center w-full h-full space-y-1 text-slate-500 hover:text-slate-800 transition-colors"
+      >
+        <Menu size={20} />
+        <span className="text-[10px] font-bold">Menu</span>
+      </button>
+      
+      <button
+        onClick={() => { setCurrentApp('projects'); setActiveTab('mytasks'); }}
+        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentApp === 'projects' && activeTab === 'mytasks' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
+      >
+        <CheckCircle size={20} />
+        <span className="text-[10px] font-bold">Tasks</span>
+      </button>
+      
+      <button
+        onClick={() => { setCurrentApp('youtube'); setYoutubeSection('shows'); setActiveShowTab('overview'); }}
+        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentApp === 'youtube' && youtubeSection === 'shows' ? 'text-red-600' : 'text-slate-500 hover:text-slate-800'}`}
+      >
+        <Tv size={20} />
+        <span className="text-[10px] font-bold">Shows</span>
+      </button>
+      
+      <button
+        onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); }}
+        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentApp === 'ledger' ? 'text-emerald-600' : 'text-slate-500 hover:text-slate-800'}`}
+      >
+        <Wallet size={20} />
+        <span className="text-[10px] font-bold">Ledger</span>
+      </button>
+    </div>
+  );
+}
 
 function AppContent() {
   // Reach up into the global context cloud and grab all of our logic and data!
@@ -56,6 +101,10 @@ function AppContent() {
           </main>
           
         </div>
+
+        {/* The new Mobile App Navigation Bar */}
+        <MobileBottomNav appState={appState} />
+
       </div>
 
       <ModalsManager {...appState} />
