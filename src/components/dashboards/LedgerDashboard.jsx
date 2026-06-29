@@ -363,7 +363,7 @@ export default function LedgerDashboard({
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left min-w-[900px]">
+                    <table className="w-full text-sm text-left min-w-[1000px]">
                         <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                             <tr>
                                 <th className="px-4 py-4 w-48">YouTube Channel</th>
@@ -371,6 +371,7 @@ export default function LedgerDashboard({
                                 <th className="px-4 py-4 w-40">Creator</th>
                                 <th className="px-4 py-4 w-28">Rev Share %</th>
                                 <th className="px-4 py-4 w-40">Start Date</th>
+                                <th className="px-4 py-4 text-right w-32">Earnings</th>
                                 <th className="px-4 py-4 text-right w-24">Actions</th>
                             </tr>
                         </thead>
@@ -378,6 +379,7 @@ export default function LedgerDashboard({
                             {ytPlaylists && ytPlaylists.length > 0 ? ytPlaylists.map((pl) => {
                                 const isEditing = editingYt.hasOwnProperty(pl.id);
                                 const currentPl = editingYt[pl.id] || pl;
+                                const plEarned = parseFloat(pl.ledgerRevenue || 0) * (parseFloat(pl.revShare ?? 100) / 100);
 
                                 return (
                                 <tr key={pl.id} className="hover:bg-slate-50 transition-colors">
@@ -429,6 +431,9 @@ export default function LedgerDashboard({
                                         ) : ( <span className="text-slate-600">{pl.paymentStartDate ? new Date(`${pl.paymentStartDate}T12:00:00`).toLocaleDateString() : 'None'}</span> )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
+                                        <span className="font-bold text-emerald-600">{formatCurrency(plEarned)}</span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             {isEditing ? (
                                                 <button onClick={() => handleSaveYtPlaylist(currentPl)} className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-emerald-200 transition-colors flex items-center gap-1">
@@ -442,7 +447,7 @@ export default function LedgerDashboard({
                                     </td>
                                 </tr>
                             )}) : (
-                                <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500"><div className="flex flex-col items-center justify-center"><Youtube size={48} className="text-slate-300 mb-3" /><p className="font-semibold">No YouTube Playlists mapped.</p><p className="text-sm">Click "Add Playlist" to start tracking revenue share.</p></div></td></tr>
+                                <tr><td colSpan="7" className="px-6 py-8 text-center text-slate-500"><div className="flex flex-col items-center justify-center"><Youtube size={48} className="text-slate-300 mb-3" /><p className="font-semibold">No YouTube Playlists mapped.</p><p className="text-sm">Click "Add Playlist" to start tracking revenue share.</p></div></td></tr>
                             )}
                         </tbody>
                     </table>
