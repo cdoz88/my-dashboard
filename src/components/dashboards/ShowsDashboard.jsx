@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2, Award } from 'lucide-react';
+// FIX: Imported the missing LayoutGrid icon to prevent the ReferenceError
+import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2, Award, LayoutGrid } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 
 export default function ShowsDashboard({ 

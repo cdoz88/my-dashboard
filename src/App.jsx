@@ -38,9 +38,10 @@ function MobileBottomNav({ appState }) {
         <span className="text-[10px] font-bold">Tasks</span>
       </button>
       
+      {/* FIXED: Pointing the Shows button to 'myshows' section */}
       <button
-        onClick={() => { setCurrentApp('youtube'); setYoutubeSection('shows'); setActiveShowTab('overview'); }}
-        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentApp === 'youtube' && youtubeSection === 'shows' ? 'text-red-600' : 'text-slate-500 hover:text-slate-800'}`}
+        onClick={() => { setCurrentApp('youtube'); setYoutubeSection('myshows'); setActiveShowTab('overview'); }}
+        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentApp === 'youtube' && youtubeSection === 'myshows' ? 'text-red-600' : 'text-slate-500 hover:text-slate-800'}`}
       >
         <Tv size={20} />
         <span className="text-[10px] font-bold">Shows</span>
@@ -58,7 +59,6 @@ function MobileBottomNav({ appState }) {
 }
 
 function AppContent() {
-  // Reach up into the global context cloud and grab all of our logic and data!
   const appState = useAppContext();
 
   if (appState.isLoading) {
@@ -102,7 +102,6 @@ function AppContent() {
           
         </div>
 
-        {/* The new Mobile App Navigation Bar */}
         <MobileBottomNav appState={appState} />
 
       </div>
@@ -112,7 +111,6 @@ function AppContent() {
   );
 }
 
-// Wrap the entire app in the Provider so all components have access to the data
 export default function App() {
   return (
     <AppProvider>
