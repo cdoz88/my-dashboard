@@ -15,6 +15,7 @@ import YoutubeDashboard from './YoutubeDashboard';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import ActivityLogView from './ActivityLogView';
 import ShowsDashboard from './ShowsDashboard';
+import MyShowsView from './MyShowsView'; // <-- Imported New Component
 import SponsorshipsDashboard from './SponsorshipsDashboard';
 import CRMDashboard from './CRMDashboard';
 import PasswordsDashboard from './PasswordsDashboard';
@@ -35,7 +36,6 @@ export default function DashboardRouter({
   openPasswordModal, handleDeletePassword, handleUpdateUser, setIsOnboardingModalOpen, visibleCompanies, activeTeamTab, 
   globalChecklist, handleGenerateOnboarding, handleGenerateOffboarding, setIsAvatarMakerModalOpen, teamDisplayMode, 
   openTeamModal, openPayoutModal, handleSyncLedger, isSyncingLedger, activityLogs, youtubeSection, websiteSection,
-  // Ensure these handle functions are destructured here!
   handleSyncStripe, handleSyncYoutube, handleSyncSpreaker, handleSyncAnalytics, handleSyncGoDaddy
 }) {
 
@@ -82,6 +82,10 @@ export default function DashboardRouter({
   if (currentApp === 'youtube') {
     if (youtubeSection === 'shows') {
         return <ShowsDashboard shows={shows} sponsorships={sponsorships} activeShowTab={activeShowTab} showDisplayMode={showDisplayMode} openShowModal={openShowModal} handleDeleteShow={handleDeleteShow} youtubeChannels={youtubeChannels} users={users} />;
+    }
+    if (youtubeSection === 'myshows') {
+        // --- NEW MY SHOWS VIEW ---
+        return <MyShowsView shows={shows} currentUser={currentUser} openShowModal={openShowModal} youtubeChannels={youtubeChannels} />;
     }
     return <YoutubeDashboard youtubeChannels={youtubeChannels} activeYoutubeChannelId={activeYoutubeChannelId} youtubeTimeFilter={youtubeTimeFilter} />;
   }
