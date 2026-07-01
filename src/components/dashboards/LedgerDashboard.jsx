@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft, Play } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft, Play, Archive } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 
@@ -43,6 +43,7 @@ export default function LedgerDashboard({
   const [ytPlaylists, setYtPlaylists] = useState([]);
   const [editingYt, setEditingYt] = useState({});
   const [isImportingPlaylists, setIsImportingPlaylists] = useState(false);
+  const [showArchivedPl, setShowArchivedPl] = useState(false);
 
   useEffect(() => {
     if (currentUser?.isAdmin) {
@@ -64,7 +65,10 @@ export default function LedgerDashboard({
 
   useEffect(() => {
     if (activeTab !== 'wordpress') setSelectedWpUserId(null);
-    if (activeTab !== 'yt_playlists') setSelectedYtUserId(null);
+    if (activeTab !== 'yt_playlists') {
+        setSelectedYtUserId(null);
+        setShowArchivedPl(false);
+    }
   }, [activeTab]);
 
   // --- STRIPE LOGIC ---
@@ -111,9 +115,10 @@ export default function LedgerDashboard({
 
   const handleAddYtPlaylist = () => {
       const newId = 'yt_pl_' + Date.now();
-      const newPl = { id: newId, channelId: youtubeChannels[0]?.id || '', playlistId: '', playlistName: 'New Playlist', userId: '', revShare: 100, paymentStartDate: '' };
+      const newPl = { id: newId, channelId: youtubeChannels[0]?.id || '', playlistId: '', playlistName: 'New Playlist', userId: '', revShare: 100, paymentStartDate: '', isArchived: false };
       setYtPlaylists([newPl, ...ytPlaylists]);
       setEditingYt(prev => ({ ...prev, [newId]: newPl }));
+      setShowArchivedPl(false);
   };
 
   const handleSaveYtPlaylist = async (playlist) => {
@@ -125,8 +130,17 @@ export default function LedgerDashboard({
       } catch (err) { console.error(err); }
   };
 
+  const handleToggleArchivePl = async (playlist) => {
+      const isArchived = !playlist.isArchived;
+      const updated = { ...playlist, isArchived };
+      try {
+          await fetch(`${API_URL}?action=save_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+          setYtPlaylists(prev => prev.map(p => p.id === playlist.id ? updated : p));
+      } catch (err) { console.error(err); }
+  };
+
   const handleDeleteYtPlaylist = async (id) => {
-      if (!window.confirm("Are you sure you want to remove this playlist from the ledger?")) return;
+      if (!window.confirm("Are you sure you want to permanently remove this playlist from the ledger? Note: Archiving is usually preferred to retain history.")) return;
       setYtPlaylists(prev => prev.filter(p => p.id !== id));
       try { await fetch(`${API_URL}?action=delete_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } 
       catch (err) { console.error(err); }
@@ -188,11 +202,14 @@ export default function LedgerDashboard({
     if (!currentUser?.isAdmin || selectedYtUserId) {
         const targetUserId = currentUser?.isAdmin ? selectedYtUserId : currentUser?.id;
         const targetUser = users.find(u => u.id === targetUserId);
-        const myPlaylists = ytPlaylists.filter(pl => pl.userId === targetUserId);
         
-        const totalPlaylists = myPlaylists.length;
-        const totalTrackedVideos = myPlaylists.reduce((sum, pl) => sum + parseInt(pl.ledgerVideos || 0), 0);
-        const totalMyEarnings = myPlaylists.reduce((sum, pl) => {
+        const allMyPlaylists = ytPlaylists.filter(pl => pl.userId === targetUserId);
+        const myPlaylists = allMyPlaylists.filter(pl => showArchivedPl ? pl.isArchived : !pl.isArchived);
+        
+        // Ensure top metrics always reflect total earning power (including archived)
+        const totalPlaylists = allMyPlaylists.length;
+        const totalTrackedVideos = allMyPlaylists.reduce((sum, pl) => sum + parseInt(pl.ledgerVideos || 0), 0);
+        const totalMyEarnings = allMyPlaylists.reduce((sum, pl) => {
             const rev = parseFloat(pl.ledgerRevenue || 0);
             const pct = parseFloat(pl.revShare ?? 100) / 100;
             return sum + (rev * pct);
@@ -233,6 +250,9 @@ export default function LedgerDashboard({
                             <p className="text-slate-500 text-sm mt-1">Detailed breakdown of {currentUser?.isAdmin ? 'their' : 'your'} assigned YouTube playlists.</p>
                         </div>
                     </div>
+                    <button onClick={() => setShowArchivedPl(!showArchivedPl)} className={`px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 border ${showArchivedPl ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}>
+                        <Archive size={18} className={showArchivedPl ? "text-amber-500" : "text-slate-500"} /> {showArchivedPl ? 'Viewing Archived' : 'View Archived'}
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
@@ -252,7 +272,7 @@ export default function LedgerDashboard({
 
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">Playlists</h3>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">{showArchivedPl ? 'Archived Playlists' : 'Active Playlists'}</h3>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left min-w-[700px]">
@@ -270,11 +290,12 @@ export default function LedgerDashboard({
                                     const channel = youtubeChannels.find(c => c.id === pl.channelId);
                                     const plEarned = parseFloat(pl.ledgerRevenue || 0) * (parseFloat(pl.revShare ?? 100) / 100);
                                     return (
-                                        <tr key={pl.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr key={pl.id} className={`hover:bg-slate-50 transition-colors ${pl.isArchived ? 'opacity-70' : ''}`}>
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-slate-800 flex items-center gap-2">
                                                     <Youtube size={16} className="text-red-500 flex-shrink-0" />
                                                     <span className="truncate max-w-[300px]" title={pl.playlistName}>{pl.playlistName || 'Unknown Playlist'}</span>
+                                                    {pl.isArchived && <span className="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded border border-amber-200">Archived</span>}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 mt-1">{pl.playlistId}</div>
                                             </td>
@@ -289,7 +310,7 @@ export default function LedgerDashboard({
                                         <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Youtube size={48} className="text-slate-300 mb-3" />
-                                                <p className="font-semibold text-slate-700">No playlists assigned yet.</p>
+                                                <p className="font-semibold text-slate-700">{showArchivedPl ? 'No archived playlists found.' : 'No active playlists assigned yet.'}</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -301,7 +322,7 @@ export default function LedgerDashboard({
 
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
-                        <h3 className="font-bold text-slate-800 flex items-center gap-2">Individual Video Performance</h3>
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">Individual Video Performance {showArchivedPl && '(From Archived)'}</h3>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left min-w-[800px]">
@@ -315,7 +336,7 @@ export default function LedgerDashboard({
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {allVideos.length > 0 ? allVideos.map((video, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={idx} className={`hover:bg-slate-50 transition-colors ${showArchivedPl ? 'opacity-70' : ''}`}>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-4">
                                                {video.thumbnail ? (
@@ -360,6 +381,8 @@ export default function LedgerDashboard({
     }
 
     // --- ADMIN VIEW (Master Playlist Configs) ---
+    const visiblePlaylists = ytPlaylists.filter(pl => showArchivedPl ? pl.isArchived : !pl.isArchived);
+
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
         <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -372,7 +395,10 @@ export default function LedgerDashboard({
                     <p className="text-slate-500 text-sm mt-1">Map YouTube playlists to creators to auto-calculate their revenue share.</p>
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setShowArchivedPl(!showArchivedPl)} className={`px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 border ${showArchivedPl ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}>
+                        <Archive size={18} className={showArchivedPl ? "text-amber-500" : "text-slate-500"} /> {showArchivedPl ? 'Viewing Archived' : 'View Archived'}
+                    </button>
                     <button onClick={handleImportPlaylists} disabled={isImportingPlaylists} className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
                         <RefreshCw size={18} className={isImportingPlaylists ? 'animate-spin' : ''} /> Auto-Import Playlists
                     </button>
@@ -397,13 +423,13 @@ export default function LedgerDashboard({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {ytPlaylists && ytPlaylists.length > 0 ? ytPlaylists.map((pl) => {
+                            {visiblePlaylists && visiblePlaylists.length > 0 ? visiblePlaylists.map((pl) => {
                                 const isEditing = editingYt.hasOwnProperty(pl.id);
                                 const currentPl = editingYt[pl.id] || pl;
                                 const plEarned = parseFloat(pl.ledgerRevenue || 0) * (parseFloat(pl.revShare ?? 100) / 100);
 
                                 return (
-                                <tr key={pl.id} className="hover:bg-slate-50 transition-colors">
+                                <tr key={pl.id} className={`hover:bg-slate-50 transition-colors ${pl.isArchived ? 'opacity-70' : ''}`}>
                                     <td className="px-4 py-3">
                                         {isEditing ? (
                                             <select value={currentPl.channelId} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, channelId: e.target.value}}))} className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm">
@@ -417,7 +443,10 @@ export default function LedgerDashboard({
                                             <input type="text" value={currentPl.playlistId} onChange={(e) => setEditingYt(prev => ({...prev, [pl.id]: {...currentPl, playlistId: e.target.value}}))} className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm" placeholder="Paste full URL..." />
                                         ) : ( 
                                             <div>
-                                                <div className="font-bold text-slate-800">{pl.playlistName || 'Unknown Playlist'}</div>
+                                                <div className="font-bold text-slate-800 flex items-center gap-2">
+                                                    <span className="truncate max-w-[200px]" title={pl.playlistName}>{pl.playlistName || 'Unknown Playlist'}</span>
+                                                    {pl.isArchived && <span className="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded border border-amber-200 flex-shrink-0">Archived</span>}
+                                                </div>
                                                 <div className="text-xs text-slate-400 font-mono mt-0.5 truncate max-w-[200px]">{pl.playlistId}</div>
                                             </div>
                                         )}
@@ -461,14 +490,34 @@ export default function LedgerDashboard({
                                                     <Save size={14} /> Save
                                                 </button>
                                             ) : (
-                                                <button onClick={() => setEditingYt(prev => ({...prev, [pl.id]: pl}))} className="text-slate-400 hover:text-blue-600 px-2 py-1 transition-colors text-xs font-bold">Edit</button>
+                                                <>
+                                                    <button onClick={() => setEditingYt(prev => ({...prev, [pl.id]: pl}))} className="text-slate-400 hover:text-blue-600 px-2 py-1 transition-colors text-xs font-bold">Edit</button>
+                                                    <button onClick={() => handleToggleArchivePl(pl)} className="text-slate-400 hover:text-amber-600 p-1 transition-colors" title={pl.isArchived ? "Restore" : "Archive"}><Archive size={16} /></button>
+                                                </>
                                             )}
-                                            <button onClick={() => handleDeleteYtPlaylist(pl.id)} className="text-slate-400 hover:text-red-600 p-1 transition-colors"><Trash2 size={16} /></button>
+                                            <button onClick={() => handleDeleteYtPlaylist(pl.id)} className="text-slate-400 hover:text-red-600 p-1 transition-colors" title="Permanent Delete"><Trash2 size={16} /></button>
                                         </div>
                                     </td>
                                 </tr>
                             )}) : (
-                                <tr><td colSpan="7" className="px-6 py-8 text-center text-slate-500"><div className="flex flex-col items-center justify-center"><Youtube size={48} className="text-slate-300 mb-3" /><p className="font-semibold">No YouTube Playlists mapped.</p><p className="text-sm">Click "Add Playlist" to start tracking revenue share.</p></div></td></tr>
+                                <tr>
+                                   <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
+                                      <div className="flex flex-col items-center justify-center">
+                                         {showArchivedPl ? (
+                                            <>
+                                               <Archive size={48} className="text-slate-300 mb-3" />
+                                               <p className="font-semibold">No archived playlists.</p>
+                                            </>
+                                         ) : (
+                                            <>
+                                               <Youtube size={48} className="text-slate-300 mb-3" />
+                                               <p className="font-semibold">No active YouTube Playlists mapped.</p>
+                                               <p className="text-sm">Click "Auto-Import" to pull them in.</p>
+                                            </>
+                                         )}
+                                      </div>
+                                   </td>
+                                </tr>
                             )}
                         </tbody>
                     </table>
