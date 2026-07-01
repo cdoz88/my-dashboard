@@ -375,6 +375,9 @@ export default function Sidebar({
                  <button onClick={() => { setYoutubeSection('shows'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'shows' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
                     <Tv size={18} /> Show Schedule
                  </button>
+                 <button onClick={() => { setYoutubeSection('myshows'); setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'myshows' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <Tv size={18} /> My Shows
+                 </button>
               </div>
             </div>
 
