@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, BarChart3, BookOpen
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, BarChart3, BookOpen, CreditCard, Wallet
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -43,7 +43,6 @@ export default function Sidebar({
                <button onClick={() => { setCurrentApp('projects'); setActiveTab('mytasks'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
                   <CheckCircle size={18} /> My Tasks
                </button>
-               {/* FIXED: Changed setYoutubeSection('shows') to setYoutubeSection('myshows') */}
                <button onClick={() => { setCurrentApp('youtube'); setYoutubeSection('myshows'); setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
                   <Tv size={18} /> My Shows
                </button>
