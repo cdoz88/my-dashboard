@@ -28,20 +28,6 @@ export default function Sidebar({
 
   const getCompany = (id) => companies.find(c => c.id === id);
 
-  const getSubNavColor = () => {
-    if (currentApp === 'projects') return 'text-blue-500 bg-blue-500/10 shadow-[inset_2px_0_0_0_#3b82f6]';
-    if (currentApp === 'budget' || currentApp === 'ledger') return 'text-emerald-500 bg-emerald-500/10 shadow-[inset_2px_0_0_0_#10b981]';
-    if (currentApp === 'youtube') return 'text-red-500 bg-red-500/10 shadow-[inset_2px_0_0_0_#ef4444]';
-    if (currentApp === 'events') return 'text-purple-500 bg-purple-500/10 shadow-[inset_2px_0_0_0_#a855f7]';
-    if (currentApp === 'spreaker') return 'text-[#ffc005] bg-[#ffc005]/10 shadow-[inset_2px_0_0_0_#ffc005]';
-    if (currentApp === 'sponsorships') return 'text-amber-500 bg-amber-500/10 shadow-[inset_2px_0_0_0_#f59e0b]';
-    if (currentApp === 'team') return 'text-indigo-500 bg-indigo-500/10 shadow-[inset_2px_0_0_0_#6366f1]';
-    if (currentApp === 'crm') return 'text-sky-500 bg-sky-500/10 shadow-[inset_2px_0_0_0_#0ea5e9]';
-    if (currentApp === 'activity' || currentApp === 'passwords') return 'text-white bg-slate-700 shadow-[inset_2px_0_0_0_#ffffff]';
-    if (currentApp === 'website') return websiteSection === 'analytics' ? 'text-orange-500 bg-orange-500/10 shadow-[inset_2px_0_0_0_#f97316]' : 'text-teal-500 bg-teal-500/10 shadow-[inset_2px_0_0_0_#14b8a6]';
-    return 'text-slate-300 bg-slate-800 shadow-[inset_2px_0_0_0_#475569]';
-  };
-
   return (
     <div className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full shadow-xl flex-shrink-0">
       <div className="p-5 border-b border-slate-700 flex justify-center items-center lg:hidden">
@@ -57,8 +43,7 @@ export default function Sidebar({
                <button onClick={() => { setCurrentApp('projects'); setActiveTab('mytasks'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
                   <CheckCircle size={18} /> My Tasks
                </button>
-               {/* FIXED: Now routes to the new myshows section instead of the master schedule */}
-               <button onClick={() => { setCurrentApp('youtube'); setYoutubeSection('myshows'); setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
+               <button onClick={() => { setCurrentApp('youtube'); setYoutubeSection('shows'); setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
                   <Tv size={18} /> My Shows
                </button>
                <button onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
@@ -185,7 +170,7 @@ export default function Sidebar({
                    </button>
                  )}
                  <button onClick={() => { setWebsiteSection('domains'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${websiteSection === 'domains' ? 'bg-teal-500 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
-                    <Globe size={18} /> Domains & Hosting
+                    <Globe size={18} /> Domains
                  </button>
               </div>
             </div>
@@ -351,53 +336,73 @@ export default function Sidebar({
           </>
         )}
 
+        {currentApp === 'ledger' && (
+          <>
+            <div className="px-4 mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ledger</p>
+              <button onClick={() => { setActiveTab('all'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${['all', 'mytasks'].includes(activeTab) ? 'bg-emerald-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                <Calculator size={18} /> All Balances
+              </button>
+            </div>
+            
+            <div className="px-4 mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Source</p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => { setActiveTab('yt_playlists'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'yt_playlists' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <Youtube size={16} className={`${activeTab === 'yt_playlists' ? 'text-red-500' : ''}`} /> YouTube Playlists
+                </button>
+                <button onClick={() => { setActiveTab('wordpress'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'wordpress' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <Globe size={16} className={`${activeTab === 'wordpress' ? 'text-sky-500' : ''}`} /> WP Articles
+                </button>
+                <button onClick={() => { setActiveTab('promos'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'promos' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <CreditCard size={16} className={`${activeTab === 'promos' ? 'text-blue-500' : ''}`} /> {currentUser?.isAdmin ? 'Stripe Promos' : 'FSAN Subs'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
         {currentApp === 'youtube' && (
           <>
             <div className="px-4 mb-6">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">YouTube</p>
               <div className="space-y-1">
-                 {currentUser?.isAdmin && (
-                   <button onClick={() => { setYoutubeSection('stats'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${youtubeSection === 'stats' ? getSubNavColor() : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}>
-                      <BarChart3 size={18} /> Channel Stats
-                   </button>
-                 )}
-                 {/* NEW: Dedicated My Shows button under YouTube */}
-                 <button onClick={() => { setYoutubeSection('myshows'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${youtubeSection === 'myshows' ? getSubNavColor() : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}>
-                    <Tv size={18} /> My Upcoming Shows
+                 <button onClick={() => { setYoutubeSection('stats'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'stats' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <BarChart3 size={18} /> Channel Stats
                  </button>
-                 <button onClick={() => { setYoutubeSection('shows'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${youtubeSection === 'shows' ? getSubNavColor() : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}>
-                    <CalendarDays size={18} /> Master Schedule
+                 <button onClick={() => { setYoutubeSection('shows'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${youtubeSection === 'shows' ? 'bg-red-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300'}`}>
+                    <Tv size={18} /> Show Schedule
                  </button>
               </div>
             </div>
 
-            {youtubeSection === 'stats' && youtubeChannels && youtubeChannels.length > 0 && currentUser?.isAdmin && (
+            {youtubeSection === 'stats' && (
               <div className="px-4 mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Channels</p>
-                  <button onClick={() => openYoutubeModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Channel"><Plus size={16} /></button>
+                  {currentUser?.isAdmin && <button onClick={() => openYoutubeModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Channel"><Plus size={16} /></button>}
                 </div>
                 <div className="flex flex-col gap-1">
-                  {youtubeChannels.map(channel => (
+                  {youtubeChannels.length > 0 ? youtubeChannels.map(channel => (
                     <div key={channel.id} className="flex items-center justify-between group/channel">
-                      <button onClick={() => { setActiveYoutubeChannelId(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden ${activeYoutubeChannelId === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                      <button onClick={() => { setActiveYoutubeChannelId(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeYoutubeChannelId === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                         <Youtube size={16} className={`flex-shrink-0 ${activeYoutubeChannelId === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
                         <span className="truncate">{channel.name}</span>
                       </button>
-                      <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1">
-                          <button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button>
-                      </div>
+                      {currentUser?.isAdmin && <div className="flex items-center flex-shrink-0 opacity-0 group-hover/channel:opacity-100 transition-opacity ml-1"><button onClick={(e) => { e.stopPropagation(); openYoutubeModal(channel); }} className="text-slate-500 hover:text-white p-1" title="Edit Channel"><Pencil size={12} /></button></div>}
                     </div>
-                  ))}
+                  )) : ( <div className="text-xs text-slate-500 p-3 text-center italic">No channels added yet.</div> )}
                 </div>
               </div>
             )}
 
-            {youtubeSection === 'shows' && youtubeChannels && youtubeChannels.length > 0 && (
+            {youtubeSection === 'shows' && (
               <>
                 <div className="px-4 mb-4">
-                  <button onClick={() => { setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeShowTab === 'overview' ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                    <LayoutGrid size={16} className={`${activeShowTab === 'overview' ? 'text-red-500' : 'text-slate-500'}`} /> All Channels
+                  <button onClick={() => { setActiveShowTab('overview'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeShowTab === 'overview' ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                    <CalendarDays size={16} className={`${activeShowTab === 'overview' ? 'text-red-500' : 'text-slate-500'}`} /> All Shows
                   </button>
                 </div>
                 <div className="px-4 mb-4">
@@ -407,7 +412,7 @@ export default function Sidebar({
                   <div className="flex flex-col gap-1">
                     {youtubeChannels.map(channel => (
                       <div key={channel.id} className="flex items-center justify-between group/channel">
-                        <button onClick={() => { setActiveShowTab(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden ${activeShowTab === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                        <button onClick={() => { setActiveShowTab(channel.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeShowTab === channel.id ? 'bg-slate-800 text-red-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                           <Youtube size={16} className={`flex-shrink-0 ${activeShowTab === channel.id ? 'text-red-500' : 'text-slate-500'}`} />
                           <span className="truncate">{channel.name}</span>
                         </button>
@@ -428,9 +433,9 @@ export default function Sidebar({
                 {currentUser?.isAdmin && <button onClick={() => openSpreakerModal()} className="text-slate-400 hover:text-white transition-colors p-1" title="Add Show"><Plus size={16} /></button>}
               </div>
               <div className="flex flex-col gap-1">
-                {spreakerShows && spreakerShows.length > 0 ? spreakerShows.map(show => (
+                {spreakerShows.length > 0 ? spreakerShows.map(show => (
                   <div key={show.id} className="flex items-center justify-between group/show">
-                    <button onClick={() => { setActiveSpreakerShowId(show.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden ${activeSpreakerShowId === show.id ? 'bg-slate-800 text-[#ffc005] font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                    <button onClick={() => { setActiveSpreakerShowId(show.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm overflow-hidden ${activeSpreakerShowId === show.id ? 'bg-slate-800 text-[#ffc005] font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                       <Mic size={16} className={`flex-shrink-0 ${activeSpreakerShowId === show.id ? 'text-[#ffc005]' : 'text-slate-500'}`} />
                       <span className="truncate">{show.name}</span>
                     </button>
@@ -456,9 +461,9 @@ export default function Sidebar({
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Company</p>
               </div>
               <div className="flex flex-col gap-1">
-                {visibleCompanies.filter(c => events && events.some(e => e.companyId === c.id)).map(company => (
+                {visibleCompanies.filter(c => events.some(e => e.companyId === c.id)).map(company => (
                   <div key={company.id} className="flex items-center justify-between group/company">
-                    <button onClick={() => { setActiveEventTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeEventTab === company.id ? 'bg-slate-800 text-purple-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                    <button onClick={() => { setActiveEventTab(company.id); setIsMobileMenuOpen(false); }} className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeEventTab === company.id ? 'bg-slate-800 text-purple-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                       <CompanyLogo company={company} sizeClass="w-5 h-5" />
                       <span className="truncate">{company.name}</span>
                     </button>
