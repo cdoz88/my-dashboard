@@ -44,6 +44,7 @@ export default function LedgerDashboard({
   const [editingYt, setEditingYt] = useState({});
   const [isImportingPlaylists, setIsImportingPlaylists] = useState(false);
   const [showArchivedPl, setShowArchivedPl] = useState(false);
+  const [playlistChannelFilter, setPlaylistChannelFilter] = useState('All');
 
   useEffect(() => {
     if (currentUser?.isAdmin) {
@@ -68,6 +69,7 @@ export default function LedgerDashboard({
     if (activeTab !== 'yt_playlists') {
         setSelectedYtUserId(null);
         setShowArchivedPl(false);
+        setPlaylistChannelFilter('All');
     }
   }, [activeTab]);
 
@@ -204,9 +206,13 @@ export default function LedgerDashboard({
         const targetUser = users.find(u => u.id === targetUserId);
         
         const allMyPlaylists = ytPlaylists.filter(pl => pl.userId === targetUserId);
-        const myPlaylists = allMyPlaylists.filter(pl => showArchivedPl ? pl.isArchived : !pl.isArchived);
+        const myPlaylists = allMyPlaylists.filter(pl => {
+            if (showArchivedPl ? !pl.isArchived : pl.isArchived) return false;
+            if (playlistChannelFilter !== 'All' && pl.channelId !== playlistChannelFilter) return false;
+            return true;
+        });
         
-        // Ensure top metrics always reflect total earning power (including archived)
+        // Ensure top metrics always reflect total earning power (including archived and regardless of filter)
         const totalPlaylists = allMyPlaylists.length;
         const totalTrackedVideos = allMyPlaylists.reduce((sum, pl) => sum + parseInt(pl.ledgerVideos || 0), 0);
         const totalMyEarnings = allMyPlaylists.reduce((sum, pl) => {
@@ -250,9 +256,18 @@ export default function LedgerDashboard({
                             <p className="text-slate-500 text-sm mt-1">Detailed breakdown of {currentUser?.isAdmin ? 'their' : 'your'} assigned YouTube playlists.</p>
                         </div>
                     </div>
-                    <button onClick={() => setShowArchivedPl(!showArchivedPl)} className={`px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 border ${showArchivedPl ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}>
-                        <Archive size={18} className={showArchivedPl ? "text-amber-500" : "text-slate-500"} /> {showArchivedPl ? 'Viewing Archived' : 'View Archived'}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-slate-600">Channel:</label>
+                            <select value={playlistChannelFilter} onChange={(e) => setPlaylistChannelFilter(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm">
+                                <option value="All">All Channels</option>
+                                {youtubeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <button onClick={() => setShowArchivedPl(!showArchivedPl)} className={`px-4 py-1.5 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 border text-sm ${showArchivedPl ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}>
+                            <Archive size={16} className={showArchivedPl ? "text-amber-500" : "text-slate-500"} /> {showArchivedPl ? 'Viewing Archived' : 'View Archived'}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 flex-shrink-0">
@@ -310,7 +325,7 @@ export default function LedgerDashboard({
                                         <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Youtube size={48} className="text-slate-300 mb-3" />
-                                                <p className="font-semibold text-slate-700">{showArchivedPl ? 'No archived playlists found.' : 'No active playlists assigned yet.'}</p>
+                                                <p className="font-semibold text-slate-700">{showArchivedPl ? 'No archived playlists match your filter.' : 'No active playlists match your filter.'}</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -381,7 +396,11 @@ export default function LedgerDashboard({
     }
 
     // --- ADMIN VIEW (Master Playlist Configs) ---
-    const visiblePlaylists = ytPlaylists.filter(pl => showArchivedPl ? pl.isArchived : !pl.isArchived);
+    const visiblePlaylists = ytPlaylists.filter(pl => {
+        if (showArchivedPl ? !pl.isArchived : pl.isArchived) return false;
+        if (playlistChannelFilter !== 'All' && pl.channelId !== playlistChannelFilter) return false;
+        return true;
+    });
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
@@ -395,15 +414,22 @@ export default function LedgerDashboard({
                     <p className="text-slate-500 text-sm mt-1">Map YouTube playlists to creators to auto-calculate their revenue share.</p>
                 </div>
                 
-                <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setShowArchivedPl(!showArchivedPl)} className={`px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 border ${showArchivedPl ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}>
-                        <Archive size={18} className={showArchivedPl ? "text-amber-500" : "text-slate-500"} /> {showArchivedPl ? 'Viewing Archived' : 'View Archived'}
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-slate-600 hidden sm:block">Channel:</label>
+                        <select value={playlistChannelFilter} onChange={(e) => setPlaylistChannelFilter(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm text-slate-700">
+                            <option value="All">All Channels</option>
+                            {youtubeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={() => setShowArchivedPl(!showArchivedPl)} className={`px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2 border text-sm ${showArchivedPl ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}>
+                        <Archive size={16} className={showArchivedPl ? "text-amber-500" : "text-slate-500"} /> <span className="hidden sm:inline">{showArchivedPl ? 'Viewing Archived' : 'View Archived'}</span>
                     </button>
-                    <button onClick={handleImportPlaylists} disabled={isImportingPlaylists} className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
-                        <RefreshCw size={18} className={isImportingPlaylists ? 'animate-spin' : ''} /> Auto-Import Playlists
+                    <button onClick={handleImportPlaylists} disabled={isImportingPlaylists} className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2">
+                        <RefreshCw size={16} className={isImportingPlaylists ? 'animate-spin' : ''} /> <span className="hidden lg:inline">Auto-Import Playlists</span><span className="lg:hidden">Import</span>
                     </button>
-                    <button onClick={handleAddYtPlaylist} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
-                        <Plus size={18} /> Add Playlist
+                    <button onClick={handleAddYtPlaylist} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2">
+                        <Plus size={16} /> <span className="hidden sm:inline">Add Playlist</span><span className="sm:hidden">Add</span>
                     </button>
                 </div>
             </div>
@@ -506,13 +532,12 @@ export default function LedgerDashboard({
                                          {showArchivedPl ? (
                                             <>
                                                <Archive size={48} className="text-slate-300 mb-3" />
-                                               <p className="font-semibold">No archived playlists.</p>
+                                               <p className="font-semibold">No archived playlists match your filter.</p>
                                             </>
                                          ) : (
                                             <>
                                                <Youtube size={48} className="text-slate-300 mb-3" />
-                                               <p className="font-semibold">No active YouTube Playlists mapped.</p>
-                                               <p className="text-sm">Click "Auto-Import" to pull them in.</p>
+                                               <p className="font-semibold">No active YouTube Playlists match your filter.</p>
                                             </>
                                          )}
                                       </div>
