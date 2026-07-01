@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv, Archive } from 'lucide-react';
+import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv, Archive, RefreshCw } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 import { colorStyles } from '../../utils/constants';
 
@@ -7,7 +7,7 @@ export default function TeamDirectoryView({
   users, currentUser, handleUpdateUser, setIsOnboardingModalOpen, 
   companies, visibleCompanies, activeTeamTab, globalChecklist,
   projects, tasks, setCurrentApp, setActiveTab, handleGenerateOnboarding, handleGenerateOffboarding,
-  setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal, shows, youtubeChannels
+  setIsAvatarMakerModalOpen, teamDisplayMode, openTeamModal, shows, youtubeChannels, handleImportWpUsers
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -144,7 +144,7 @@ export default function TeamDirectoryView({
               />
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center justify-end gap-3 w-full sm:w-auto">
               <button
                  onClick={() => setShowArchived(!showArchived)}
                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors border ${showArchived ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
@@ -153,12 +153,23 @@ export default function TeamDirectoryView({
                  {showArchived ? 'Viewing Archived' : 'View Archived'}
               </button>
 
+              {currentUser?.isAdmin && (
+                <button 
+                  onClick={handleImportWpUsers} 
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
+                  title="Import authors and admins from WordPress"
+                >
+                  <RefreshCw size={16} />
+                  <span className="hidden sm:inline">Import WP Users</span><span className="sm:hidden">Import WP</span>
+                </button>
+              )}
+
               <button 
                 onClick={() => setIsAvatarMakerModalOpen(true)} 
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
               >
                 <Camera size={16} />
-                Avatar Maker
+                <span className="hidden sm:inline">Avatar Maker</span><span className="sm:hidden">Avatars</span>
               </button>
               
               {currentUser?.isAdmin && (

@@ -217,10 +217,29 @@ export function useIntegrations({
     setIsSyncingLedger(false);
   };
 
+  // --- NEW: WP IMPORT HANDLER ---
+  const handleImportWpUsers = async () => {
+      setIsLoading(true);
+      try {
+          const res = await fetch(`${API_URL}?action=import_wp_users`, { method: 'POST' });
+          const data = await res.json();
+          if (data.error) {
+              alert("Error importing WP Users: " + data.error);
+          } else {
+              alert(`Successfully imported ${data.count} team members from WordPress! Note: Because the public API does not expose user emails, placeholder emails were generated. When the user logs in for the first time via SSO, their placeholder email will automatically be replaced with their real one.`);
+              fetchData();
+          }
+      } catch (err) { 
+          alert("Failed to contact server for WP import."); 
+      }
+      setIsLoading(false);
+  };
+
   return {
     handleSyncGoDaddy, handleYoutubeFilterChange, handleSyncYoutube, handleSpreakerFilterChange, handleSyncSpreaker,
     handleAnalyticsFilterChange, handleSyncAnalytics, openAnalyticsModal, handleSaveAnalyticsProperty, handleDeleteAnalyticsProperty,
     openYoutubeModal, handleSaveYoutubeChannel, handleUpdateYoutubeChannel, handleDeleteYoutubeChannel,
-    openSpreakerModal, handleSaveSpreakerShow, handleDeleteSpreakerShow, handleSyncLedger
+    openSpreakerModal, handleSaveSpreakerShow, handleDeleteSpreakerShow, handleSyncLedger,
+    handleImportWpUsers
   };
 }
