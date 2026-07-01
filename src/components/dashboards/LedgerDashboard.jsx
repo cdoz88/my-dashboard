@@ -42,6 +42,7 @@ export default function LedgerDashboard({
 
   const [ytPlaylists, setYtPlaylists] = useState([]);
   const [editingYt, setEditingYt] = useState({});
+  const [isImportingPlaylists, setIsImportingPlaylists] = useState(false);
 
   useEffect(() => {
     if (currentUser?.isAdmin) {
@@ -94,6 +95,20 @@ export default function LedgerDashboard({
   const savePromo = (promoId) => { if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]); };
 
   // --- YOUTUBE PLAYLIST LOGIC ---
+  const handleImportPlaylists = async () => {
+      setIsImportingPlaylists(true);
+      try {
+          const res = await fetch(`${API_URL}?action=import_youtube_playlists`, { method: 'POST' });
+          const data = await res.json();
+          if (data.error) alert("Error importing: " + data.error);
+          else {
+              alert(`Successfully imported ${data.count} playlists! Reloading...`);
+              window.location.reload(); 
+          }
+      } catch (err) { alert("Failed to contact server."); }
+      setIsImportingPlaylists(false);
+  };
+
   const handleAddYtPlaylist = () => {
       const newId = 'yt_pl_' + Date.now();
       const newPl = { id: newId, channelId: youtubeChannels[0]?.id || '', playlistId: '', playlistName: 'New Playlist', userId: '', revShare: 100, paymentStartDate: '' };
@@ -356,9 +371,15 @@ export default function LedgerDashboard({
                     </h2>
                     <p className="text-slate-500 text-sm mt-1">Map YouTube playlists to creators to auto-calculate their revenue share.</p>
                 </div>
-                <button onClick={handleAddYtPlaylist} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
-                    <Plus size={18} /> Add Playlist
-                </button>
+                
+                <div className="flex gap-2">
+                    <button onClick={handleImportPlaylists} disabled={isImportingPlaylists} className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                        <RefreshCw size={18} className={isImportingPlaylists ? 'animate-spin' : ''} /> Auto-Import Playlists
+                    </button>
+                    <button onClick={handleAddYtPlaylist} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                        <Plus size={18} /> Add Playlist
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
