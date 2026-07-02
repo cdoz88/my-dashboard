@@ -64,7 +64,6 @@ export function useData({
   };
 
   const fetchData = () => {
-    // ADDED CACHEBUSTER HERE to forcefully bypass your CDN's cached response!
     fetch(`${API_URL}?action=get_all&cb=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
@@ -754,6 +753,24 @@ export function useData({
     sendToAPI('delete_user', { id: userId });
   };
 
+  // --- NEW ARCHIVE HANDLERS ---
+  const handleArchiveUser = (user) => {
+    if (!window.confirm(`Are you sure you want to archive ${user.name}? They will lose access to the platform until restored.`)) return;
+    const updated = { ...user, isArchived: true };
+    setUsers(users.map(u => u.id === user.id ? updated : u));
+    logActivity('Team', 'Team Member Archived', `Archived team member "${user.name}".`);
+    sendToAPI('save_user', updated);
+    setIsTeamModalOpen(false);
+  };
+
+  const handleRestoreUser = (user) => {
+    const updated = { ...user, isArchived: false };
+    setUsers(users.map(u => u.id === user.id ? updated : u));
+    logActivity('Team', 'Team Member Restored', `Restored team member "${user.name}".`);
+    sendToAPI('save_user', updated);
+    setIsTeamModalOpen(false);
+  };
+
   const handleUpdateUser = (updatedUser) => {
     setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
     sendToAPI('save_user', updatedUser);
@@ -814,6 +831,7 @@ export function useData({
     openProjectModal, handleSaveProject, handleArchiveProject, handleRestoreProject, handlePermanentDeleteProject,
     openProfileModal, handleSaveProfile, handleSaveTeamMember, handleDeleteUser, handleUpdateUser,
     handleCompanyLogoUpload, handleProfileImageUpload, handleTeamMemberImageUpload, handleSponsorshipLogoUpload,
-    handleFileUpload, removeFile, handleDragStart, handleDrop, handleDragOver
+    handleFileUpload, removeFile, handleDragStart, handleDrop, handleDragOver,
+    handleArchiveUser, handleRestoreUser // <-- Exported here!
   };
 }

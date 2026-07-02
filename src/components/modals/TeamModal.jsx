@@ -4,7 +4,7 @@ import CompanyLogo from '../shared/CompanyLogo';
 
 export default function TeamModal({
   users, companies, editingTeamMember, setEditingTeamMember, handleSaveTeamMember, handleDeleteUser,
-  isUploading, setIsTeamModalOpen, currentUser
+  handleArchiveUser, handleRestoreUser, isUploading, setIsTeamModalOpen, currentUser
 }) {
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -188,7 +188,16 @@ export default function TeamModal({
 
               <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between">
                 {editingTeamMember.id && editingTeamMember.id !== currentUser.id ? (
-                   <button type="button" onClick={() => handleDeleteUser(editingTeamMember.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">Remove Member</button>
+                   <div className="flex gap-2">
+                       {editingTeamMember.isArchived ? (
+                           <>
+                               <button type="button" onClick={() => handleRestoreUser(editingTeamMember)} className="px-4 py-2 text-amber-600 hover:bg-amber-50 rounded-lg font-medium transition-colors">Restore Member</button>
+                               <button type="button" onClick={() => handleDeleteUser(editingTeamMember.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">Delete Forever</button>
+                           </>
+                       ) : (
+                           <button type="button" onClick={() => handleArchiveUser(editingTeamMember)} className="px-4 py-2 text-amber-600 hover:bg-amber-50 rounded-lg font-medium transition-colors">Archive Member</button>
+                       )}
+                   </div>
                 ) : <div></div>}
                 <button onClick={handleSaveTeamMember} disabled={isUploading} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-sm transition-colors">Save Member</button>
               </div>
