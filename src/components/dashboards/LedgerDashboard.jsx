@@ -73,17 +73,26 @@ export default function LedgerDashboard({
     }
   }, [activeTab]);
 
-  // --- STRIPE LOGIC ---
-  const handleSyncStripe = async () => {
-    const stripeKey = import.meta.env.VITE_STRIPE_SECRET_KEY;
-    if (!stripeKey) { alert("Stripe Secret Key is missing! Please add VITE_STRIPE_SECRET_KEY to your Vercel Environment Variables."); return; }
+// --- STRIPE LOGIC ---
+const handleSyncStripe = async () => {
     setIsSyncingStripe(true);
     try {
-        const res = await fetch(`${API_URL}?action=sync_stripe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stripeKey }) });
+        // The backend now securely pulls the key from the server environment, 
+        // so we send an empty body payload from the frontend.
+        const res = await fetch(`${API_URL}?action=sync_stripe`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({}) 
+        });
         const data = await res.json();
         if (data.error) alert("Stripe Sync Error: " + data.error);
-        else { alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); window.location.reload(); }
-    } catch (err) { alert("Error syncing with Stripe API."); }
+        else { 
+            alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); 
+            window.location.reload(); 
+        }
+    } catch (err) { 
+        alert("Error syncing with Stripe API."); 
+    }
     setIsSyncingStripe(false);
   };
 
