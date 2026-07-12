@@ -3,6 +3,7 @@ import { Menu, CheckCircle, Tv, Wallet } from 'lucide-react';
 
 // Shared Components
 import AuthScreen from './components/auth/AuthScreen';
+import AdminLogin from './components/auth/AdminLogin';
 
 // Layout Components
 import TopBar from './components/layout/TopBar';
@@ -70,6 +71,11 @@ function AppContent() {
   }
 
   if (!appState.currentUser) {
+    // Secret Admin Login Override
+    if (window.location.pathname === '/admin-login') {
+        return <AdminLogin setLoggedInUserId={appState.setLoggedInUserId} />;
+    }
+
     return (
       <AuthScreen 
         users={appState.users} 
