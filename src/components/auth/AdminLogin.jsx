@@ -27,9 +27,12 @@ export default function AdminLogin({ setLoggedInUserId }) {
                 // Log the user in
                 setLoggedInUserId(data.user.id);
                 
-                // Scrub the secret URL from the browser history and reload
+                // Scrub the secret URL from the browser history smoothly
                 window.history.replaceState({}, '', '/');
-                window.location.reload();
+                
+                // Note: We deliberately DO NOT reload the window here. 
+                // This allows React to instantly transition to the dashboard 
+                // and securely save your session in the background!
             }
         } catch (err) {
             setError('Could not connect to the server. Please try again.');
