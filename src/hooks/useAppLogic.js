@@ -186,10 +186,14 @@ export function useAppLogic() {
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
   const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
+  // --- FIXED: Bind localStorage directly to the loggedInUserId state so it ignores empty DB fetches ---
   useEffect(() => {
-    if (currentUser) localStorage.setItem('loggedInUserId', currentUser.id);
-    else localStorage.removeItem('loggedInUserId');
-  }, [currentUser]);
+    if (loggedInUserId) {
+        localStorage.setItem('loggedInUserId', loggedInUserId);
+    } else {
+        localStorage.removeItem('loggedInUserId');
+    }
+  }, [loggedInUserId]);
 
   useEffect(() => {
     if (!isLoading && currentApp === 'projects' && !['mytasks', 'capacity', 'archived'].includes(activeTab)) {
