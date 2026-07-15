@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     CheckCircle, Tv, ArrowRight, Clock, 
     CalendarDays, MonitorPlay, Radio, Youtube, Star, Calculator, Plus 
@@ -6,7 +6,7 @@ import {
 import { formatCurrency } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
 import DynamicIcon from '../shared/DynamicIcon';
-import { useAppContext } from '../../context/AppContext';
+import { API_URL } from '../../utils/constants';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -23,22 +23,42 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
-export default function HomeDashboard(props) {
-    // Bypass the router and pull functions directly from the global state cloud
-    const appState = useAppContext();
-    
-    // Merge props and appState so we guarantee access to our new announcement functions
-    const { 
-        currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
-        setCurrentApp, setActiveTab, openShowModal, globalAnnouncement, handleSaveGlobalAnnouncement 
-    } = { ...props, ...appState };
-
+export default function HomeDashboard({ 
+    currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
+    setCurrentApp, setActiveTab, openShowModal 
+}) {
+    // --- SELF-CONTAINED ANNOUNCEMENT LOGIC ---
+    const [localAnnouncement, setLocalAnnouncement] = useState('');
     const [isEditingBanner, setIsEditingBanner] = useState(false);
-    const [bannerText, setBannerText] = useState(globalAnnouncement || '');
+    const [bannerText, setBannerText] = useState('');
 
-    const saveBanner = () => {
-        handleSaveGlobalAnnouncement(bannerText);
-        setIsEditingBanner(false);
+    // Fetch the announcement directly on load, bypassing context mapping
+    useEffect(() => {
+        fetch(`${API_URL}?action=get_all`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.settings && data.settings.globalAnnouncement !== undefined) {
+                    setLocalAnnouncement(data.settings.globalAnnouncement);
+                    setBannerText(data.settings.globalAnnouncement);
+                }
+            })
+            .catch(err => console.error("Error fetching announcement:", err));
+    }, []);
+
+    // Save directly to the database
+    const saveBanner = async () => {
+        try {
+            await fetch(`${API_URL}?action=save_setting`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key_name: 'globalAnnouncement', setting_value: bannerText })
+            });
+            setLocalAnnouncement(bannerText);
+            setIsEditingBanner(false);
+        } catch (err) {
+            console.error("Failed to save banner", err);
+            alert("There was an error saving the announcement.");
+        }
     };
     
     // --- 1. MY CAPACITY / WORKLOAD ---
@@ -100,7 +120,7 @@ export default function HomeDashboard(props) {
             </div>
 
             {/* ANNOUNCEMENT BANNER */}
-            {(currentUser?.isAdmin || globalAnnouncement) && (
+            {(currentUser?.isAdmin || localAnnouncement) && (
                 <div className="mb-6 sm:mb-8 flex-shrink-0">
                     {currentUser?.isAdmin && isEditingBanner ? (
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 animate-in fade-in slide-in-from-top-2">
@@ -116,11 +136,11 @@ export default function HomeDashboard(props) {
                                 <button onClick={saveBanner} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">Save Announcement</button>
                             </div>
                         </div>
-                    ) : globalAnnouncement ? (
+                    ) : localAnnouncement ? (
                         <div className="bg-blue-50 text-blue-800 p-4 sm:p-5 rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-sm">
-                            <p className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{globalAnnouncement}</p>
+                            <p className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{localAnnouncement}</p>
                             {currentUser?.isAdmin && (
-                                <button onClick={() => { setBannerText(globalAnnouncement); setIsEditingBanner(true); }} className="text-blue-600 hover:text-blue-800 sm:opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold shrink-0 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-md">
+                                <button onClick={() => { setBannerText(localAnnouncement); setIsEditingBanner(true); }} className="text-blue-600 hover:text-blue-800 sm:opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold shrink-0 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-md">
                                     Edit Announcement
                                 </button>
                             )}
