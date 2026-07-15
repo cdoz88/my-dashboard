@@ -27,7 +27,7 @@ const formatAVD = (minutes, views) => {
 };
 
 export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab, openPlaylistSplitModal
 }) {
   const [historyModalItem, setHistoryModalItem] = useState(null);
   
@@ -309,6 +309,7 @@ const handleSyncStripe = async () => {
                                     <th className="px-6 py-4 text-center">Tracked Videos</th>
                                     <th className="px-6 py-4 text-center">Your Rev Share</th>
                                     <th className="px-6 py-4 text-right">Your Earnings</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -329,11 +330,19 @@ const handleSyncStripe = async () => {
                                             <td className="px-6 py-4 text-center font-bold text-slate-700">{pl.ledgerVideos || 0}</td>
                                             <td className="px-6 py-4 text-center font-bold text-slate-700">{pl.revShare}%</td>
                                             <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatCurrency(plEarned)}</td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button 
+                                                    onClick={() => openPlaylistSplitModal(pl)}
+                                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
+                                                >
+                                                    Splits
+                                                </button>
+                                            </td>
                                         </tr>
                                     )
                                 }) : (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                                        <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Youtube size={48} className="text-slate-300 mb-3" />
                                                 <p className="font-semibold text-slate-700">{showArchivedPl ? 'No archived playlists match your filter.' : 'No active playlists match your filter.'}</p>
@@ -531,6 +540,7 @@ const handleSyncStripe = async () => {
                                                 </button>
                                             ) : (
                                                 <>
+                                                    <button onClick={() => openPlaylistSplitModal(pl)} className="text-slate-400 hover:text-indigo-600 px-2 py-1 transition-colors text-xs font-bold" title="Manage Revenue Splits">Splits</button>
                                                     <button onClick={() => setEditingYt(prev => ({...prev, [pl.id]: pl}))} className="text-slate-400 hover:text-blue-600 px-2 py-1 transition-colors text-xs font-bold">Edit</button>
                                                     <button onClick={() => handleToggleArchivePl(pl)} className="text-slate-400 hover:text-amber-600 p-1 transition-colors" title={pl.isArchived ? "Restore" : "Archive"}><Archive size={16} /></button>
                                                 </>
