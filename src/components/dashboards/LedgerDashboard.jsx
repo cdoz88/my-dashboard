@@ -70,7 +70,7 @@ export default function LedgerDashboard({
           await fetch(`${API_URL}?action=save_youtube_playlist`, { 
               method: 'POST', 
               headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify(updatedPlaylist) 
+              body: JSON.stringify(updatedPlaylist)
           });
           
           await fetch(`${API_URL}?action=save_log`, {
@@ -201,16 +201,42 @@ const handleSyncStripe = async () => {
 
   // --- UNIFIED CREATOR LEDGER LOGIC ---
   const unifiedLedger = users.map(user => {
-      const userPlaylists = ytPlaylists.filter(pl => pl.userId === user.id);
-      let ytEarned = 0; let ytVideos = 0;
-      const ytNormIds = []; const ytRawIds = [];
-      userPlaylists.forEach(pl => {
-          const rev = parseFloat(pl.ledgerRevenue || 0);
-          const pct = parseFloat(pl.revShare ?? 100) / 100;
-          ytEarned += (rev * pct);
-          ytVideos += parseInt(pl.ledgerVideos || 0);
-          ytRawIds.push(pl.playlistId);
-          ytNormIds.push(normalizePlaylistId(pl.playlistId));
+      let ytEarned = 0; 
+      let ytVideos = 0;
+      const ytNormIds = []; 
+      const ytRawIds = [];
+
+      // Iterate through ALL playlists in the database to parse splits mathematically
+      ytPlaylists.forEach(pl => {
+          const totalRevPool = parseFloat(pl.ledgerRevenue || 0);
+          const creatorNetPool = totalRevPool * (parseFloat(pl.revShare ?? 100) / 100);
+          
+          // Safety parse splits variable from backend payload
+          let activeSplits = pl.splits;
+          if (typeof activeSplits === 'string') {
+              try { activeSplits = json_decode(activeSplits, true); } catch(e) { activeSplits = []; }
+          }
+          if (!Array.isArray(activeSplits)) activeSplits = [];
+
+          if (activeSplits.length > 0) {
+              // Option A: Custom Splits are active on this playlist
+              const userSplit = activeSplits.find(s => s.userId === user.id);
+              if (userSplit) {
+                  const distributionPercent = parseFloat(userSplit.percent || 0) / 100;
+                  ytEarned += (creatorNetPool * distributionPercent);
+                  ytVideos += parseInt(pl.ledgerVideos || 0);
+                  ytRawIds.push(pl.playlistId);
+                  ytNormIds.push(normalizePlaylistId(pl.playlistId));
+              }
+          } else {
+              // Option B: No splits mapped, fall back 100% to primary playlist owner
+              if (pl.userId === user.id) {
+                  ytEarned += creatorNetPool;
+                  ytVideos += parseInt(pl.ledgerVideos || 0);
+                  ytRawIds.push(pl.playlistId);
+                  ytNormIds.push(normalizePlaylistId(pl.playlistId));
+              }
+          }
       });
 
       const wpRecord = user.wpUserId ? wpLedgerData.find(wp => wp.wp_user_id == user.wpUserId) : null;
@@ -256,20 +282,30 @@ const handleSyncStripe = async () => {
         const targetUserId = currentUser?.isAdmin ? selectedYtUserId : currentUser?.id;
         const targetUser = users.find(u => u.id === targetUserId);
         
-        const allMyPlaylists = ytPlaylists.filter(pl => pl.userId === targetUserId);
-        const myPlaylists = allMyPlaylists.filter(pl => {
+        // Include any playlists where they are the owner OR part of custom revenue split rules
+        const myPlaylists = ytPlaylists.filter(pl => {
             if (showArchivedPl ? !pl.isArchived : pl.isArchived) return false;
             if (playlistChannelFilter !== 'All' && pl.channelId !== playlistChannelFilter) return false;
-            return true;
+            
+            const isOwner = pl.userId === targetUserId;
+            const splitsArray = Array.isArray(pl.splits) ? pl.splits : [];
+            const isSplitParticipant = splitsArray.some(s => s.userId === targetUserId);
+            
+            return isOwner || isSplitParticipant;
         });
         
-        // Ensure top metrics always reflect total earning power (including archived and regardless of filter)
-        const totalPlaylists = allMyPlaylists.length;
-        const totalTrackedVideos = allMyPlaylists.reduce((sum, pl) => sum + parseInt(pl.ledgerVideos || 0), 0);
-        const totalMyEarnings = allMyPlaylists.reduce((sum, pl) => {
-            const rev = parseFloat(pl.ledgerRevenue || 0);
-            const pct = parseFloat(pl.revShare ?? 100) / 100;
-            return sum + (rev * pct);
+        const totalPlaylists = myPlaylists.length;
+        const totalTrackedVideos = myPlaylists.reduce((sum, pl) => sum + parseInt(pl.ledgerVideos || 0), 0);
+        const totalMyEarnings = myPlaylists.reduce((sum, pl) => {
+            const totalRevPool = parseFloat(pl.ledgerRevenue || 0);
+            const creatorNetPool = totalRevPool * (parseFloat(pl.revShare ?? 100) / 100);
+            const splitsArray = Array.isArray(pl.splits) ? pl.splits : [];
+            
+            if (splitsArray.length > 0) {
+                const match = splitsArray.find(s => s.userId === targetUserId);
+                return sum + (match ? (creatorNetPool * (parseFloat(match.percent || 0) / 100)) : 0);
+            }
+            return sum + (pl.userId === targetUserId ? creatorNetPool : 0);
         }, 0);
 
         const allVideos = [];
@@ -278,12 +314,23 @@ const handleSyncStripe = async () => {
             try { if (pl.video_details) vids = JSON.parse(pl.video_details); } catch(e){}
             
             vids.forEach(v => {
-                const pct = parseFloat(pl.revShare ?? 100) / 100;
+                const totalRev = parseFloat(v.revenue || 0);
+                const netPool = totalRev * (parseFloat(pl.revShare ?? 100) / 100);
+                const splitsArray = Array.isArray(pl.splits) ? pl.splits : [];
+                
+                let shareEarned = 0;
+                if (splitsArray.length > 0) {
+                    const match = splitsArray.find(s => s.userId === targetUserId);
+                    shareEarned = match ? (netPool * (parseFloat(match.percent || 0) / 100)) : 0;
+                } else {
+                    shareEarned = pl.userId === targetUserId ? netPool : 0;
+                }
+
                 allVideos.push({
                     ...v,
                     playlistName: pl.playlistName,
                     revShare: pl.revShare,
-                    earned: parseFloat(v.revenue || 0) * pct
+                    earned: shareEarned
                 });
             });
         });
@@ -357,7 +404,22 @@ const handleSyncStripe = async () => {
                             <tbody className="divide-y divide-slate-100">
                                 {myPlaylists.length > 0 ? myPlaylists.map(pl => {
                                     const channel = youtubeChannels.find(c => c.id === pl.channelId);
-                                    const plEarned = parseFloat(pl.ledgerRevenue || 0) * (parseFloat(pl.revShare ?? 100) / 100);
+                                    
+                                    const totalRev = parseFloat(pl.ledgerRevenue || 0);
+                                    const creatorNet = totalRev * (parseFloat(pl.revShare ?? 100) / 100);
+                                    const splitsArray = Array.isArray(pl.splits) ? pl.splits : [];
+                                    
+                                    let personalEarnings = 0;
+                                    let personalPercentageDisplay = pl.revShare + "%";
+
+                                    if (splitsArray.length > 0) {
+                                        const match = splitsArray.find(s => s.userId === targetUserId);
+                                        personalEarnings = match ? (creatorNet * (parseFloat(match.percent || 0) / 100)) : 0;
+                                        personalPercentageDisplay = match ? `${match.percent}% (of Split)` : "0%";
+                                    } else {
+                                        personalEarnings = pl.userId === targetUserId ? creatorNet : 0;
+                                    }
+
                                     return (
                                         <tr key={pl.id} className={`hover:bg-slate-50 transition-colors ${pl.isArchived ? 'opacity-70' : ''}`}>
                                             <td className="px-6 py-4">
@@ -370,15 +432,17 @@ const handleSyncStripe = async () => {
                                             </td>
                                             <td className="px-6 py-4 text-slate-600 font-medium">{channel?.name || '--'}</td>
                                             <td className="px-6 py-4 text-center font-bold text-slate-700">{pl.ledgerVideos || 0}</td>
-                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{pl.revShare}%</td>
-                                            <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatCurrency(plEarned)}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-slate-700">{personalPercentageDisplay}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatCurrency(personalEarnings)}</td>
                                             <td className="px-6 py-4 text-right">
-                                                <button 
-                                                    onClick={() => openPlaylistSplitModal(pl)}
-                                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
-                                                >
-                                                    Splits
-                                                </button>
+                                                {pl.userId === currentUser?.id && (
+                                                    <button 
+                                                        onClick={() => openPlaylistSplitModal(pl)}
+                                                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
+                                                    >
+                                                        Splits
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     )
@@ -386,7 +450,7 @@ const handleSyncStripe = async () => {
                                     <tr>
                                         <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
-                                                <Youtube size={48} className="text-slate-300 mb-3" />
+                                                <Youtube size={48} className="text-slate-3300 mb-3" />
                                                 <p className="font-semibold text-slate-700">{showArchivedPl ? 'No archived playlists match your filter.' : 'No active playlists match your filter.'}</p>
                                             </div>
                                         </td>

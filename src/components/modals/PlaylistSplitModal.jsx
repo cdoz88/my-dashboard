@@ -15,7 +15,7 @@ export default function PlaylistSplitModal({
             if (playlist.splits && playlist.splits.length > 0) {
                 setSplits(playlist.splits);
             } else {
-                // Default: the playlist owner gets 100%
+                // Default: fallback to assigning 100% of the net creator pool to the playlist owner
                 setSplits([{ userId: playlist.userId, percent: 100 }]);
             }
         }
@@ -47,15 +47,13 @@ export default function PlaylistSplitModal({
     const handleSave = (e) => {
         e.preventDefault();
         
-        // Ensure no empty users
         if (splits.some(s => !s.userId)) {
-            alert("Please select a user for every split.");
+            alert("Please select a valid user for every split entry.");
             return;
         }
 
-        // Enforce exactly 100% math
         if (Math.round(totalPercent * 100) / 100 !== 100) {
-            alert(`Total splits must equal exactly 100%. Currently at ${totalPercent}%.`);
+            alert(`Total split configurations must equal exactly 100%. Currently evaluated at: ${totalPercent}%.`);
             return;
         }
 
@@ -63,7 +61,7 @@ export default function PlaylistSplitModal({
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 animate-in fade-in">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
                 
                 <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
@@ -78,7 +76,7 @@ export default function PlaylistSplitModal({
 
                 <div className="p-6 overflow-y-auto flex-1">
                     <p className="text-sm text-slate-600 mb-6">
-                        Splits apply to the <strong>net creator pool</strong>. After the company takes its {100 - (playlist.revShare || 100)}% cut, the remaining pool will be divided exactly as configured below.
+                        Splits apply directly to the <strong>net creator pool</strong>. After the company takes its structural share, the remaining amount is broken up exactly as defined below.
                     </p>
 
                     <form id="split-form" onSubmit={handleSave} className="space-y-4">
@@ -88,12 +86,14 @@ export default function PlaylistSplitModal({
                                     <select
                                         value={split.userId}
                                         onChange={(e) => handleSplitChange(index, 'userId', e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                                         required
                                     >
                                         <option value="">Select Creator...</option>
                                         {users.map(u => (
-                                            <option key={u.id} value={u.id}>{u.name}</option>
+                                            <option key={u.id} value={u.id}>
+                                                {u.name}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -127,7 +127,7 @@ export default function PlaylistSplitModal({
                         className="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 border-2 border-dashed border-slate-200 text-sm font-medium text-slate-600 rounded-lg hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-colors"
                     >
                         <Plus size={16} />
-                        Add Split
+                        Add Split Rule
                     </button>
                 </div>
 
