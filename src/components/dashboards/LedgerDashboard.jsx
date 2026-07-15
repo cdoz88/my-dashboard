@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft, Play, Archive } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
+import PlaylistSplitModal from '../modals/PlaylistSplitModal';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -27,7 +28,7 @@ const formatAVD = (minutes, views) => {
 };
 
 export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab, openPlaylistSplitModal
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
 }) {
   const [historyModalItem, setHistoryModalItem] = useState(null);
   
@@ -45,6 +46,49 @@ export default function LedgerDashboard({
   const [isImportingPlaylists, setIsImportingPlaylists] = useState(false);
   const [showArchivedPl, setShowArchivedPl] = useState(false);
   const [playlistChannelFilter, setPlaylistChannelFilter] = useState('All');
+
+  // NEW: Playlist Splits State (Managed Locally)
+  const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
+  const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
+
+  const openPlaylistSplitModal = (playlist) => {
+      setEditingPlaylistSplits({ ...playlist, splits: playlist.splits || [] });
+      setIsPlaylistSplitModalOpen(true);
+  };
+
+  const handleSavePlaylistSplits = async (playlistId, newSplits) => {
+      const playlist = ytPlaylists.find(p => p.id === playlistId);
+      if (!playlist) return;
+
+      const updatedPlaylist = { ...playlist, splits: newSplits };
+      
+      // Optimistically update the UI for instant feedback
+      setYtPlaylists(prev => prev.map(p => p.id === playlistId ? updatedPlaylist : p));
+      setIsPlaylistSplitModalOpen(false);
+
+      try {
+          await fetch(`${API_URL}?action=save_youtube_playlist`, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify(updatedPlaylist) 
+          });
+          
+          await fetch(`${API_URL}?action=save_log`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  id: 'log_' + Date.now(),
+                  userId: currentUser?.id || 'system',
+                  actionCategory: 'Shows',
+                  actionType: 'Splits Updated',
+                  description: `Updated revenue splits for playlist "${playlist.playlistName}"`,
+                  timestamp: new Date().toISOString()
+              })
+          });
+      } catch (err) {
+          console.error("Failed to save splits:", err);
+      }
+  };
 
   useEffect(() => {
     if (currentUser?.isAdmin) {
@@ -77,8 +121,6 @@ export default function LedgerDashboard({
 const handleSyncStripe = async () => {
     setIsSyncingStripe(true);
     try {
-        // The backend now securely pulls the key from the server environment, 
-        // so we send an empty body payload from the frontend.
         const res = await fetch(`${API_URL}?action=sync_stripe`, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
@@ -126,7 +168,7 @@ const handleSyncStripe = async () => {
 
   const handleAddYtPlaylist = () => {
       const newId = 'yt_pl_' + Date.now();
-      const newPl = { id: newId, channelId: youtubeChannels[0]?.id || '', playlistId: '', playlistName: 'New Playlist', userId: '', revShare: 100, paymentStartDate: '', isArchived: false };
+      const newPl = { id: newId, channelId: youtubeChannels[0]?.id || '', playlistId: '', playlistName: 'New Playlist', userId: '', revShare: 100, paymentStartDate: '', isArchived: false, splits: [] };
       setYtPlaylists([newPl, ...ytPlaylists]);
       setEditingYt(prev => ({ ...prev, [newId]: newPl }));
       setShowArchivedPl(false);
@@ -410,6 +452,14 @@ const handleSyncStripe = async () => {
                     </div>
                 </div>
 
+                {/* MODAL INJECTED HERE */}
+                <PlaylistSplitModal 
+                    isOpen={isPlaylistSplitModalOpen}
+                    onClose={() => setIsPlaylistSplitModalOpen(false)}
+                    playlist={editingPlaylistSplits}
+                    users={users}
+                    onSave={handleSavePlaylistSplits}
+                />
             </div>
           </div>
         );
@@ -572,6 +622,15 @@ const handleSyncStripe = async () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* MODAL INJECTED HERE */}
+                <PlaylistSplitModal 
+                    isOpen={isPlaylistSplitModalOpen}
+                    onClose={() => setIsPlaylistSplitModalOpen(false)}
+                    playlist={editingPlaylistSplits}
+                    users={users}
+                    onSave={handleSavePlaylistSplits}
+                />
             </div>
         </div>
       </div>
