@@ -30,17 +30,40 @@ export default function PlaylistSplitModal({
     };
 
     const handleRemoveSplit = (indexToRemove) => {
-        setSplits(splits.filter((_, index) => index !== indexToRemove));
+        const filteredSplits = splits.filter((_, index) => index !== indexToRemove);
+        
+        // Auto-balance the primary owner (index 0) if a co-host is removed
+        if (filteredSplits.length > 0) {
+            let otherTotal = 0;
+            for (let i = 1; i < filteredSplits.length; i++) {
+                otherTotal += (parseFloat(filteredSplits[i].percent) || 0);
+            }
+            filteredSplits[0].percent = Number(Math.max(0, 100 - otherTotal).toFixed(2));
+        }
+        
+        setSplits(filteredSplits);
     };
 
     const handleSplitChange = (index, field, value) => {
         const newSplits = [...splits];
+        
         if (field === 'percent') {
             const num = parseFloat(value);
             newSplits[index][field] = isNaN(num) ? 0 : num;
+            
+            // Auto-calculate the owner's split (index 0) when a co-host's percentage changes
+            if (index !== 0 && newSplits.length > 0) {
+                let otherTotal = 0;
+                for (let i = 1; i < newSplits.length; i++) {
+                    otherTotal += (parseFloat(newSplits[i].percent) || 0);
+                }
+                // Ensure the owner's percentage doesn't drop below 0
+                newSplits[0].percent = Number(Math.max(0, 100 - otherTotal).toFixed(2));
+            }
         } else {
             newSplits[index][field] = value;
         }
+        
         setSplits(newSplits);
     };
 
@@ -103,20 +126,25 @@ export default function PlaylistSplitModal({
                                         min="0"
                                         max="100"
                                         step="0.01"
-                                        value={split.percent || ''}
+                                        value={split.percent === 0 && index !== 0 ? '' : split.percent}
                                         onChange={(e) => handleSplitChange(index, 'percent', e.target.value)}
                                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 pr-8 text-right"
                                         required
                                     />
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleRemoveSplit(index)}
-                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                {index !== 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveSplit(index)}
+                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                )}
+                                {index === 0 && (
+                                    <div className="w-8"></div> // Spacing placeholder so the inputs align perfectly
+                                )}
                             </div>
                         ))}
                     </form>
