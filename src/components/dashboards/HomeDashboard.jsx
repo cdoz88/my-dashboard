@@ -6,6 +6,7 @@ import {
 import { formatCurrency } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
 import DynamicIcon from '../shared/DynamicIcon';
+import { useAppContext } from '../../context/AppContext';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -22,10 +23,16 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
-export default function HomeDashboard({ 
-    currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
-    setCurrentApp, setActiveTab, openShowModal, globalAnnouncement, handleSaveGlobalAnnouncement 
-}) {
+export default function HomeDashboard(props) {
+    // Bypass the router and pull functions directly from the global state cloud
+    const appState = useAppContext();
+    
+    // Merge props and appState so we guarantee access to our new announcement functions
+    const { 
+        currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
+        setCurrentApp, setActiveTab, openShowModal, globalAnnouncement, handleSaveGlobalAnnouncement 
+    } = { ...props, ...appState };
+
     const [isEditingBanner, setIsEditingBanner] = useState(false);
     const [bannerText, setBannerText] = useState(globalAnnouncement || '');
 
