@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
     CheckCircle, Tv, ArrowRight, Clock, 
-    CalendarDays, MonitorPlay, Radio, Youtube, Star, Calculator 
+    CalendarDays, MonitorPlay, Radio, Youtube, Star, Calculator, Plus 
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
@@ -24,8 +24,15 @@ const normalizePlaylistId = (input) => {
 
 export default function HomeDashboard({ 
     currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
-    setCurrentApp, setActiveTab, openShowModal 
+    setCurrentApp, setActiveTab, openShowModal, globalAnnouncement, handleSaveGlobalAnnouncement 
 }) {
+    const [isEditingBanner, setIsEditingBanner] = useState(false);
+    const [bannerText, setBannerText] = useState(globalAnnouncement || '');
+
+    const saveBanner = () => {
+        handleSaveGlobalAnnouncement(bannerText);
+        setIsEditingBanner(false);
+    };
     
     // --- 1. MY CAPACITY / WORKLOAD ---
     const myTasks = tasks.filter(t => t.assigneeId === currentUser?.id && t.status !== 'done');
@@ -85,22 +92,66 @@ export default function HomeDashboard({
                 <p className="text-slate-500 mt-1 font-medium">Here is what is on your desk today.</p>
             </div>
 
+            {/* ANNOUNCEMENT BANNER */}
+            {(currentUser?.isAdmin || globalAnnouncement) && (
+                <div className="mb-6 sm:mb-8 flex-shrink-0">
+                    {currentUser?.isAdmin && isEditingBanner ? (
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 animate-in fade-in slide-in-from-top-2">
+                            <textarea
+                                value={bannerText}
+                                onChange={(e) => setBannerText(e.target.value)}
+                                className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                                rows="3"
+                                placeholder="Enter an announcement here... (Leave blank to remove the banner entirely)"
+                            />
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setIsEditingBanner(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                                <button onClick={saveBanner} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">Save Announcement</button>
+                            </div>
+                        </div>
+                    ) : globalAnnouncement ? (
+                        <div className="bg-blue-50 text-blue-800 p-4 sm:p-5 rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-sm">
+                            <p className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{globalAnnouncement}</p>
+                            {currentUser?.isAdmin && (
+                                <button onClick={() => { setBannerText(globalAnnouncement); setIsEditingBanner(true); }} className="text-blue-600 hover:text-blue-800 sm:opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold shrink-0 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-md">
+                                    Edit Announcement
+                                </button>
+                            )}
+                        </div>
+                    ) : currentUser?.isAdmin ? (
+                        <div className="bg-slate-50 border border-dashed border-slate-300 p-4 rounded-xl flex justify-center hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => { setBannerText(''); setIsEditingBanner(true); }}>
+                            <button className="text-sm font-bold text-slate-500 flex items-center gap-2">
+                                <Plus size={16} /> Add Announcement Banner
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
+            )}
+
             {/* Quick Ledger Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 flex-shrink-0">
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div className="hidden sm:block bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Earned</div>
                     <div className="text-2xl font-black text-slate-800">{formatCurrency(grandTotalEarned)}</div>
                 </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div className="hidden sm:block bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Paid</div>
                     <div className="text-2xl font-black text-slate-800">{formatCurrency(grandTotalPaid)}</div>
                 </div>
-                <div className="bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-700 relative overflow-hidden group cursor-pointer" onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); }}>
+                <div className="bg-slate-800 p-5 sm:p-5 rounded-xl shadow-sm border border-slate-700 relative overflow-hidden group cursor-pointer" onClick={() => { setCurrentApp('ledger'); setActiveTab('all'); }}>
                     <div className="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">Current Balance</div>
-                    <div className="text-2xl font-black text-white">{formatCurrency(grandTotalOwed)}</div>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-400">
+                    <div className="text-2xl sm:text-2xl font-black text-white">{formatCurrency(grandTotalOwed)}</div>
+                    
+                    {/* Desktop Arrow */}
+                    <div className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-400">
                         <ArrowRight size={24} />
                     </div>
+
+                    {/* Mobile Quick Link */}
+                    <div className="sm:hidden absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400 flex items-center gap-1.5 text-xs font-bold bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-600">
+                        View Ledger <ArrowRight size={14} />
+                    </div>
+
                     <Calculator className="absolute right-[-10px] bottom-[-10px] text-white opacity-5" size={80} />
                 </div>
             </div>
