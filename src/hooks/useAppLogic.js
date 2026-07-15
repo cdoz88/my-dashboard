@@ -57,6 +57,7 @@ export function useAppLogic() {
 
   // YouTube, Spreaker & Analytics State
   const [youtubeChannels, setYoutubeChannels] = useState([]);
+  const [youtubePlaylists, setYoutubePlaylists] = useState([]);
   const [activeYoutubeChannelId, setActiveYoutubeChannelId] = useState(null);
   const [youtubeTimeFilter, setYoutubeTimeFilter] = useState('28'); 
   
@@ -109,6 +110,10 @@ export function useAppLogic() {
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
   const [isSyncingLedger, setIsSyncingLedger] = useState(false);
+
+  // New states for the playlist splits
+  const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
+  const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
 
   // --- BROWSER HISTORY SYNCING (URL Management) ---
   useEffect(() => {
@@ -186,7 +191,6 @@ export function useAppLogic() {
   const visibleTasks = currentUser?.isAdmin ? tasks : tasks.filter(t => visibleProjects.some(p => p.id === t.projectId));
   const canViewPasswordsApp = currentUser?.isAdmin || passwords.some(p => (p.sharedWith || []).includes(currentUser?.id));
 
-  // --- FIXED: Bind localStorage directly to the loggedInUserId state so it ignores empty DB fetches ---
   useEffect(() => {
     if (loggedInUserId) {
         localStorage.setItem('loggedInUserId', loggedInUserId);
@@ -275,6 +279,10 @@ export function useAppLogic() {
         
         if(data.shows) {
             setShows(data.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
+        }
+
+        if(data.youtube_playlists) {
+            setYoutubePlaylists(data.youtube_playlists);
         }
 
         if(data.sponsorships) setSponsorships(data.sponsorships);
@@ -1539,6 +1547,23 @@ export function useAppLogic() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
+  // --- NEW: Playlist Split Handlers ---
+  const openPlaylistSplitModal = (playlist) => {
+      setEditingPlaylistSplits({ ...playlist, splits: playlist.splits || [] });
+      setIsPlaylistSplitModalOpen(true);
+  };
+
+  const handleSavePlaylistSplits = (playlistId, newSplits) => {
+      const playlist = youtubePlaylists.find(p => p.id === playlistId);
+      if (!playlist) return;
+
+      const updatedPlaylist = { ...playlist, splits: newSplits };
+      setYoutubePlaylists(prev => prev.map(p => p.id === playlistId ? updatedPlaylist : p));
+      sendToAPI('save_youtube_playlist', updatedPlaylist);
+      setIsPlaylistSplitModalOpen(false);
+      logActivity('Shows', 'Splits Updated', `Updated revenue splits for playlist "${playlist.playlistName}"`);
+  };
+
   return {
     isLoading, setIsLoading,
     isUploading, setIsUploading,
@@ -1579,6 +1604,7 @@ export function useAppLogic() {
     activityLogs, setActivityLogs,
     wpLedgerData, setWpLedgerData,
     youtubeChannels, setYoutubeChannels,
+    youtubePlaylists, setYoutubePlaylists,
     activeYoutubeChannelId, setActiveYoutubeChannelId,
     youtubeTimeFilter, setYoutubeTimeFilter,
     spreakerShows, setSpreakerShows,
@@ -1627,6 +1653,8 @@ export function useAppLogic() {
     isPayoutModalOpen, setIsPayoutModalOpen,
     editingPayout, setEditingPayout,
     isSyncingLedger, setIsSyncingLedger,
+    isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen,
+    editingPlaylistSplits, setEditingPlaylistSplits,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
     sendToAPI, uploadFileToServer, handleScanBusinessCard, logActivity, handleSaveGlobalChecklist,
     handleGenerateOnboarding, handleGenerateOffboarding, handleReorderTasks, handleSyncGoDaddy,
@@ -1645,6 +1673,6 @@ export function useAppLogic() {
     openSpreakerModal, handleSaveSpreakerShow, handleDeleteSpreakerShow, openProfileModal, handleSaveProfile,
     handleSaveTeamMember, handleDeleteUser, handleUpdateUser, handleCompanyLogoUpload, handleProfileImageUpload,
     handleTeamMemberImageUpload, handleSponsorshipLogoUpload, handleFileUpload, removeFile, handleDragStart,
-    handleDrop, handleDragOver
+    handleDrop, handleDragOver, openPlaylistSplitModal, handleSavePlaylistSplits
   };
 }

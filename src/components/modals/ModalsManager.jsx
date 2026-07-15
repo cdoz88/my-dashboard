@@ -21,6 +21,7 @@ import AvatarMakerModal from './AvatarMakerModal';
 import ContactModal from './ContactModal';
 import PasswordModal from './PasswordModal';
 import PayoutModal from './PayoutModal';
+import PlaylistSplitModal from './PlaylistSplitModal';
 
 export default function ModalsManager({
   // 1. Task Modal Props
@@ -51,7 +52,9 @@ export default function ModalsManager({
   isOnboardingModalOpen, setIsOnboardingModalOpen, globalChecklist, handleSaveGlobalChecklist, uploadFileToServer,
   isProjectAttachmentsModalOpen, activeProject, tasks, setIsProjectAttachmentsModalOpen,
   isAvatarMakerModalOpen, setIsAvatarMakerModalOpen,
-  isPayoutModalOpen, editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, wpLedgerData
+  isPayoutModalOpen, editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, wpLedgerData,
+  // 10. NEW: Playlist Splits Props
+  isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen, editingPlaylistSplits, handleSavePlaylistSplits
 }) {
 
   return (
@@ -297,6 +300,17 @@ export default function ModalsManager({
           wpLedgerData={wpLedgerData} 
           currentUser={currentUser} 
         />
+      )}
+
+      {/* NEW: Playlist Splits Modal */}
+      {isPlaylistSplitModalOpen && (
+          <PlaylistSplitModal 
+              isOpen={isPlaylistSplitModalOpen}
+              onClose={() => setIsPlaylistSplitModalOpen(false)}
+              playlist={editingPlaylistSplits}
+              users={users}
+              onSave={handleSavePlaylistSplits}
+          />
       )}
     </>
   );
