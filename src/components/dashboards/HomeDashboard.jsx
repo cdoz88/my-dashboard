@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     CheckCircle, Tv, ArrowRight, Clock, 
-    CalendarDays, MonitorPlay, Radio, Youtube, Star, Calculator, Plus 
+    CalendarDays, MonitorPlay, Radio, Youtube, Star, Calculator, Plus, Trash2 
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { colorStyles } from '../../utils/constants';
@@ -23,41 +23,87 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
+// Styling Maps for Banners
+const themeMap = {
+    blue: 'bg-blue-50 text-blue-800 border-blue-200',
+    red: 'bg-red-50 text-red-800 border-red-200',
+    green: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    yellow: 'bg-amber-50 text-amber-800 border-amber-200',
+    slate: 'bg-slate-100 text-slate-800 border-slate-300'
+};
+
+const sizeMap = {
+    small: 'text-sm font-medium',
+    normal: 'text-base font-medium',
+    large: 'text-lg font-bold',
+    xl: 'text-xl font-black'
+};
+
 export default function HomeDashboard({ 
     currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
     setCurrentApp, setActiveTab, openShowModal 
 }) {
-    // --- SELF-CONTAINED ANNOUNCEMENT LOGIC ---
-    const [localAnnouncement, setLocalAnnouncement] = useState('');
+    // --- SELF-CONTAINED ANNOUNCEMENT LOGIC (Supports Multiple Banners) ---
+    const [announcements, setAnnouncements] = useState([]);
     const [isEditingBanner, setIsEditingBanner] = useState(false);
-    const [bannerText, setBannerText] = useState('');
+    const [editState, setEditState] = useState([]);
 
-    // Fetch the announcement directly on load, bypassing context mapping
+    // Fetch the announcements directly on load
     useEffect(() => {
         fetch(`${API_URL}?action=get_all`)
             .then(res => res.json())
             .then(data => {
-                if (data.settings && data.settings.globalAnnouncement !== undefined) {
-                    setLocalAnnouncement(data.settings.globalAnnouncement);
-                    setBannerText(data.settings.globalAnnouncement);
+                if (data.settings && data.settings.globalAnnouncement) {
+                    try {
+                        const parsed = JSON.parse(data.settings.globalAnnouncement);
+                        if (Array.isArray(parsed)) {
+                            setAnnouncements(parsed);
+                            setEditState(parsed);
+                        } else {
+                            // Fallback if the database has old string data
+                            const legacy = [{ id: '1', text: data.settings.globalAnnouncement, theme: 'blue', size: 'normal' }];
+                            setAnnouncements(legacy);
+                            setEditState(legacy);
+                        }
+                    } catch(e) {
+                        // Fallback if the database has old un-parseable string data
+                        const legacy = [{ id: '1', text: data.settings.globalAnnouncement, theme: 'blue', size: 'normal' }];
+                        setAnnouncements(legacy);
+                        setEditState(legacy);
+                    }
                 }
             })
             .catch(err => console.error("Error fetching announcement:", err));
     }, []);
 
-    // Save directly to the database
-    const saveBanner = async () => {
+    // Banner Edit Handlers
+    const handleAddBanner = () => {
+        setEditState([...editState, { id: Date.now().toString(), text: '', theme: 'blue', size: 'normal' }]);
+    };
+
+    const handleUpdateBanner = (id, field, value) => {
+        setEditState(editState.map(b => b.id === id ? { ...b, [field]: value } : b));
+    };
+
+    const handleRemoveBanner = (id) => {
+        setEditState(editState.filter(b => b.id !== id));
+    };
+
+    // Save directly to the database as a stringified JSON array
+    const saveBanners = async () => {
+        const validBanners = editState.filter(b => b.text.trim() !== '');
         try {
             await fetch(`${API_URL}?action=save_setting`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key_name: 'globalAnnouncement', setting_value: bannerText })
+                body: JSON.stringify({ key_name: 'globalAnnouncement', setting_value: JSON.stringify(validBanners) })
             });
-            setLocalAnnouncement(bannerText);
+            setAnnouncements(validBanners);
+            setEditState(validBanners);
             setIsEditingBanner(false);
         } catch (err) {
-            console.error("Failed to save banner", err);
-            alert("There was an error saving the announcement.");
+            console.error("Failed to save banners", err);
+            alert("There was an error saving the announcements.");
         }
     };
     
@@ -78,7 +124,6 @@ export default function HomeDashboard({
                          .slice(0, 5); // Show max 5 upcoming shows
 
     // --- 3. MY PERSONAL LEDGER ---
-    // Strictly scoped to the user, ignoring Admin status so their home page is purely personal
     const myYtShows = shows.filter(s => (s.userIds || []).includes(currentUser?.id) && s.paymentStartDate && s.playlistId);
     
     const uniquePlaylistsMap = new Map();
@@ -119,34 +164,103 @@ export default function HomeDashboard({
                 <p className="text-slate-500 mt-1 font-medium">Here is what is on your desk today.</p>
             </div>
 
-            {/* ANNOUNCEMENT BANNER */}
-            {(currentUser?.isAdmin || localAnnouncement) && (
-                <div className="mb-6 sm:mb-8 flex-shrink-0">
+            {/* ANNOUNCEMENT BANNERS */}
+            {(currentUser?.isAdmin || announcements.length > 0) && (
+                <div className="mb-6 sm:mb-8 flex-shrink-0 flex flex-col gap-3">
                     {currentUser?.isAdmin && isEditingBanner ? (
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 animate-in fade-in slide-in-from-top-2">
-                            <textarea
-                                value={bannerText}
-                                onChange={(e) => setBannerText(e.target.value)}
-                                className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
-                                rows="3"
-                                placeholder="Enter an announcement here... (Leave blank to remove the banner entirely)"
-                            />
-                            <div className="flex gap-2 justify-end">
-                                <button onClick={() => setIsEditingBanner(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-                                <button onClick={saveBanner} className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm">Save Announcement</button>
+                        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-slate-800">Edit Announcements</h3>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                {editState.map((banner, index) => (
+                                    <div key={banner.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50 flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1">
+                                            <textarea
+                                                value={banner.text}
+                                                onChange={(e) => handleUpdateBanner(banner.id, 'text', e.target.value)}
+                                                className="w-full p-3 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                rows="2"
+                                                placeholder="Enter announcement text..."
+                                            />
+                                        </div>
+                                        <div className="flex sm:flex-col gap-2">
+                                            <select 
+                                                value={banner.theme} 
+                                                onChange={(e) => handleUpdateBanner(banner.id, 'theme', e.target.value)}
+                                                className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            >
+                                                <option value="blue">Blue Theme</option>
+                                                <option value="red">Red Alert</option>
+                                                <option value="green">Green Success</option>
+                                                <option value="yellow">Yellow Warning</option>
+                                                <option value="slate">Slate Neutral</option>
+                                            </select>
+                                            <select 
+                                                value={banner.size} 
+                                                onChange={(e) => handleUpdateBanner(banner.id, 'size', e.target.value)}
+                                                className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            >
+                                                <option value="small">Small Text</option>
+                                                <option value="normal">Normal Text</option>
+                                                <option value="large">Large Text</option>
+                                                <option value="xl">XL Text</option>
+                                            </select>
+                                            <button 
+                                                onClick={() => handleRemoveBanner(banner.id)} 
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center shrink-0 sm:shrink"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button 
+                                onClick={handleAddBanner} 
+                                className="mt-4 text-sm font-bold text-blue-600 flex items-center gap-1 hover:text-blue-800 transition-colors"
+                            >
+                                <Plus size={16}/> Add Another Banner
+                            </button>
+
+                            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-slate-100">
+                                <button 
+                                    onClick={() => { setIsEditingBanner(false); setEditState(announcements); }} 
+                                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={saveBanners} 
+                                    className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                                >
+                                    Save Announcements
+                                </button>
                             </div>
                         </div>
-                    ) : localAnnouncement ? (
-                        <div className="bg-blue-50 text-blue-800 p-4 sm:p-5 rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-sm">
-                            <p className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{localAnnouncement}</p>
+                    ) : announcements.length > 0 ? (
+                        <div className="flex flex-col gap-3 relative group">
+                            {announcements.map(banner => (
+                                <div key={banner.id} className={`p-4 sm:p-5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm ${themeMap[banner.theme] || themeMap.blue}`}>
+                                    <p className={`whitespace-pre-wrap leading-relaxed ${sizeMap[banner.size] || sizeMap.normal}`}>{banner.text}</p>
+                                </div>
+                            ))}
                             {currentUser?.isAdmin && (
-                                <button onClick={() => { setBannerText(localAnnouncement); setIsEditingBanner(true); }} className="text-blue-600 hover:text-blue-800 sm:opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold shrink-0 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-md">
-                                    Edit Announcement
+                                <button 
+                                    onClick={() => setIsEditingBanner(true)} 
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold bg-white/80 hover:bg-white text-slate-700 px-3 py-1.5 rounded-md shadow-sm border border-slate-200"
+                                >
+                                    Edit Banners
                                 </button>
                             )}
                         </div>
                     ) : currentUser?.isAdmin ? (
-                        <div className="bg-slate-50 border border-dashed border-slate-300 p-4 rounded-xl flex justify-center hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => { setBannerText(''); setIsEditingBanner(true); }}>
+                        <div 
+                            className="bg-slate-50 border border-dashed border-slate-300 p-4 rounded-xl flex justify-center hover:bg-slate-100 transition-colors cursor-pointer" 
+                            onClick={() => { setEditState([{id: Date.now().toString(), text: '', theme: 'blue', size: 'normal'}]); setIsEditingBanner(true); }}
+                        >
                             <button className="text-sm font-bold text-slate-500 flex items-center gap-2">
                                 <Plus size={16} /> Add Announcement Banner
                             </button>
