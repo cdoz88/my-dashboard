@@ -214,7 +214,7 @@ const handleSyncStripe = async () => {
           // Safety parse splits variable from backend payload
           let activeSplits = pl.splits;
           if (typeof activeSplits === 'string') {
-              try { activeSplits = json_decode(activeSplits, true); } catch(e) { activeSplits = []; }
+              try { activeSplits = JSON.parse(activeSplits); } catch(e) { activeSplits = []; }
           }
           if (!Array.isArray(activeSplits)) activeSplits = [];
 
@@ -252,6 +252,7 @@ const handleSyncStripe = async () => {
       const totalEarned = ytEarned + wpEarned + stripeEarned;
       let paid = 0; let deducted = 0;
       const relatedIds = [user.id, wpShowId, ...ytNormIds, ...ytRawIds];
+      
       payouts.forEach(p => {
           if (relatedIds.includes(p.showId) && p.transactionType !== 'Stripe Commission') {
               if (p.transactionType === 'Payment') paid += parseFloat(p.amount || 0);
@@ -259,7 +260,19 @@ const handleSyncStripe = async () => {
           }
       });
       const balance = totalEarned - paid - deducted;
-      return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, totalEarned, paid, deducted, balance, relatedIds };
+
+      // CASCADE PARTIAL PAYMENTS (YT -> Articles -> Stripe)
+      let remainingPaid = paid;
+      
+      let ytRemaining = Math.max(0, ytEarned - remainingPaid);
+      remainingPaid = Math.max(0, remainingPaid - ytEarned);
+
+      let wpRemaining = Math.max(0, wpEarned - remainingPaid);
+      remainingPaid = Math.max(0, remainingPaid - wpEarned);
+
+      let stripeRemaining = Math.max(0, stripeEarned - remainingPaid);
+
+      return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, totalEarned, paid, deducted, balance, relatedIds, ytRemaining, wpRemaining, stripeRemaining };
   }).filter(u => currentUser?.isAdmin ? (u.totalEarned > 0 || u.balance !== 0 || u.id === currentUser?.id) : u.id === currentUser?.id);
 
 
@@ -1089,7 +1102,7 @@ const handleSyncStripe = async () => {
                          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                              <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                  <th className="p-4 w-64">Creator</th>
-                                 <th className="p-4 w-56">Earnings Breakdown</th>
+                                 <th className="p-4 w-56">Unpaid Balance by Source</th>
                                  <th className="p-4 w-32 text-right">Total Earned</th>
                                  <th className="p-4 w-32 text-right">Paid & Deducted</th>
                                  <th className="p-4 w-32 text-right bg-slate-50">Current Balance</th>
@@ -1107,18 +1120,18 @@ const handleSyncStripe = async () => {
                                      </td>
                                      <td className="p-4 text-xs">
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className={u.ytEarned > 0 ? "text-red-500" : "text-slate-400"}/> YouTube:</span> 
-                                             <span className={`font-medium ${u.ytEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.ytEarned)}</span> 
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className={u.ytRemaining > 0 ? "text-red-500" : "text-slate-400"}/> YouTube:</span> 
+                                             <span className={`font-medium ${u.ytRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.ytRemaining)}</span> 
                                              {u.ytVideos > 0 && <span className="text-[9px] text-slate-400">({u.ytVideos} vids)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className={u.wpEarned > 0 ? "text-sky-500" : "text-slate-400"}/> Articles:</span> 
-                                             <span className={`font-medium ${u.wpEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.wpEarned)}</span> 
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><Globe size={12} className={u.wpRemaining > 0 ? "text-sky-500" : "text-slate-400"}/> Articles:</span> 
+                                             <span className={`font-medium ${u.wpRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.wpRemaining)}</span> 
                                              {u.wpArticles > 0 && <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeEarned > 0 ? "text-blue-500" : "text-slate-400"}/> {currentUser?.isAdmin ? 'Promos:' : 'Subs:'}</span> 
-                                             <span className={`font-medium ${u.stripeEarned > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeEarned)}</span>
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeRemaining > 0 ? "text-blue-500" : "text-slate-400"}/> {currentUser?.isAdmin ? 'Promos:' : 'Subs:'}</span> 
+                                             <span className={`font-medium ${u.stripeRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeRemaining)}</span>
                                          </div>
                                      </td>
                                      <td className="p-4 text-right font-medium text-slate-700">{formatCurrency(u.totalEarned)}</td>

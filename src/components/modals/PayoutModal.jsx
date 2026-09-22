@@ -1,54 +1,23 @@
 import React from 'react';
-import { CreditCard, X, DollarSign, FileText, Calendar, Wallet } from 'lucide-react';
-
-const normalizePlaylistId = (input) => {
-    if (!input) return '';
-    let id = input.trim();
-    const match = id.match(/[?&]list=([^&]+)/) || id.match(/^list=([^&]+)/);
-    if (match) return match[1];
-    if (id.includes('http')) {
-        try {
-            const url = new URL(id);
-            const params = new URLSearchParams(url.search);
-            if (params.has('list')) return params.get('list');
-        } catch(e) {}
-    }
-    return id;
-};
+import { CreditCard, X, DollarSign, FileText, Calendar, Wallet, ExternalLink } from 'lucide-react';
 
 export default function PayoutModal({
-  editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, shows, wpLedgerData, currentUser
+  editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, users
 }) {
-
-  // Create a unique list of Playlists for the dropdown
-  const uniquePlaylistsMap = new Map();
-  shows.filter(s => s.paymentStartDate && s.playlistId).forEach(s => {
-    const cleanId = normalizePlaylistId(s.playlistId);
-    if (!uniquePlaylistsMap.has(cleanId)) {
-      uniquePlaylistsMap.set(cleanId, { ...s, normalizedPlaylistId: cleanId });
-    }
-  });
-  const eligiblePlaylists = Array.from(uniquePlaylistsMap.values());
-
-  const visibleWpLedger = wpLedgerData.filter(wpRecord => {
-      if (currentUser?.isAdmin) return true;
-      return wpRecord.wp_user_id == currentUser?.wpUserId;
-  });
 
   const handleTargetChange = (e) => {
     const targetId = e.target.value;
+    const user = users?.find(u => u.id === targetId);
     
-    // Automatically set default payment method if it's a YouTube show
-    const playlistRep = eligiblePlaylists.find(s => s.normalizedPlaylistId === targetId);
-    if (playlistRep) {
+    // Automatically set default payment method if they have Venmo saved in their profile
+    if (user && user.venmo) {
         setEditingPayout({
           ...editingPayout,
           showId: targetId,
-          paymentMethod: playlistRep.paymentMethod || '',
-          paymentAccount: playlistRep.paymentAccount || ''
+          paymentMethod: 'Venmo',
+          paymentAccount: user.venmo
         });
     } else {
-        // WordPress authors don't have default payment methods defined in Control Room yet
         setEditingPayout({
           ...editingPayout,
           showId: targetId,
@@ -58,7 +27,17 @@ export default function PayoutModal({
     }
   };
 
-  const activePlaylist = eligiblePlaylists.find(s => s.normalizedPlaylistId === editingPayout.showId);
+  // Dynamic Payment Link Generator
+  const getPaymentLink = (method, account) => {
+    if (!account) return null;
+    let cleanAccount = account.trim();
+    if (method === 'Venmo') return `https://venmo.com/${cleanAccount.replace('@', '')}`;
+    if (method === 'CashApp') return `https://cash.app/$${cleanAccount.replace('$', '')}`;
+    if (method === 'PayPal') return `https://paypal.me/${cleanAccount.replace('@', '')}`;
+    return null; // Zelle and Bank Transfer don't have standard direct web links
+  };
+
+  const paymentLink = getPaymentLink(editingPayout.paymentMethod, editingPayout.paymentAccount);
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -82,25 +61,12 @@ export default function PayoutModal({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Target Ledger Account</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Target Creator</label>
               <select required value={editingPayout.showId} onChange={handleTargetChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
-                <option value="" disabled>Select target...</option>
-                
-                {eligiblePlaylists.length > 0 && (
-                   <optgroup label="YouTube Playlists">
-                     {eligiblePlaylists.map(s => (
-                       <option key={s.normalizedPlaylistId} value={s.normalizedPlaylistId}>{s.playlistName || s.title}</option>
-                     ))}
-                   </optgroup>
-                )}
-
-                {visibleWpLedger.length > 0 && (
-                   <optgroup label="WordPress Writers">
-                     {visibleWpLedger.map(wp => (
-                       <option key={`wp_articles_${wp.wp_user_id}`} value={`wp_articles_${wp.wp_user_id}`}>Articles: {wp.name}</option>
-                     ))}
-                   </optgroup>
-                )}
+                <option value="" disabled>Select creator...</option>
+                {users && users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
               </select>
             </div>
 
@@ -124,8 +90,9 @@ export default function PayoutModal({
                     <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><CreditCard size={14} className="text-slate-400"/> Payment Method Used</label>
                     <select required value={editingPayout.paymentMethod} onChange={(e) => setEditingPayout({...editingPayout, paymentMethod: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
                         <option value="" disabled>Select Method</option>
-                        <option value="PayPal">PayPal</option>
+                        <option value="CashApp">CashApp</option>
                         <option value="Venmo">Venmo</option>
+                        <option value="PayPal">PayPal</option>
                         <option value="Zelle">Zelle</option>
                         <option value="Bank Transfer">Bank Transfer</option>
                         <option value="Other">Other...</option>
@@ -133,20 +100,22 @@ export default function PayoutModal({
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Account Details Sent To</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Account Details Sent To</span>
+                        {paymentLink && (
+                            <a href={paymentLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                Open {editingPayout.paymentMethod} <ExternalLink size={12}/>
+                            </a>
+                        )}
+                    </label>
                     <input required type="text" value={editingPayout.paymentAccount} onChange={(e) => setEditingPayout({...editingPayout, paymentAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Username, Email, Account #" />
-                    {activePlaylist && activePlaylist.paymentMethod && (
-                       <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                          💡 Default method for this playlist: <b>{activePlaylist.paymentMethod} ({activePlaylist.paymentAccount})</b>
-                       </p>
-                    )}
                 </div>
               </>
             )}
 
             <div className="pt-2 border-t border-slate-100">
               <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"><FileText size={14} className="text-slate-400"/> Ledger Notes / Memo</label>
-              <textarea rows="3" value={editingPayout.notes || ''} onChange={(e) => setEditingPayout({...editingPayout, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingPayout.transactionType === 'Deduction' ? "Reason for fine or deduction..." : "e.g., Payment for January & February watch hours..."} />
+              <textarea rows="3" value={editingPayout.notes || ''} onChange={(e) => setEditingPayout({...editingPayout, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder={editingPayout.transactionType === 'Deduction' ? "Reason for fine or deduction..." : "e.g., Payment for January & February..."} />
             </div>
 
           </form>

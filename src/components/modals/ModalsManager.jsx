@@ -299,6 +299,7 @@ export default function ModalsManager({
           shows={shows} 
           wpLedgerData={wpLedgerData} 
           currentUser={currentUser} 
+          users={users}
         />
       )}
 
