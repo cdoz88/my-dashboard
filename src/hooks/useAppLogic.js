@@ -87,7 +87,7 @@ export function useAppLogic() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState({ id: null, name: '', companyId: '', icon: 'FolderKanban', color: 'slate', isArchived: false, adminOnly: false });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', title: '', venmo: '', password: '', avatarUrl: '', webhookUrl: '' });
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', title: '', venmo: '', paymentMethod: '', paymentAccount: '', password: '', avatarUrl: '', webhookUrl: '' });
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [isSwitchUserModalOpen, setIsSwitchUserModalOpen] = useState(false);
@@ -242,6 +242,8 @@ export function useAppLogic() {
                phone: u.phone || '',
                title: u.title || '',
                venmo: u.venmo || '',
+               paymentMethod: u.paymentMethod || '',
+               paymentAccount: u.paymentAccount || '',
                webhookUrl: u.webhookUrl || '',
                managerId: u.managerId || '',
                responsibilities: u.responsibilities || '',
@@ -797,8 +799,17 @@ export function useAppLogic() {
   };
 
   const openPayoutModal = (payout = null) => {
-    if (payout) setEditingPayout({ ...payout });
-    else setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
+    if (payout) {
+        // Enforce 2 decimal rounding immediately so bad floats don't populate the input
+        let safeAmount = payout.amount;
+        if (safeAmount !== undefined && safeAmount !== null && safeAmount !== '') {
+            safeAmount = Number(safeAmount).toFixed(2);
+        }
+        setEditingPayout({ ...payout, amount: safeAmount });
+    }
+    else {
+        setEditingPayout({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
+    }
     setIsPayoutModalOpen(true);
   };
 
@@ -1258,7 +1269,7 @@ export function useAppLogic() {
 
   const openTeamModal = (userToEdit = null) => {
     if (userToEdit) setEditingTeamMember({ ...userToEdit, companyIds: companies.filter(c => c.userIds?.includes(userToEdit.id)).map(c => c.id), wpUserId: userToEdit.wpUserId || '' });
-    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
+    else setEditingTeamMember({ id: null, name: '', email: '', phone: '', title: '', venmo: '', paymentMethod: '', paymentAccount: '', webhookUrl: '', isAdmin: false, canViewProjects: true, canViewBudget: false, canViewDomains: false, canViewEvents: true, canViewSpreaker: false, canViewYoutube: false, canViewShows: false, canViewSponsorships: false, canViewCRM: false, companyIds: activeTeamTab !== 'overview' ? [activeTeamTab] : [], generateOnboarding: true, managerId: '', responsibilities: '', wpUserId: '' });
     setIsTeamModalOpen(true);
   };
 
@@ -1440,14 +1451,35 @@ export function useAppLogic() {
 
   const openProfileModal = () => {
     if(currentUser) {
-      setProfileForm({ name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '', title: currentUser.title || '', venmo: currentUser.venmo || '', avatarUrl: currentUser.avatarUrl, webhookUrl: currentUser.webhookUrl || '' });
+      setProfileForm({ 
+          name: currentUser.name, 
+          email: currentUser.email, 
+          phone: currentUser.phone || '', 
+          title: currentUser.title || '', 
+          venmo: currentUser.venmo || '', 
+          paymentMethod: currentUser.paymentMethod || '',
+          paymentAccount: currentUser.paymentAccount || '',
+          avatarUrl: currentUser.avatarUrl, 
+          webhookUrl: currentUser.webhookUrl || '' 
+      });
       setIsProfileModalOpen(true);
     }
   };
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    const updatedUser = { ...currentUser, name: profileForm.name, email: profileForm.email, phone: profileForm.phone, title: profileForm.title, venmo: profileForm.venmo, avatarUrl: profileForm.avatarUrl, webhookUrl: profileForm.webhookUrl };
+    const updatedUser = { 
+        ...currentUser, 
+        name: profileForm.name, 
+        email: profileForm.email, 
+        phone: profileForm.phone, 
+        title: profileForm.title, 
+        venmo: profileForm.venmo, 
+        paymentMethod: profileForm.paymentMethod,
+        paymentAccount: profileForm.paymentAccount,
+        avatarUrl: profileForm.avatarUrl, 
+        webhookUrl: profileForm.webhookUrl 
+    };
     const localUser = { ...updatedUser };
     if (users.find(u => u.id === currentUser.id)) setUsers(users.map(u => u.id === currentUser.id ? localUser : u));
     else setUsers([...users, localUser]);
@@ -1557,6 +1589,44 @@ export function useAppLogic() {
   };
   const handleDragOver = (e) => e.preventDefault();
 
+  const openPlaylistSplitModal = (playlist) => {
+      setEditingPlaylistSplits({ ...playlist, splits: playlist.splits || [] });
+      setIsPlaylistSplitModalOpen(true);
+  };
+
+  const handleSavePlaylistSplits = async (playlistId, newSplits) => {
+      const playlist = youtubePlaylists.find(p => p.id === playlistId);
+      if (!playlist) return;
+
+      const updatedPlaylist = { ...playlist, splits: newSplits };
+      
+      setYoutubePlaylists(prev => prev.map(p => p.id === playlistId ? updatedPlaylist : p));
+      setIsPlaylistSplitModalOpen(false);
+
+      try {
+          await fetch(`${API_URL}?action=save_youtube_playlist`, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify(updatedPlaylist) 
+          });
+          
+          await fetch(`${API_URL}?action=save_log`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  id: 'log_' + Date.now(),
+                  userId: currentUser?.id || 'system',
+                  actionCategory: 'Shows',
+                  actionType: 'Splits Updated',
+                  description: `Updated revenue splits for playlist "${playlist.playlistName}"`,
+                  timestamp: new Date().toISOString()
+              })
+          });
+      } catch (err) {
+          console.error("Failed to save splits:", err);
+      }
+  };
+
   return {
     isLoading, setIsLoading,
     isUploading, setIsUploading,
@@ -1647,6 +1717,8 @@ export function useAppLogic() {
     isPayoutModalOpen, setIsPayoutModalOpen,
     editingPayout, setEditingPayout,
     isSyncingLedger, setIsSyncingLedger,
+    isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen,
+    editingPlaylistSplits, setEditingPlaylistSplits,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
     sendToAPI, uploadFileToServer, handleScanBusinessCard, logActivity, handleSaveGlobalChecklist,
     handleSaveGlobalAnnouncement, handleGenerateOnboarding, handleGenerateOffboarding, handleReorderTasks, 
@@ -1665,6 +1737,6 @@ export function useAppLogic() {
     openSpreakerModal, handleSaveSpreakerShow, handleDeleteSpreakerShow, openProfileModal, handleSaveProfile,
     handleSaveTeamMember, handleDeleteUser, handleUpdateUser, handleCompanyLogoUpload, handleProfileImageUpload,
     handleTeamMemberImageUpload, handleSponsorshipLogoUpload, handleFileUpload, removeFile, handleDragStart,
-    handleDrop, handleDragOver
+    handleDrop, handleDragOver, openPlaylistSplitModal, handleSavePlaylistSplits
   };
 }
