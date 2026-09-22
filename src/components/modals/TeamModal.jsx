@@ -21,6 +21,8 @@ export default function TeamModal({
                     phone: '', 
                     title: '', 
                     venmo: '', 
+                    paymentMethod: '',
+                    paymentAccount: '',
                     webhookUrl: '', 
                     isAdmin: false, 
                     canViewProjects: true, 
@@ -88,6 +90,29 @@ export default function TeamModal({
                   <label className="block text-sm font-medium text-slate-700 mb-1">Title / Role</label>
                   <input type="text" value={editingTeamMember.title || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, title: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Lead Designer" />
                 </div>
+                
+                {/* NEW PAYMENT FIELDS */}
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Preferred Payment Method</label>
+                        <select value={editingTeamMember.paymentMethod || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, paymentMethod: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="">Select Method...</option>
+                            <option value="CashApp">CashApp</option>
+                            <option value="Venmo">Venmo</option>
+                            <option value="PayPal">PayPal</option>
+                            <option value="Zelle">Zelle</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Other">Other...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Payment Username / Account</label>
+                        {/* Fallback to legacy "venmo" if they haven't explicitly set the new account var yet */}
+                        <input type="text" value={editingTeamMember.paymentAccount || editingTeamMember.venmo || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, paymentAccount: e.target.value, venmo: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="$cashtag, @username, or email" />
+                    </div>
+                </div>
+                {/* ------------------ */}
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reports To (Manager)</label>
                   <select value={editingTeamMember.managerId || ''} onChange={(e) => setEditingTeamMember({...editingTeamMember, managerId: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">

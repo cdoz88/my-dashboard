@@ -27,6 +27,16 @@ const formatAVD = (minutes, views) => {
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
+// Generates dynamic outbound payment links based on preferred method
+const getPaymentLink = (method, account) => {
+    if (!account || !method) return null;
+    let clean = account.trim();
+    if (method === 'Venmo') return `https://venmo.com/${clean.replace('@', '')}`;
+    if (method === 'CashApp') return `https://cash.app/$${clean.replace('$', '')}`;
+    if (method === 'PayPal') return `https://paypal.me/${clean.replace('@', '')}`;
+    return null;
+};
+
 export default function LedgerDashboard({
   shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
 }) {
@@ -206,12 +216,10 @@ const handleSyncStripe = async () => {
       const ytNormIds = []; 
       const ytRawIds = [];
 
-      // Iterate through ALL playlists in the database to parse splits mathematically
       ytPlaylists.forEach(pl => {
           const totalRevPool = parseFloat(pl.ledgerRevenue || 0);
           const creatorNetPool = totalRevPool * (parseFloat(pl.revShare ?? 100) / 100);
           
-          // Safety parse splits variable from backend payload
           let activeSplits = pl.splits;
           if (typeof activeSplits === 'string') {
               try { activeSplits = JSON.parse(activeSplits); } catch(e) { activeSplits = []; }
@@ -219,7 +227,6 @@ const handleSyncStripe = async () => {
           if (!Array.isArray(activeSplits)) activeSplits = [];
 
           if (activeSplits.length > 0) {
-              // Option A: Custom Splits are active on this playlist
               const userSplit = activeSplits.find(s => s.userId === user.id);
               if (userSplit) {
                   const distributionPercent = parseFloat(userSplit.percent || 0) / 100;
@@ -229,7 +236,6 @@ const handleSyncStripe = async () => {
                   ytNormIds.push(normalizePlaylistId(pl.playlistId));
               }
           } else {
-              // Option B: No splits mapped, fall back 100% to primary playlist owner
               if (pl.userId === user.id) {
                   ytEarned += creatorNetPool;
                   ytVideos += parseInt(pl.ledgerVideos || 0);
@@ -251,6 +257,8 @@ const handleSyncStripe = async () => {
 
       const totalEarned = ytEarned + wpEarned + stripeEarned;
       let paid = 0; let deducted = 0;
+      
+      // Because 'user.id' is included in relatedIds, logging a lump sum to 'user.id' calculates against their global unified payout correctly!
       const relatedIds = [user.id, wpShowId, ...ytNormIds, ...ytRawIds];
       
       payouts.forEach(p => {
@@ -1113,9 +1121,21 @@ const handleSyncStripe = async () => {
                              {unifiedLedger.map(u => (
                                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                                      <td className="p-4">
-                                         <div className="flex items-center gap-3">
-                                            {u.avatarUrl ? <img src={u.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-200 bg-white flex-shrink-0" /> : <UserCircle size={32} className="text-slate-400 flex-shrink-0" />}
-                                            <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors" onClick={() => setHistoryModalItem({ id: u.id, name: u.name, relatedIds: u.relatedIds })} title="View Payment History">{u.name}</div>
+                                         <div className="flex items-start gap-3">
+                                            {u.avatarUrl ? <img src={u.avatarUrl} alt="Avatar" className="w-8 h-8 mt-1 rounded-full object-cover border border-slate-200 bg-white flex-shrink-0" /> : <UserCircle size={32} className="text-slate-400 mt-1 flex-shrink-0" />}
+                                            <div className="flex flex-col">
+                                                <div className="font-bold text-slate-800 cursor-pointer hover:text-emerald-600 transition-colors" onClick={() => setHistoryModalItem({ id: u.id, name: u.name, relatedIds: u.relatedIds })} title="View Payment History">{u.name}</div>
+                                                {u.paymentMethod && u.paymentAccount && (
+                                                    <div className="text-[10px] mt-0.5 flex flex-col items-start text-slate-500">
+                                                        <span className="font-medium text-slate-600">{u.paymentMethod}: {u.paymentAccount}</span>
+                                                        {getPaymentLink(u.paymentMethod, u.paymentAccount) && (
+                                                            <a href={getPaymentLink(u.paymentMethod, u.paymentAccount)} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center gap-1 mt-0.5 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                                                Pay via {u.paymentMethod} <ExternalLink size={10} />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                          </div>
                                      </td>
                                      <td className="p-4 text-xs">
@@ -1144,7 +1164,14 @@ const handleSyncStripe = async () => {
                                      </td>
                                      {currentUser?.isAdmin && (
                                          <td className="p-4 text-center">
-                                             <button onClick={() => openPayoutModal({ showId: u.id, amount: u.balance > 0 ? u.balance : 0, paymentDate: new Date().toISOString().split('T')[0], transactionType: 'Payment' })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
+                                             <button onClick={() => openPayoutModal({ 
+                                                 showId: u.id, 
+                                                 amount: u.balance > 0 ? u.balance : 0, 
+                                                 paymentDate: new Date().toISOString().split('T')[0], 
+                                                 transactionType: 'Payment',
+                                                 paymentMethod: u.paymentMethod || 'Manual',
+                                                 paymentAccount: u.paymentAccount || ''
+                                             })} className="text-[10px] font-bold text-white bg-slate-800 px-2 py-1 rounded hover:bg-slate-700 transition-colors whitespace-nowrap">
                                                  Pay Now
                                              </button>
                                          </td>

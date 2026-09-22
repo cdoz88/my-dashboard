@@ -9,31 +9,22 @@ export default function PayoutModal({
     const targetId = e.target.value;
     const user = users?.find(u => u.id === targetId);
     
-    // Automatically set default payment method if they have Venmo saved in their profile
-    if (user && user.venmo) {
-        setEditingPayout({
-          ...editingPayout,
-          showId: targetId,
-          paymentMethod: 'Venmo',
-          paymentAccount: user.venmo
-        });
-    } else {
-        setEditingPayout({
-          ...editingPayout,
-          showId: targetId,
-          paymentMethod: '',
-          paymentAccount: ''
-        });
-    }
+    // Automatically capture their preferred method so it saves to the ledger history silently
+    setEditingPayout({
+      ...editingPayout,
+      showId: targetId,
+      paymentMethod: user?.paymentMethod || 'Manual',
+      paymentAccount: user?.paymentAccount || ''
+    });
   };
 
   // Dynamic Payment Link Generator
   const getPaymentLink = (method, account) => {
     if (!account) return null;
-    let cleanAccount = account.trim();
-    if (method === 'Venmo') return `https://venmo.com/${cleanAccount.replace('@', '')}`;
-    if (method === 'CashApp') return `https://cash.app/$${cleanAccount.replace('$', '')}`;
-    if (method === 'PayPal') return `https://paypal.me/${cleanAccount.replace('@', '')}`;
+    let clean = account.trim();
+    if (method === 'Venmo') return `https://venmo.com/${clean.replace('@', '')}`;
+    if (method === 'CashApp') return `https://cash.app/$${clean.replace('$', '')}`;
+    if (method === 'PayPal') return `https://paypal.me/${clean.replace('@', '')}`;
     return null; // Zelle and Bank Transfer don't have standard direct web links
   };
 
@@ -62,7 +53,7 @@ export default function PayoutModal({
             
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Target Creator</label>
-              <select required value={editingPayout.showId} onChange={handleTargetChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              <select required value={editingPayout.showId || ''} onChange={handleTargetChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50">
                 <option value="" disabled>Select creator...</option>
                 {users && users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
