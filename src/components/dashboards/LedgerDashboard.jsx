@@ -3,6 +3,7 @@ import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X,
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 import PlaylistSplitModal from '../modals/PlaylistSplitModal';
+import { useAppContext } from '../../context/AppContext';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -37,15 +38,23 @@ const getPaymentLink = (method, account) => {
     return null;
 };
 
-export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab,
-  salaries, setIsSalaryModalOpen, setEditingSalary, handleDeleteSalary // NEW SALARY PROPS
-}) {
+export default function LedgerDashboard(props) {
+  // BYPASS ROUTER: Pull state directly from AppContext so modals always work securely
+  const appState = useAppContext();
+  const mergedProps = { ...props, ...appState };
+
+  const {
+      shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab,
+      salaries, setIsSalaryModalOpen, setEditingSalary, handleDeleteSalary
+  } = mergedProps;
+
   const [historyModalItem, setHistoryModalItem] = useState(null);
   
+  // Drill-down states for Admins
   const [selectedWpUserId, setSelectedWpUserId] = useState(null);
   const [selectedYtUserId, setSelectedYtUserId] = useState(null);
 
+  // --- Local State for Admin Mapping ---
   const [stripePromos, setStripePromos] = useState([]);
   const [editingPromos, setEditingPromos] = useState({});
   const [isSyncingStripe, setIsSyncingStripe] = useState(false);
@@ -56,6 +65,7 @@ export default function LedgerDashboard({
   const [showArchivedPl, setShowArchivedPl] = useState(false);
   const [playlistChannelFilter, setPlaylistChannelFilter] = useState('All');
 
+  // NEW: Playlist Splits State (Managed Locally)
   const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
   const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
 
@@ -70,6 +80,7 @@ export default function LedgerDashboard({
 
       const updatedPlaylist = { ...playlist, splits: newSplits };
       
+      // Optimistically update the UI for instant feedback
       setYtPlaylists(prev => prev.map(p => p.id === playlistId ? updatedPlaylist : p));
       setIsPlaylistSplitModalOpen(false);
 
@@ -124,14 +135,24 @@ export default function LedgerDashboard({
     }
   }, [activeTab]);
 
-  const handleSyncStripe = async () => {
+// --- STRIPE LOGIC ---
+const handleSyncStripe = async () => {
     setIsSyncingStripe(true);
     try {
-        const res = await fetch(`${API_URL}?action=sync_stripe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+        const res = await fetch(`${API_URL}?action=sync_stripe`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({}) 
+        });
         const data = await res.json();
         if (data.error) alert("Stripe Sync Error: " + data.error);
-        else { alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); window.location.reload(); }
-    } catch (err) { alert("Error syncing with Stripe API."); }
+        else { 
+            alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); 
+            window.location.reload(); 
+        }
+    } catch (err) { 
+        alert("Error syncing with Stripe API."); 
+    }
     setIsSyncingStripe(false);
   };
 
@@ -148,13 +169,17 @@ export default function LedgerDashboard({
   };
   const savePromo = (promoId) => { if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]); };
 
+  // --- YOUTUBE PLAYLIST LOGIC ---
   const handleImportPlaylists = async () => {
       setIsImportingPlaylists(true);
       try {
           const res = await fetch(`${API_URL}?action=import_youtube_playlists`, { method: 'POST' });
           const data = await res.json();
           if (data.error) alert("Error importing: " + data.error);
-          else { alert(`Successfully imported ${data.count} playlists! Reloading...`); window.location.reload(); }
+          else {
+              alert(`Successfully imported ${data.count} playlists! Reloading...`);
+              window.location.reload(); 
+          }
       } catch (err) { alert("Failed to contact server."); }
       setIsImportingPlaylists(false);
   };
@@ -191,7 +216,6 @@ export default function LedgerDashboard({
       try { await fetch(`${API_URL}?action=delete_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } 
       catch (err) { console.error(err); }
   };
-
 
   // --- UNIFIED CREATOR LEDGER LOGIC ---
   const unifiedLedger = users.map(user => {

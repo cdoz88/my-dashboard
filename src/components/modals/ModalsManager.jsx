@@ -22,7 +22,7 @@ import ContactModal from './ContactModal';
 import PasswordModal from './PasswordModal';
 import PayoutModal from './PayoutModal';
 import PlaylistSplitModal from './PlaylistSplitModal';
-import SalaryModal from './SalaryModal';
+import SalaryModal from './SalaryModal'; // NEW IMPORT
 
 export default function ModalsManager({
   // 1. Task Modal Props
@@ -54,7 +54,7 @@ export default function ModalsManager({
   isProjectAttachmentsModalOpen, activeProject, tasks, setIsProjectAttachmentsModalOpen,
   isAvatarMakerModalOpen, setIsAvatarMakerModalOpen,
   isPayoutModalOpen, editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, wpLedgerData,
-  // 10. NEW: Playlist Splits Props
+  // 10. Playlist Splits Props
   isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen, editingPlaylistSplits, handleSavePlaylistSplits,
   // 11. NEW: Salary Modal Props
   isSalaryModalOpen, setIsSalaryModalOpen, editingSalary, setEditingSalary, handleSaveSalary
@@ -316,6 +316,7 @@ export default function ModalsManager({
           />
       )}
 
+      {/* NEW: Salary Modal */}
       {isSalaryModalOpen && (
           <SalaryModal 
               editingSalary={editingSalary}
