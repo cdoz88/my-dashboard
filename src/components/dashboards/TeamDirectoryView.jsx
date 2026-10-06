@@ -36,12 +36,18 @@ export default function TeamDirectoryView({
   const filteredUsers = displayedUsers.filter(u => {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
+      
+      // Ensure the placeholder email doesn't trigger false search results
+      const displayEmail = u.email?.includes('@fsan-placeholder.com') ? '' : u.email;
+      
       return (
           (u.name && u.name.toLowerCase().includes(q)) ||
           (u.title && u.title.toLowerCase().includes(q)) ||
-          (u.email && u.email.toLowerCase().includes(q)) ||
+          (displayEmail && displayEmail.toLowerCase().includes(q)) ||
           (u.phone && u.phone.toLowerCase().includes(q)) ||
           (u.venmo && u.venmo.toLowerCase().includes(q)) ||
+          (u.paymentMethod && u.paymentMethod.toLowerCase().includes(q)) ||
+          (u.paymentAccount && u.paymentAccount.toLowerCase().includes(q)) ||
           (u.responsibilities && u.responsibilities.toLowerCase().includes(q))
       );
   });
@@ -231,22 +237,36 @@ export default function TeamDirectoryView({
                       )}
 
                       <div className="mt-2.5 space-y-1">
-                          <a href={`mailto:${user.email}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-indigo-600 hover:underline flex items-center gap-1.5 truncate">
-                            <Mail size={12} className="flex-shrink-0" />
-                            {user.email}
-                          </a>
+                          {!user.email?.includes('@fsan-placeholder.com') ? (
+                              <a href={`mailto:${user.email}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-indigo-600 hover:underline flex items-center gap-1.5 truncate">
+                                <Mail size={12} className="flex-shrink-0" />
+                                {user.email}
+                              </a>
+                          ) : (
+                              <div className="text-[11px] text-slate-400 flex items-center gap-1.5 truncate italic">
+                                <Mail size={12} className="flex-shrink-0 opacity-50" />
+                                Pending SSO Login
+                              </div>
+                          )}
+                          
                           {user.phone && (
                             <a href={`tel:${user.phone}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-slate-500 hover:text-indigo-600 hover:underline flex items-center gap-1.5 truncate">
                               <Phone size={12} className="flex-shrink-0" />
                               {user.phone}
                             </a>
                           )}
-                          {user.venmo && (
+                          
+                          {(user.paymentMethod && user.paymentAccount) ? (
                             <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
                               <DollarSign size={12} className="flex-shrink-0 text-emerald-500 bg-emerald-50 rounded-full p-0.5" />
-                              <span className="font-medium text-slate-700">@{user.venmo}</span>
+                              <span className="font-medium text-slate-700">{user.paymentMethod}: {user.paymentAccount}</span>
                             </div>
-                          )}
+                          ) : user.venmo ? (
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
+                              <DollarSign size={12} className="flex-shrink-0 text-emerald-500 bg-emerald-50 rounded-full p-0.5" />
+                              <span className="font-medium text-slate-700">Venmo: @{user.venmo.replace('@', '')}</span>
+                            </div>
+                          ) : null}
                       </div>
 
                       {userShows.length > 0 && (
