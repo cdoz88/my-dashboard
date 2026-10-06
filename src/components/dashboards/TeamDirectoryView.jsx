@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Mail, Settings, CheckCircle, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv, Archive, RefreshCw } from 'lucide-react';
+import { Users, Mail, Settings, Shield, UserCircle, Contact, Phone, DollarSign, FolderKanban, Plus, Camera, UserMinus, Search, Tv, Archive, RefreshCw } from 'lucide-react';
 import CompanyLogo from '../shared/CompanyLogo';
 import { colorStyles } from '../../utils/constants';
 
@@ -256,15 +256,20 @@ export default function TeamDirectoryView({
                             </a>
                           )}
                           
+                          {/* DYNAMIC PAYMENT METHOD BADGE */}
                           {(user.paymentMethod && user.paymentAccount) ? (
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
-                              <DollarSign size={12} className="flex-shrink-0 text-emerald-500 bg-emerald-50 rounded-full p-0.5" />
-                              <span className="font-medium text-slate-700">{user.paymentMethod}: {user.paymentAccount}</span>
+                            <div className="mt-2 flex items-center">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 truncate max-w-full">
+                                    <DollarSign size={10} className="text-emerald-500" />
+                                    <span className="truncate">{user.paymentMethod}: {user.paymentAccount}</span>
+                                </span>
                             </div>
                           ) : user.venmo ? (
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
-                              <DollarSign size={12} className="flex-shrink-0 text-emerald-500 bg-emerald-50 rounded-full p-0.5" />
-                              <span className="font-medium text-slate-700">Venmo: @{user.venmo.replace('@', '')}</span>
+                            <div className="mt-2 flex items-center">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 truncate max-w-full">
+                                    <DollarSign size={10} className="text-emerald-500" />
+                                    <span className="truncate">Venmo: @{user.venmo.replace('@', '')}</span>
+                                </span>
                             </div>
                           ) : null}
                       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft, Play, Archive } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, DollarSign, Youtube, FileText, History, X, Wallet, Globe, Link as LinkIcon, Save, Trash2, UserCircle, ExternalLink, ArrowLeft, Play, Archive, Briefcase, Pencil } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 import PlaylistSplitModal from '../modals/PlaylistSplitModal';
@@ -38,15 +38,14 @@ const getPaymentLink = (method, account) => {
 };
 
 export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab,
+  salaries, setIsSalaryModalOpen, setEditingSalary, handleDeleteSalary // NEW SALARY PROPS
 }) {
   const [historyModalItem, setHistoryModalItem] = useState(null);
   
-  // Drill-down states for Admins
   const [selectedWpUserId, setSelectedWpUserId] = useState(null);
   const [selectedYtUserId, setSelectedYtUserId] = useState(null);
 
-  // --- Local State for Admin Mapping ---
   const [stripePromos, setStripePromos] = useState([]);
   const [editingPromos, setEditingPromos] = useState({});
   const [isSyncingStripe, setIsSyncingStripe] = useState(false);
@@ -57,7 +56,6 @@ export default function LedgerDashboard({
   const [showArchivedPl, setShowArchivedPl] = useState(false);
   const [playlistChannelFilter, setPlaylistChannelFilter] = useState('All');
 
-  // NEW: Playlist Splits State (Managed Locally)
   const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
   const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
 
@@ -72,7 +70,6 @@ export default function LedgerDashboard({
 
       const updatedPlaylist = { ...playlist, splits: newSplits };
       
-      // Optimistically update the UI for instant feedback
       setYtPlaylists(prev => prev.map(p => p.id === playlistId ? updatedPlaylist : p));
       setIsPlaylistSplitModalOpen(false);
 
@@ -127,24 +124,14 @@ export default function LedgerDashboard({
     }
   }, [activeTab]);
 
-// --- STRIPE LOGIC ---
-const handleSyncStripe = async () => {
+  const handleSyncStripe = async () => {
     setIsSyncingStripe(true);
     try {
-        const res = await fetch(`${API_URL}?action=sync_stripe`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({}) 
-        });
+        const res = await fetch(`${API_URL}?action=sync_stripe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
         const data = await res.json();
         if (data.error) alert("Stripe Sync Error: " + data.error);
-        else { 
-            alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); 
-            window.location.reload(); 
-        }
-    } catch (err) { 
-        alert("Error syncing with Stripe API."); 
-    }
+        else { alert(`Successfully synced Stripe! Added/Updated ${data.commissionsAdded} commissions.`); window.location.reload(); }
+    } catch (err) { alert("Error syncing with Stripe API."); }
     setIsSyncingStripe(false);
   };
 
@@ -161,17 +148,13 @@ const handleSyncStripe = async () => {
   };
   const savePromo = (promoId) => { if (editingPromos[promoId]) handleSaveStripePromo(editingPromos[promoId]); };
 
-  // --- YOUTUBE PLAYLIST LOGIC ---
   const handleImportPlaylists = async () => {
       setIsImportingPlaylists(true);
       try {
           const res = await fetch(`${API_URL}?action=import_youtube_playlists`, { method: 'POST' });
           const data = await res.json();
           if (data.error) alert("Error importing: " + data.error);
-          else {
-              alert(`Successfully imported ${data.count} playlists! Reloading...`);
-              window.location.reload(); 
-          }
+          else { alert(`Successfully imported ${data.count} playlists! Reloading...`); window.location.reload(); }
       } catch (err) { alert("Failed to contact server."); }
       setIsImportingPlaylists(false);
   };
@@ -208,6 +191,7 @@ const handleSyncStripe = async () => {
       try { await fetch(`${API_URL}?action=delete_youtube_playlist`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } 
       catch (err) { console.error(err); }
   };
+
 
   // --- UNIFIED CREATOR LEDGER LOGIC ---
   const unifiedLedger = users.map(user => {
@@ -255,10 +239,44 @@ const handleSyncStripe = async () => {
           if (p.showId === user.id && p.transactionType === 'Stripe Commission') stripeEarned += parseFloat(p.amount || 0);
       });
 
-      const totalEarned = ytEarned + wpEarned + stripeEarned;
+      // --- SALARY / BASE PAY CALCULATION ---
+      let salaryEarned = 0;
+      const userSalaries = (salaries || []).filter(s => s.userId === user.id);
+      
+      userSalaries.forEach(s => {
+          const amt = parseFloat(s.amount || 0);
+          if (!s.isRecurring) {
+              salaryEarned += amt; // Flat rate one-time payment
+          } else if (s.startDate) {
+              // Calculate how many periods have passed since startDate
+              const start = new Date(`${s.startDate}T12:00:00`);
+              const now = new Date();
+              
+              if (now >= start) {
+                  if (s.frequency === 'yearly') {
+                      let years = now.getFullYear() - start.getFullYear();
+                      // Subtract a year if we haven't passed the anniversary date yet
+                      if (now.getMonth() < start.getMonth() || (now.getMonth() === start.getMonth() && now.getDate() < start.getDate())) {
+                          years--;
+                      }
+                      years = Math.max(0, years + 1); // +1 because first payment is immediate on start date
+                      salaryEarned += (amt * years);
+                  } else {
+                      // Default to Monthly
+                      let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+                      if (now.getDate() < start.getDate()) {
+                          months--;
+                      }
+                      months = Math.max(0, months + 1); // +1 because first payment is immediate on start date
+                      salaryEarned += (amt * months);
+                  }
+              }
+          }
+      });
+
+      const totalEarned = ytEarned + wpEarned + stripeEarned + salaryEarned;
       let paid = 0; let deducted = 0;
       
-      // Because 'user.id' is included in relatedIds, logging a lump sum to 'user.id' calculates against their global unified payout correctly!
       const relatedIds = [user.id, wpShowId, ...ytNormIds, ...ytRawIds];
       
       payouts.forEach(p => {
@@ -269,8 +287,11 @@ const handleSyncStripe = async () => {
       });
       const balance = totalEarned - paid - deducted;
 
-      // CASCADE PARTIAL PAYMENTS (YT -> Articles -> Stripe)
+      // CASCADE PARTIAL PAYMENTS (Salaries -> YT -> Articles -> Stripe)
       let remainingPaid = paid;
+
+      let salaryRemaining = Math.max(0, salaryEarned - remainingPaid);
+      remainingPaid = Math.max(0, remainingPaid - salaryEarned);
       
       let ytRemaining = Math.max(0, ytEarned - remainingPaid);
       remainingPaid = Math.max(0, remainingPaid - ytEarned);
@@ -280,8 +301,8 @@ const handleSyncStripe = async () => {
 
       let stripeRemaining = Math.max(0, stripeEarned - remainingPaid);
 
-      return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, totalEarned, paid, deducted, balance, relatedIds, ytRemaining, wpRemaining, stripeRemaining };
-  }).filter(u => currentUser?.isAdmin ? (u.totalEarned > 0 || u.balance !== 0 || u.id === currentUser?.id) : u.id === currentUser?.id);
+      return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, salaryEarned, totalEarned, paid, deducted, balance, relatedIds, ytRemaining, wpRemaining, stripeRemaining, salaryRemaining };
+  }).filter(u => currentUser?.isAdmin ? (u.totalEarned > 0 || u.balance !== 0 || u.id === currentUser?.id || (salaries || []).some(s => s.userId === u.id)) : u.id === currentUser?.id);
 
 
   const grandTotalEarned = unifiedLedger.reduce((sum, u) => sum + u.totalEarned, 0);
@@ -292,18 +313,87 @@ const handleSyncStripe = async () => {
   const validHistoryIds = currentUser?.isAdmin ? payouts.map(p=>p.showId) : (currentUserUnified?.relatedIds || []);
   const visibleHistory = payouts.filter(p => validHistoryIds.includes(p.showId) && p.transactionType !== 'Stripe Commission');
 
+  // ---------------------------------------------------------
+  // NEW VIEW: SALARIES DASHBOARD (ADMIN ONLY)
+  // ---------------------------------------------------------
+  if (activeTab === 'salaries' && currentUser?.isAdmin) {
+      return (
+        <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
+          <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                      <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                          <Briefcase className="text-emerald-600" size={28} />
+                          Salaries & Base Pay
+                      </h2>
+                      <p className="text-slate-500 text-sm mt-1">Assign flat-rate or recurring salaries to creators on the ledger.</p>
+                  </div>
+                  <button onClick={() => { setEditingSalary({ id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' }); setIsSalaryModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                      <Plus size={18} /> Add Salary
+                  </button>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left min-w-[700px]">
+                          <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                              <tr>
+                                  <th className="px-6 py-4">Creator</th>
+                                  <th className="px-6 py-4 text-center">Amount</th>
+                                  <th className="px-6 py-4 text-center">Frequency</th>
+                                  <th className="px-6 py-4 text-center">Start Date</th>
+                                  <th className="px-6 py-4">Memo</th>
+                                  <th className="px-6 py-4 text-right">Actions</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                              {(salaries || []).length > 0 ? (salaries || []).map((salary) => {
+                                  const linkedUser = users.find(u => u.id === salary.userId);
+                                  return (
+                                  <tr key={salary.id} className="hover:bg-slate-50 transition-colors">
+                                      <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-2">
+                                          {linkedUser?.avatarUrl ? <img src={linkedUser.avatarUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-slate-200" /> : <UserCircle size={20} className="text-slate-400" />}
+                                          {linkedUser?.name || 'Unknown User'}
+                                      </td>
+                                      <td className="px-6 py-4 text-center font-bold text-emerald-600">{formatCurrency(parseFloat(salary.amount || 0))}</td>
+                                      <td className="px-6 py-4 text-center font-bold text-slate-700">
+                                          {salary.isRecurring ? <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200 text-xs capitalize">{salary.frequency}</span> : <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200 text-xs">One-Time</span>}
+                                      </td>
+                                      <td className="px-6 py-4 text-center font-medium text-slate-600">{salary.isRecurring && salary.startDate ? new Date(`${salary.startDate}T12:00:00`).toLocaleDateString() : '--'}</td>
+                                      <td className="px-6 py-4 text-slate-500 text-xs truncate max-w-[200px]" title={salary.notes}>{salary.notes || '--'}</td>
+                                      <td className="px-6 py-4 text-right">
+                                          <button onClick={() => { setEditingSalary(salary); setIsSalaryModalOpen(true); }} className="text-slate-400 hover:text-blue-600 p-1 mr-2 transition-colors" title="Edit"><Pencil size={16} /></button>
+                                          <button onClick={() => handleDeleteSalary(salary.id)} className="text-slate-400 hover:text-red-600 p-1 transition-colors" title="Delete"><Trash2 size={16} /></button>
+                                      </td>
+                                  </tr>
+                              )}) : (
+                                  <tr>
+                                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                                          <div className="flex flex-col items-center justify-center">
+                                              <Briefcase size={48} className="text-slate-300 mb-3" />
+                                              <p className="font-semibold">No base salaries configured.</p>
+                                          </div>
+                                      </td>
+                                  </tr>
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          </div>
+        </div>
+      );
+  }
 
   // ---------------------------------------------------------
   // EARLY RETURN 1: YOUTUBE PLAYLISTS DASHBOARD
   // ---------------------------------------------------------
   if (activeTab === 'yt_playlists') {
     
-    // --- CREATOR VIEW OR ADMIN VIEWING SPECIFIC CREATOR ---
     if (!currentUser?.isAdmin || selectedYtUserId) {
         const targetUserId = currentUser?.isAdmin ? selectedYtUserId : currentUser?.id;
         const targetUser = users.find(u => u.id === targetUserId);
         
-        // Include any playlists where they are the owner OR part of custom revenue split rules
         const myPlaylists = ytPlaylists.filter(pl => {
             if (showArchivedPl ? !pl.isArchived : pl.isArchived) return false;
             if (playlistChannelFilter !== 'All' && pl.channelId !== playlistChannelFilter) return false;
@@ -745,7 +835,7 @@ const handleSyncStripe = async () => {
                         <div>
                             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                                 <LinkIcon className="text-blue-600" size={28} />
-                                Your FSAN Subs
+                                Your Stripe Promos
                             </h2>
                             <p className="text-slate-500 text-sm mt-1">Your assigned subscription codes and affiliate earnings.</p>
                         </div>
@@ -1139,6 +1229,13 @@ const handleSyncStripe = async () => {
                                          </div>
                                      </td>
                                      <td className="p-4 text-xs">
+                                         {/* Salaries / Base Pay */}
+                                         {(u.salaryEarned > 0 || u.salaryRemaining > 0) && (
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="w-20 text-slate-500 flex items-center gap-1"><Briefcase size={12} className={u.salaryRemaining > 0 ? "text-emerald-500" : "text-slate-400"}/> Base Pay:</span> 
+                                                <span className={`font-medium ${u.salaryRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.salaryRemaining)}</span> 
+                                            </div>
+                                         )}
                                          <div className="flex items-center gap-2 mb-1">
                                              <span className="w-20 text-slate-500 flex items-center gap-1"><Youtube size={12} className={u.ytRemaining > 0 ? "text-red-500" : "text-slate-400"}/> YouTube:</span> 
                                              <span className={`font-medium ${u.ytRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.ytRemaining)}</span> 

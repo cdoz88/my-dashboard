@@ -51,6 +51,7 @@ export function useAppLogic() {
   const [contacts, setContacts] = useState([]);
   const [passwords, setPasswords] = useState([]);
   const [payouts, setPayouts] = useState([]);
+  const [salaries, setSalaries] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
   const [activityLogs, setActivityLogs] = useState([]);
@@ -111,10 +112,12 @@ export function useAppLogic() {
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
   const [isSyncingLedger, setIsSyncingLedger] = useState(false);
-
-  // Playlist Splits State
   const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
   const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
+  
+  // NEW: Salary Modal State
+  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
+  const [editingSalary, setEditingSalary] = useState({ id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' });
 
   // --- BROWSER HISTORY SYNCING (URL Management) ---
   useEffect(() => {
@@ -288,14 +291,12 @@ export function useAppLogic() {
             setShows(data.shows.map(s => ({ ...s, isLive: s.isLive == 1 || s.isLive === true })));
         }
 
-        if(data.youtube_playlists) {
-            setYoutubePlaylists(data.youtube_playlists);
-        }
-
+        if(data.youtube_playlists) setYoutubePlaylists(data.youtube_playlists);
         if(data.sponsorships) setSponsorships(data.sponsorships);
         if(data.contacts) setContacts(data.contacts);
         if(data.passwords) setPasswords(data.passwords);
         if(data.payouts) setPayouts(data.payouts);
+        if(data.salaries) setSalaries(data.salaries.map(s => ({ ...s, isRecurring: s.isRecurring == 1 || s.isRecurring === true })));
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []);
         else setActivityLogs([]);
@@ -800,7 +801,6 @@ export function useAppLogic() {
 
   const openPayoutModal = (payout = null) => {
     if (payout) {
-        // Enforce 2 decimal rounding immediately so bad floats don't populate the input
         let safeAmount = payout.amount;
         if (safeAmount !== undefined && safeAmount !== null && safeAmount !== '') {
             safeAmount = Number(safeAmount).toFixed(2);
@@ -841,6 +841,38 @@ export function useAppLogic() {
     
     setIsSyncingLedger(false);
   };
+
+  // --- NEW SALARY LOGIC ---
+  const openSalaryModal = (salary = null, userId = '') => {
+      if (salary) {
+          setEditingSalary({ ...salary, isRecurring: salary.isRecurring == 1 || salary.isRecurring === true });
+      } else {
+          setEditingSalary({ id: null, userId: userId, amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' });
+      }
+      setIsSalaryModalOpen(true);
+  };
+
+  const handleSaveSalary = (e) => {
+      e.preventDefault();
+      if (!editingSalary.userId) { alert("Please select a creator."); return; }
+      
+      const salaryData = editingSalary.id ? editingSalary : { ...editingSalary, id: 'sal_' + Date.now() };
+      if (!editingSalary.id) logActivity('Ledger', 'Salary Added', `Added new salary profile for User ID: ${salaryData.userId}`);
+      
+      if (editingSalary.id) setSalaries(salaries.map(s => s.id === salaryData.id ? salaryData : s));
+      else setSalaries([...salaries, salaryData]);
+      
+      setIsSalaryModalOpen(false);
+      sendToAPI('save_salary', salaryData);
+  };
+
+  const handleDeleteSalary = (id) => {
+      if(!window.confirm("Are you sure you want to delete this salary record? This will instantly remove it from the user's earned totals.")) return;
+      setSalaries(salaries.filter(s => s.id !== id));
+      setIsSalaryModalOpen(false);
+      sendToAPI('delete_salary', { id });
+  };
+  // ------------------------
 
   const openTaskModal = (task = null, projectId = '', status = 'todo') => {
     if (task) setCurrentTask({ ...task, files: task.files || [], comments: task.comments || [], description: task.description || '', tags: task.tags || [], subscribers: task.subscribers || [], weight: task.weight || 1, completedAt: task.completedAt || null, completedBy: task.completedBy || null });
@@ -1533,6 +1565,18 @@ export function useAppLogic() {
     setIsTeamModalOpen(false);
   };
 
+  const handleArchiveUser = (user) => {
+      const updated = { ...user, isArchived: true };
+      setUsers(users.map(u => u.id === user.id ? updated : u));
+      sendToAPI('save_user', updated);
+  };
+
+  const handleRestoreUser = (user) => {
+      const updated = { ...user, isArchived: false };
+      setUsers(users.map(u => u.id === user.id ? updated : u));
+      sendToAPI('save_user', updated);
+  };
+
   const handleDeleteUser = (userId) => {
     const userToDelete = users.find(u => u.id === userId);
     if (!userToDelete) return;
@@ -1663,6 +1707,7 @@ export function useAppLogic() {
     contacts, setContacts,
     passwords, setPasswords,
     payouts, setPayouts,
+    salaries, setSalaries,
     globalChecklist, setGlobalChecklist,
     globalAnnouncement, setGlobalAnnouncement,
     activityLogs, setActivityLogs,
@@ -1719,6 +1764,8 @@ export function useAppLogic() {
     isSyncingLedger, setIsSyncingLedger,
     isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen,
     editingPlaylistSplits, setEditingPlaylistSplits,
+    isSalaryModalOpen, setIsSalaryModalOpen,
+    editingSalary, setEditingSalary,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
     sendToAPI, uploadFileToServer, handleScanBusinessCard, logActivity, handleSaveGlobalChecklist,
     handleSaveGlobalAnnouncement, handleGenerateOnboarding, handleGenerateOffboarding, handleReorderTasks, 
@@ -1735,8 +1782,9 @@ export function useAppLogic() {
     openProjectModal, handleSaveProject, handleArchiveProject, handleRestoreProject, handlePermanentDeleteProject,
     openYoutubeModal, handleSaveYoutubeChannel, handleUpdateYoutubeChannel, handleDeleteYoutubeChannel,
     openSpreakerModal, handleSaveSpreakerShow, handleDeleteSpreakerShow, openProfileModal, handleSaveProfile,
-    handleSaveTeamMember, handleDeleteUser, handleUpdateUser, handleCompanyLogoUpload, handleProfileImageUpload,
+    handleSaveTeamMember, handleArchiveUser, handleRestoreUser, handleDeleteUser, handleUpdateUser, handleCompanyLogoUpload, handleProfileImageUpload,
     handleTeamMemberImageUpload, handleSponsorshipLogoUpload, handleFileUpload, removeFile, handleDragStart,
-    handleDrop, handleDragOver, openPlaylistSplitModal, handleSavePlaylistSplits
+    handleDrop, handleDragOver, openPlaylistSplitModal, handleSavePlaylistSplits,
+    openSalaryModal, handleSaveSalary, handleDeleteSalary
   };
 }

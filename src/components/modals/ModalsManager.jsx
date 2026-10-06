@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Import all 20 Modals here instead of App.jsx
+// Import all 21 Modals here instead of App.jsx
 import TaskModal from './TaskModal';
 import ExpenseModal from './ExpenseModal';
 import DomainModal from './DomainModal';
@@ -22,6 +22,7 @@ import ContactModal from './ContactModal';
 import PasswordModal from './PasswordModal';
 import PayoutModal from './PayoutModal';
 import PlaylistSplitModal from './PlaylistSplitModal';
+import SalaryModal from './SalaryModal';
 
 export default function ModalsManager({
   // 1. Task Modal Props
@@ -54,7 +55,9 @@ export default function ModalsManager({
   isAvatarMakerModalOpen, setIsAvatarMakerModalOpen,
   isPayoutModalOpen, editingPayout, setEditingPayout, handleSavePayout, setIsPayoutModalOpen, wpLedgerData,
   // 10. NEW: Playlist Splits Props
-  isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen, editingPlaylistSplits, handleSavePlaylistSplits
+  isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen, editingPlaylistSplits, handleSavePlaylistSplits,
+  // 11. NEW: Salary Modal Props
+  isSalaryModalOpen, setIsSalaryModalOpen, editingSalary, setEditingSalary, handleSaveSalary
 }) {
 
   return (
@@ -303,7 +306,6 @@ export default function ModalsManager({
         />
       )}
 
-      {/* NEW: Playlist Splits Modal */}
       {isPlaylistSplitModalOpen && (
           <PlaylistSplitModal 
               isOpen={isPlaylistSplitModalOpen}
@@ -311,6 +313,16 @@ export default function ModalsManager({
               playlist={editingPlaylistSplits}
               users={users}
               onSave={handleSavePlaylistSplits}
+          />
+      )}
+
+      {isSalaryModalOpen && (
+          <SalaryModal 
+              editingSalary={editingSalary}
+              setEditingSalary={setEditingSalary}
+              handleSaveSalary={handleSaveSalary}
+              setIsSalaryModalOpen={setIsSalaryModalOpen}
+              users={users}
           />
       )}
     </>

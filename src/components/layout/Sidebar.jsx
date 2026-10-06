@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle, Users, Archive, Plus, Pencil, PieChart, 
-  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, BarChart3, BookOpen, CreditCard, Wallet
+  Globe, Youtube, Mic, CalendarDays, UserCircle, Shield, UserCog, Contact, Activity, LayoutDashboard, Tv, Award, BookUser, Lock, Calculator, Home, BarChart3, BookOpen, CreditCard, Wallet, DollarSign
 } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 import { calculateProjectProgress } from '../../utils/helpers';
@@ -350,6 +350,11 @@ export default function Sidebar({
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Source</p>
               </div>
               <div className="flex flex-col gap-1">
+                {currentUser?.isAdmin && (
+                  <button onClick={() => { setActiveTab('salaries'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'salaries' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                    <DollarSign size={16} className={`${activeTab === 'salaries' ? 'text-amber-500' : ''}`} /> Base Salaries
+                  </button>
+                )}
                 <button onClick={() => { setActiveTab('yt_playlists'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'yt_playlists' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                   <Youtube size={16} className={`${activeTab === 'yt_playlists' ? 'text-red-500' : ''}`} /> YouTube Playlists
                 </button>
@@ -357,7 +362,7 @@ export default function Sidebar({
                   <Globe size={16} className={`${activeTab === 'wordpress' ? 'text-sky-500' : ''}`} /> WP Articles
                 </button>
                 <button onClick={() => { setActiveTab('promos'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'promos' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                  <CreditCard size={16} className={`${activeTab === 'promos' ? 'text-blue-500' : ''}`} /> {currentUser?.isAdmin ? 'Stripe Promos' : 'FSAN Subs'}
+                  <CreditCard size={16} className={`${activeTab === 'promos' ? 'text-blue-500' : ''}`} /> Stripe Promos
                 </button>
               </div>
             </div>
