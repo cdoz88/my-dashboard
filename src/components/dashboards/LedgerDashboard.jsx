@@ -4,7 +4,6 @@ import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 import PlaylistSplitModal from '../modals/PlaylistSplitModal';
 import SalaryModal from '../modals/SalaryModal';
-import { useAppContext } from '../../context/AppContext';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -39,22 +38,9 @@ const getPaymentLink = (method, account) => {
     return null;
 };
 
-export default function LedgerDashboard(props) {
-  // BYPASS ROUTER: Pull state and functions directly from global context
-  const context = useAppContext ? useAppContext() : {};
-  const mergedProps = { ...props, ...context };
-
-  const {
-    shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab,
-    salaries = [],
-    isSalaryModalOpen = false,
-    setIsSalaryModalOpen = () => {},
-    editingSalary = { id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' },
-    setEditingSalary = () => {},
-    handleSaveSalary = () => {},
-    handleDeleteSalary = () => {}
-  } = mergedProps;
-
+export default function LedgerDashboard({
+  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
+}) {
   const [historyModalItem, setHistoryModalItem] = useState(null);
   
   // Drill-down states for Admins
@@ -75,6 +61,65 @@ export default function LedgerDashboard(props) {
   // Playlist Splits State
   const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
   const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
+
+  // --- SELF-CONTAINED SALARY STATE ---
+  const [salaries, setSalaries] = useState([]);
+  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
+  const [editingSalary, setEditingSalary] = useState({ id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' });
+
+  // Fetch Salaries on Load
+  useEffect(() => {
+      fetch(`${API_URL}?action=get_all`)
+          .then(res => res.json())
+          .then(data => {
+              if (data.salaries) {
+                  setSalaries(data.salaries.map(s => ({ ...s, isRecurring: s.isRecurring == 1 || s.isRecurring === true })));
+              }
+          })
+          .catch(err => console.error("Error fetching salaries:", err));
+  }, []);
+
+  const handleSaveSalary = async (e) => {
+      e.preventDefault();
+      if (!editingSalary?.userId) { alert("Please select a creator."); return; }
+      
+      const salaryData = editingSalary.id ? editingSalary : { ...editingSalary, id: 'sal_' + Date.now() };
+      
+      if (editingSalary.id) {
+          setSalaries(salaries.map(s => s.id === salaryData.id ? salaryData : s));
+      } else {
+          setSalaries([salaryData, ...salaries]);
+      }
+      
+      setIsSalaryModalOpen(false);
+
+      try {
+          await fetch(`${API_URL}?action=save_salary`, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify(salaryData) 
+          });
+      } catch (err) {
+          console.error("Error saving salary:", err);
+      }
+  };
+
+  const handleDeleteSalary = async (id) => {
+      if (!window.confirm("Are you sure you want to completely remove this salary/base pay rule?")) return;
+      
+      setSalaries(salaries.filter(s => s.id !== id));
+      setIsSalaryModalOpen(false);
+
+      try {
+          await fetch(`${API_URL}?action=delete_salary`, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'application/json' }, 
+              body: JSON.stringify({ id }) 
+          });
+      } catch (err) {
+          console.error("Error deleting salary:", err);
+      }
+  };
 
   const openPlaylistSplitModal = (playlist) => {
       setEditingPlaylistSplits({ ...playlist, splits: playlist.splits || [] });
@@ -346,9 +391,11 @@ const handleSyncStripe = async () => {
   const visibleHistory = payouts.filter(p => validHistoryIds.includes(p.showId) && p.transactionType !== 'Stripe Commission');
 
   // ---------------------------------------------------------
-  // NEW VIEW: SALARIES DASHBOARD (ADMIN ONLY)
+  // NEW VIEW: SALARIES DASHBOARD (ADMIN & NON-ADMIN)
   // ---------------------------------------------------------
-  if (activeTab === 'salaries' && currentUser?.isAdmin) {
+  if (activeTab === 'salaries') {
+      const visibleSalaries = currentUser?.isAdmin ? salaries : (salaries || []).filter(s => s.userId === currentUser?.id);
+
       return (
         <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
           <div className="flex-1 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
@@ -358,11 +405,15 @@ const handleSyncStripe = async () => {
                           <Briefcase className="text-emerald-600" size={28} />
                           Salaries & Base Pay
                       </h2>
-                      <p className="text-slate-500 text-sm mt-1">Assign flat-rate or recurring salaries to creators on the ledger.</p>
+                      <p className="text-slate-500 text-sm mt-1">
+                          {currentUser?.isAdmin ? 'Assign flat-rate or recurring salaries to creators on the ledger.' : 'View your base pay and recurring salary configurations.'}
+                      </p>
                   </div>
-                  <button onClick={() => { setEditingSalary({ id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' }); setIsSalaryModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
-                      <Plus size={18} /> Add Salary
-                  </button>
+                  {currentUser?.isAdmin && (
+                      <button onClick={() => { setEditingSalary({ id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' }); setIsSalaryModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2">
+                          <Plus size={18} /> Add Salary
+                      </button>
+                  )}
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -375,11 +426,11 @@ const handleSyncStripe = async () => {
                                   <th className="px-6 py-4 text-center">Frequency</th>
                                   <th className="px-6 py-4 text-center">Start Date</th>
                                   <th className="px-6 py-4">Memo</th>
-                                  <th className="px-6 py-4 text-right">Actions</th>
+                                  {currentUser?.isAdmin && <th className="px-6 py-4 text-right">Actions</th>}
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                              {(salaries || []).length > 0 ? (salaries || []).map((salary) => {
+                              {visibleSalaries.length > 0 ? visibleSalaries.map((salary) => {
                                   const linkedUser = users.find(u => u.id === salary.userId);
                                   return (
                                   <tr key={salary.id} className="hover:bg-slate-50 transition-colors">
@@ -393,14 +444,16 @@ const handleSyncStripe = async () => {
                                       </td>
                                       <td className="px-6 py-4 text-center font-medium text-slate-600">{salary.isRecurring && salary.startDate ? new Date(`${salary.startDate}T12:00:00`).toLocaleDateString() : '--'}</td>
                                       <td className="px-6 py-4 text-slate-500 text-xs truncate max-w-[200px]" title={salary.notes}>{salary.notes || '--'}</td>
-                                      <td className="px-6 py-4 text-right">
-                                          <button onClick={() => { setEditingSalary(salary); setIsSalaryModalOpen(true); }} className="text-slate-400 hover:text-blue-600 p-1 mr-2 transition-colors" title="Edit"><Pencil size={16} /></button>
-                                          <button onClick={() => handleDeleteSalary(salary.id)} className="text-slate-400 hover:text-red-600 p-1 transition-colors" title="Delete"><Trash2 size={16} /></button>
-                                      </td>
+                                      {currentUser?.isAdmin && (
+                                          <td className="px-6 py-4 text-right">
+                                              <button onClick={() => { setEditingSalary(salary); setIsSalaryModalOpen(true); }} className="text-slate-400 hover:text-blue-600 p-1 mr-2 transition-colors" title="Edit"><Pencil size={16} /></button>
+                                              <button onClick={() => handleDeleteSalary(salary.id)} className="text-slate-400 hover:text-red-600 p-1 transition-colors" title="Delete"><Trash2 size={16} /></button>
+                                          </td>
+                                      )}
                                   </tr>
                               )}) : (
                                   <tr>
-                                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                                      <td colSpan={currentUser?.isAdmin ? "6" : "5"} className="px-6 py-8 text-center text-slate-500">
                                           <div className="flex flex-col items-center justify-center">
                                               <Briefcase size={48} className="text-slate-300 mb-3" />
                                               <p className="font-semibold">No base salaries configured.</p>
@@ -413,8 +466,7 @@ const handleSyncStripe = async () => {
                   </div>
               </div>
               
-              {/* NEW: Salary Modal INJECTED HERE SO IT NEVER BREAKS THE ROUTER */}
-              {isSalaryModalOpen && (
+              {isSalaryModalOpen && currentUser?.isAdmin && (
                   <SalaryModal 
                       editingSalary={editingSalary}
                       setEditingSalary={setEditingSalary}
@@ -828,7 +880,7 @@ const handleSyncStripe = async () => {
                                             </>
                                          ) : (
                                             <>
-                                               <Youtube size={48} className="text-slate-300 mb-3" />
+                                               <Youtube size={48} className="text-slate-3300 mb-3" />
                                                <p className="font-semibold">No active YouTube Playlists mapped.</p>
                                                <p className="text-sm">Click "Auto-Import" to pull them in.</p>
                                             </>
@@ -1102,7 +1154,7 @@ const handleSyncStripe = async () => {
                                     <tr>
                                         <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
-                                                <Globe size={48} className="text-slate-300 mb-3" />
+                                                <Globe size={48} className="text-slate-3300 mb-3" />
                                                 <p className="font-semibold text-slate-700">No individual article data available yet.</p>
                                             </div>
                                         </td>
@@ -1290,7 +1342,7 @@ const handleSyncStripe = async () => {
                                              {u.wpArticles > 0 && <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeRemaining > 0 ? "text-blue-500" : "text-slate-400"}/> Stripe Promos:</span> 
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeRemaining > 0 ? "text-blue-500" : "text-slate-400"}/> {currentUser?.isAdmin ? 'Promos:' : 'Subs:'}</span> 
                                              <span className={`font-medium ${u.stripeRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeRemaining)}</span>
                                          </div>
                                      </td>
