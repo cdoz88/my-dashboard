@@ -4,12 +4,12 @@ import { API_URL } from '../utils/constants';
 export function useIntegrations({
    setIsLoading, setCurrentApp, fetchData, setAnalyticsProperties, analyticsProperties,
    activeAnalyticsId, setActiveAnalyticsId, setIsAnalyticsModalOpen, sendToAPI,
-   youtubeTimeFilter, youtubeChannels, setYoutubeChannels, activeYoutubeChannelId,
-   setActiveYoutubeChannelId, setIsYoutubeModalOpen, spreakerTimeFilter,
+   youtubeTimeFilter, setYoutubeTimeFilter, youtubeChannels, setYoutubeChannels, activeYoutubeChannelId,
+   setActiveYoutubeChannelId, setIsYoutubeModalOpen, spreakerTimeFilter, setSpreakerTimeFilter,
    spreakerShows, setSpreakerShows, activeSpreakerShowId, setActiveSpreakerShowId,
    setIsSpreakerModalOpen, editingAnalyticsProperty, setEditingAnalyticsProperty,
    editingYoutubeChannel, setEditingYoutubeChannel, editingSpreakerShow, setEditingSpreakerShow,
-   isSyncingLedger, setIsSyncingLedger, setWpLedgerData
+   isSyncingLedger, setIsSyncingLedger, setWpLedgerData, analyticsTimeFilter, setAnalyticsTimeFilter
 }) {
 
   const handleSyncGoDaddy = async (companyId) => {
@@ -27,7 +27,7 @@ export function useIntegrations({
   };
 
   const handleYoutubeFilterChange = (e) => { 
-      youtubeTimeFilter(e.target.value); 
+      setYoutubeTimeFilter(e.target.value); 
       handleSyncYoutube(e.target.value); 
   };
   
@@ -49,7 +49,7 @@ export function useIntegrations({
   };
 
   const handleSpreakerFilterChange = (e) => { 
-      spreakerTimeFilter(e.target.value); 
+      setSpreakerTimeFilter(e.target.value); 
       handleSyncSpreaker(e.target.value); 
   };
 
@@ -71,7 +71,7 @@ export function useIntegrations({
   };
 
   const handleAnalyticsFilterChange = (e) => { 
-      analyticsTimeFilter(e.target.value); 
+      setAnalyticsTimeFilter(e.target.value); 
       handleSyncAnalytics(e.target.value); 
   };
 

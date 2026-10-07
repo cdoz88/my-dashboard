@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { API_URL } from '../../utils/constants';
 import PlaylistSplitModal from '../modals/PlaylistSplitModal';
 import SalaryModal from '../modals/SalaryModal';
+import { useAppContext } from '../../context/AppContext';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -38,9 +39,22 @@ const getPaymentLink = (method, account) => {
     return null;
 };
 
-export default function LedgerDashboard({
-  shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab
-}) {
+export default function LedgerDashboard(props) {
+  // BYPASS ROUTER: Pull state and functions directly from global context
+  const context = useAppContext ? useAppContext() : {};
+  const mergedProps = { ...props, ...context };
+
+  const {
+    shows, payouts, youtubeChannels, openPayoutModal, handleSyncLedger, isSyncingLedger, currentUser, wpLedgerData, users, activeTab,
+    salaries = [],
+    isSalaryModalOpen = false,
+    setIsSalaryModalOpen = () => {},
+    editingSalary = { id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' },
+    setEditingSalary = () => {},
+    handleSaveSalary = () => {},
+    handleDeleteSalary = () => {}
+  } = mergedProps;
+
   const [historyModalItem, setHistoryModalItem] = useState(null);
   
   // Drill-down states for Admins
@@ -61,66 +75,6 @@ export default function LedgerDashboard({
   // Playlist Splits State
   const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
   const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
-
-  // --- NEW: SELF-CONTAINED SALARY STATE ---
-  const [salaries, setSalaries] = useState([]);
-  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
-  const [editingSalary, setEditingSalary] = useState({ id: null, userId: '', amount: '', isRecurring: false, frequency: 'monthly', startDate: '', notes: '' });
-
-  // Fetch Salaries on Load
-  useEffect(() => {
-      fetch(`${API_URL}?action=get_all`)
-          .then(res => res.json())
-          .then(data => {
-              if (data.salaries) {
-                  setSalaries(data.salaries.map(s => ({ ...s, isRecurring: s.isRecurring == 1 || s.isRecurring === true })));
-              }
-          })
-          .catch(err => console.error("Error fetching salaries:", err));
-  }, []);
-
-  const handleSaveSalary = async (e) => {
-      e.preventDefault();
-      if (!editingSalary?.userId) { alert("Please select a creator."); return; }
-      
-      const salaryData = editingSalary.id ? editingSalary : { ...editingSalary, id: 'sal_' + Date.now() };
-      
-      if (editingSalary.id) {
-          setSalaries(salaries.map(s => s.id === salaryData.id ? salaryData : s));
-      } else {
-          setSalaries([salaryData, ...salaries]);
-      }
-      
-      setIsSalaryModalOpen(false);
-
-      try {
-          await fetch(`${API_URL}?action=save_salary`, { 
-              method: 'POST', 
-              headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify(salaryData) 
-          });
-      } catch (err) {
-          console.error("Error saving salary:", err);
-      }
-  };
-
-  const handleDeleteSalary = async (id) => {
-      if (!window.confirm("Are you sure you want to completely remove this salary/base pay rule?")) return;
-      
-      setSalaries(salaries.filter(s => s.id !== id));
-      setIsSalaryModalOpen(false);
-
-      try {
-          await fetch(`${API_URL}?action=delete_salary`, { 
-              method: 'POST', 
-              headers: { 'Content-Type': 'application/json' }, 
-              body: JSON.stringify({ id }) 
-          });
-      } catch (err) {
-          console.error("Error deleting salary:", err);
-      }
-  };
-  // ------------------------------------------
 
   const openPlaylistSplitModal = (playlist) => {
       setEditingPlaylistSplits({ ...playlist, splits: playlist.splits || [] });
@@ -1336,7 +1290,7 @@ const handleSyncStripe = async () => {
                                              {u.wpArticles > 0 && <span className="text-[9px] text-slate-400">({u.wpArticles} arts)</span>}
                                          </div>
                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeRemaining > 0 ? "text-blue-500" : "text-slate-400"}/> {currentUser?.isAdmin ? 'Promos:' : 'Subs:'}</span> 
+                                             <span className="w-20 text-slate-500 flex items-center gap-1"><LinkIcon size={12} className={u.stripeRemaining > 0 ? "text-blue-500" : "text-slate-400"}/> Stripe Promos:</span> 
                                              <span className={`font-medium ${u.stripeRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.stripeRemaining)}</span>
                                          </div>
                                      </td>

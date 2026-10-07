@@ -67,7 +67,16 @@ export function useUI() {
   // --- BROWSER HISTORY SYNCING (URL Management) ---
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('sso_token') || urlParams.has('code') || urlParams.has('task')) return;
+    
+    // FIX: Remove sso_token immediately so it doesn't block standard URL routing
+    if (urlParams.has('sso_token')) {
+        urlParams.delete('sso_token');
+        const newSearch = urlParams.toString();
+        const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    if (urlParams.has('code') || urlParams.has('task')) return;
 
     let currentTab = activeTab;
     if (currentApp === 'budget') currentTab = activeBudgetTab;

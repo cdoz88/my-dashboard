@@ -58,6 +58,10 @@ export function useModals() {
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [editingPayout, setEditingPayout] = useState({ id: null, showId: '', amount: '', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: '', paymentAccount: '', notes: '', transactionType: 'Payment' });
 
+  // NEW: Added Playlist Splits State to ensure ModalsManager functions properly
+  const [isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen] = useState(false);
+  const [editingPlaylistSplits, setEditingPlaylistSplits] = useState(null);
+
   return {
     isSpreakerModalOpen, setIsSpreakerModalOpen,
     editingSpreakerShow, setEditingSpreakerShow,
@@ -96,6 +100,8 @@ export function useModals() {
     isPasswordModalOpen, setIsPasswordModalOpen,
     editingPassword, setEditingPassword,
     isPayoutModalOpen, setIsPayoutModalOpen,
-    editingPayout, setEditingPayout
+    editingPayout, setEditingPayout,
+    isPlaylistSplitModalOpen, setIsPlaylistSplitModalOpen,
+    editingPlaylistSplits, setEditingPlaylistSplits
   };
 }

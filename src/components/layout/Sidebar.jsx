@@ -350,11 +350,9 @@ export default function Sidebar({
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">By Source</p>
               </div>
               <div className="flex flex-col gap-1">
-                {currentUser?.isAdmin && (
-                  <button onClick={() => { setActiveTab('salaries'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'salaries' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
-                    <DollarSign size={16} className={`${activeTab === 'salaries' ? 'text-amber-500' : ''}`} /> Base Salaries
-                  </button>
-                )}
+                <button onClick={() => { setActiveTab('salaries'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'salaries' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
+                  <DollarSign size={16} className={`${activeTab === 'salaries' ? 'text-emerald-500' : ''}`} /> {currentUser?.isAdmin ? 'Salaries & Base Pay' : 'Base Salaries'}
+                </button>
                 <button onClick={() => { setActiveTab('yt_playlists'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${activeTab === 'yt_playlists' ? 'bg-slate-800 text-emerald-400 font-medium' : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'}`}>
                   <Youtube size={16} className={`${activeTab === 'yt_playlists' ? 'text-red-500' : ''}`} /> YouTube Playlists
                 </button>

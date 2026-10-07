@@ -33,6 +33,7 @@ export function useData({
   const [contacts, setContacts] = useState([]);
   const [passwords, setPasswords] = useState([]);
   const [payouts, setPayouts] = useState([]);
+  const [salaries, setSalaries] = useState([]); // NEW: Salary State
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
@@ -104,6 +105,10 @@ export function useData({
         if(data.contacts) setContacts(data.contacts);
         if(data.passwords) setPasswords(data.passwords);
         if(data.payouts) setPayouts(data.payouts);
+        
+        // NEW: Fetch Salaries Array
+        if(data.salaries) setSalaries(data.salaries.map(s => ({ ...s, isRecurring: s.isRecurring == 1 || s.isRecurring === true })));
+        
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []); else setActivityLogs([]);
         
         if(data.youtube_channels) {
@@ -743,16 +748,6 @@ export function useData({
     setIsTeamModalOpen(false);
   };
 
-  const handleDeleteUser = (userId) => {
-    const userToDelete = users.find(u => u.id === userId);
-    if (!userToDelete) return;
-    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace?`)) return;
-    logActivity('Team', 'Team Member Removed', `Removed team member "${userToDelete.name}" from the directory.`);
-    setUsers(users.filter(u => u.id !== userId));
-    setIsTeamModalOpen(false);
-    sendToAPI('delete_user', { id: userId });
-  };
-
   // --- NEW ARCHIVE HANDLERS ---
   const handleArchiveUser = (user) => {
     if (!window.confirm(`Are you sure you want to archive ${user.name}? They will lose access to the platform until restored.`)) return;
@@ -769,6 +764,16 @@ export function useData({
     logActivity('Team', 'Team Member Restored', `Restored team member "${user.name}".`);
     sendToAPI('save_user', updated);
     setIsTeamModalOpen(false);
+  };
+
+  const handleDeleteUser = (userId) => {
+    const userToDelete = users.find(u => u.id === userId);
+    if (!userToDelete) return;
+    if (!window.confirm(`Are you sure you want to completely remove ${userToDelete.name} from the workspace?`)) return;
+    logActivity('Team', 'Team Member Removed', `Removed team member "${userToDelete.name}" from the directory.`);
+    setUsers(users.filter(u => u.id !== userId));
+    setIsTeamModalOpen(false);
+    sendToAPI('delete_user', { id: userId });
   };
 
   const handleUpdateUser = (updatedUser) => {
@@ -816,6 +821,7 @@ export function useData({
     users, setUsers, companies, setCompanies, projects, setProjects, tasks, setTasks,
     expenses, setExpenses, events, setEvents, shows, setShows, sponsorships, setSponsorships,
     contacts, setContacts, passwords, setPasswords, payouts, setPayouts,
+    salaries, setSalaries, // <-- NEW EXPORT
     globalChecklist, setGlobalChecklist, activityLogs, setActivityLogs, wpLedgerData, setWpLedgerData,
     youtubeChannels, setYoutubeChannels, spreakerShows, setSpreakerShows, analyticsProperties, setAnalyticsProperties,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
@@ -832,6 +838,6 @@ export function useData({
     openProfileModal, handleSaveProfile, handleSaveTeamMember, handleDeleteUser, handleUpdateUser,
     handleCompanyLogoUpload, handleProfileImageUpload, handleTeamMemberImageUpload, handleSponsorshipLogoUpload,
     handleFileUpload, removeFile, handleDragStart, handleDrop, handleDragOver,
-    handleArchiveUser, handleRestoreUser // <-- Exported here!
+    handleArchiveUser, handleRestoreUser 
   };
 }
