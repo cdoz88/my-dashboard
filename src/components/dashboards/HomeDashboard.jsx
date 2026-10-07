@@ -4,9 +4,9 @@ import {
     CalendarDays, MonitorPlay, Radio, Youtube, Star, Calculator, Plus, Trash2 
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
-import { colorStyles } from '../../utils/constants';
+import { colorStyles, API_URL } from '../../utils/constants';
 import DynamicIcon from '../shared/DynamicIcon';
-import { API_URL } from '../../utils/constants';
+import { useAppContext } from '../../context/AppContext';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -23,7 +23,6 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
-// Styling Maps for Banners
 const themeMap = {
     blue: 'bg-blue-50 text-blue-800 border-blue-200',
     red: 'bg-red-50 text-red-800 border-red-200',
@@ -39,16 +38,20 @@ const sizeMap = {
     xl: 'text-xl font-black'
 };
 
-export default function HomeDashboard({ 
-    currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
-    setCurrentApp, setActiveTab, openShowModal 
-}) {
-    // --- SELF-CONTAINED ANNOUNCEMENT LOGIC (Supports Multiple Banners) ---
+export default function HomeDashboard(props) {
+    const appState = useAppContext ? useAppContext() : {};
+    const mergedProps = { ...props, ...appState };
+    
+    const { 
+        currentUser, tasks, projects, shows, payouts, wpLedgerData, youtubeChannels,
+        setCurrentApp, setActiveTab, openShowModal,
+        ytPlaylists = [], stripePromos = [], salaries = [] 
+    } = mergedProps;
+
     const [announcements, setAnnouncements] = useState([]);
     const [isEditingBanner, setIsEditingBanner] = useState(false);
     const [editState, setEditState] = useState([]);
 
-    // Fetch the announcements directly on load
     useEffect(() => {
         fetch(`${API_URL}?action=get_all`)
             .then(res => res.json())
@@ -60,13 +63,11 @@ export default function HomeDashboard({
                             setAnnouncements(parsed);
                             setEditState(parsed);
                         } else {
-                            // Fallback if the database has old string data
                             const legacy = [{ id: '1', text: data.settings.globalAnnouncement, theme: 'blue', size: 'normal' }];
                             setAnnouncements(legacy);
                             setEditState(legacy);
                         }
                     } catch(e) {
-                        // Fallback if the database has old un-parseable string data
                         const legacy = [{ id: '1', text: data.settings.globalAnnouncement, theme: 'blue', size: 'normal' }];
                         setAnnouncements(legacy);
                         setEditState(legacy);
@@ -76,7 +77,6 @@ export default function HomeDashboard({
             .catch(err => console.error("Error fetching announcement:", err));
     }, []);
 
-    // Banner Edit Handlers
     const handleAddBanner = () => {
         setEditState([...editState, { id: Date.now().toString(), text: '', theme: 'blue', size: 'normal' }]);
     };
@@ -89,7 +89,6 @@ export default function HomeDashboard({
         setEditState(editState.filter(b => b.id !== id));
     };
 
-    // Save directly to the database as a stringified JSON array
     const saveBanners = async () => {
         const validBanners = editState.filter(b => b.text.trim() !== '');
         try {
@@ -121,40 +120,89 @@ export default function HomeDashboard({
     const todayStr = new Date().toISOString().split('T')[0];
     const myShows = shows.filter(s => (s.userIds || []).includes(currentUser?.id) && s.status !== 'Archived' && s.showDate >= todayStr)
                          .sort((a, b) => new Date(`${a.showDate}T${a.showTime || '00:00'}`) - new Date(`${b.showDate}T${b.showTime || '00:00'}`))
-                         .slice(0, 5); // Show max 5 upcoming shows
+                         .slice(0, 5); 
 
-    // --- 3. MY PERSONAL LEDGER ---
-    const myYtShows = shows.filter(s => (s.userIds || []).includes(currentUser?.id) && s.paymentStartDate && s.playlistId);
-    
-    const uniquePlaylistsMap = new Map();
-    myYtShows.forEach(s => {
-        const cleanId = normalizePlaylistId(s.playlistId);
-        if (!uniquePlaylistsMap.has(cleanId)) uniquePlaylistsMap.set(cleanId, { ...s, normalizedPlaylistId: cleanId });
-    });
-    const myPlaylists = Array.from(uniquePlaylistsMap.values());
+    // --- 3. MY PERSONAL LEDGER (NOW MATCHES LEDGER PERFECTLY) ---
+    const myLedgerRecord = (() => {
+        let ytEarned = 0; 
+        const ytNormIds = []; 
+        const ytRawIds = [];
 
-    const ytTotalEarned = myPlaylists.reduce((sum, show) => {
-        const videos = parseInt(show.ledgerVideos || 0);
-        const revenue = parseFloat(show.ledgerRevenue || 0);
-        const baseTotal = videos * parseFloat(show.basePay || 0);
-        const revSharePct = parseFloat(show.revShare ?? 100) / 100;
-        const revShareTotal = revenue * revSharePct;
-        return sum + (baseTotal + revShareTotal);
-    }, 0);
+        ytPlaylists.forEach(pl => {
+            const totalRevPool = parseFloat(pl.ledgerRevenue || 0);
+            const creatorNetPool = totalRevPool * (parseFloat(pl.revShare ?? 100) / 100);
+            let activeSplits = pl.splits;
+            if (typeof activeSplits === 'string') { try { activeSplits = JSON.parse(activeSplits); } catch(e) { activeSplits = []; } }
+            if (!Array.isArray(activeSplits)) activeSplits = [];
 
-    const myWpLedger = wpLedgerData.filter(wp => wp.wp_user_id == currentUser?.wpUserId);
-    const wpTotalEarned = myWpLedger.reduce((sum, wp) => sum + parseFloat(wp.total_earned || 0), 0);
-    const grandTotalEarned = ytTotalEarned + wpTotalEarned;
+            if (activeSplits.length > 0) {
+                const userSplit = activeSplits.find(s => s.userId === currentUser?.id);
+                if (userSplit) {
+                    ytEarned += (creatorNetPool * (parseFloat(userSplit.percent || 0) / 100));
+                    ytRawIds.push(pl.playlistId);
+                    ytNormIds.push(normalizePlaylistId(pl.playlistId));
+                }
+            } else {
+                if (pl.userId === currentUser?.id) {
+                    ytEarned += creatorNetPool;
+                    ytRawIds.push(pl.playlistId);
+                    ytNormIds.push(normalizePlaylistId(pl.playlistId));
+                }
+            }
+        });
 
-    const allowedPlaylistIds = myPlaylists.map(s => s.normalizedPlaylistId);
-    const rawAllowedPlaylistIds = myPlaylists.map(s => s.playlistId);
-    const allowedWpShowIds = myWpLedger.map(wp => `wp_articles_${wp.wp_user_id}`);
-    
-    const myPayouts = payouts.filter(p => allowedPlaylistIds.includes(p.showId) || rawAllowedPlaylistIds.includes(p.showId) || allowedWpShowIds.includes(p.showId));
+        const wpRecord = currentUser?.wpUserId ? wpLedgerData.find(wp => wp.wp_user_id == currentUser?.wpUserId) : null;
+        const wpEarned = wpRecord ? parseFloat(wpRecord.total_earned || 0) : 0;
+        const wpShowId = `wp_articles_${currentUser?.wpUserId}`;
 
-    const grandTotalPaid = myPayouts.filter(p => p.transactionType === 'Payment').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-    const grandTotalDeducted = myPayouts.filter(p => p.transactionType === 'Deduction').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-    const grandTotalOwed = grandTotalEarned - grandTotalPaid - grandTotalDeducted;
+        let stripeEarned = 0;
+        payouts.forEach(p => {
+            if (p.showId === currentUser?.id && p.transactionType === 'Stripe Commission') stripeEarned += parseFloat(p.amount || 0);
+        });
+
+        let salaryEarned = 0;
+        const userSalaries = salaries.filter(s => s.userId === currentUser?.id);
+        userSalaries.forEach(s => {
+            const amt = parseFloat(s.amount || 0);
+            if (!s.isRecurring) {
+                salaryEarned += amt;
+            } else if (s.startDate) {
+                const start = new Date(`${s.startDate}T12:00:00`);
+                const now = new Date();
+                if (now >= start) {
+                    if (s.frequency === 'yearly') {
+                        let years = now.getFullYear() - start.getFullYear();
+                        if (now.getMonth() < start.getMonth() || (now.getMonth() === start.getMonth() && now.getDate() < start.getDate())) years--;
+                        years = Math.max(0, years + 1);
+                        salaryEarned += (amt * years);
+                    } else {
+                        let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+                        if (now.getDate() < start.getDate()) months--;
+                        months = Math.max(0, months + 1);
+                        salaryEarned += (amt * months);
+                    }
+                }
+            }
+        });
+
+        const totalEarned = ytEarned + wpEarned + stripeEarned + salaryEarned;
+        let paid = 0; let deducted = 0;
+        
+        const relatedIds = [currentUser?.id, wpShowId, ...ytNormIds, ...ytRawIds];
+        payouts.forEach(p => {
+            if (relatedIds.includes(p.showId) && p.transactionType !== 'Stripe Commission') {
+                if (p.transactionType === 'Payment') paid += parseFloat(p.amount || 0);
+                if (p.transactionType === 'Deduction') deducted += parseFloat(p.amount || 0);
+            }
+        });
+        const balance = totalEarned - paid - deducted;
+
+        return { totalEarned, paid, deducted, balance };
+    })();
+
+    const grandTotalEarned = myLedgerRecord.totalEarned;
+    const grandTotalPaid = myLedgerRecord.paid;
+    const grandTotalOwed = myLedgerRecord.balance;
 
     return (
         <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
