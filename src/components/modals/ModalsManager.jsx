@@ -22,7 +22,7 @@ import ContactModal from './ContactModal';
 import PasswordModal from './PasswordModal';
 import PayoutModal from './PayoutModal';
 import PlaylistSplitModal from './PlaylistSplitModal';
-import SalaryModal from './SalaryModal'; // NEW IMPORT
+import SalaryModal from './SalaryModal';
 
 export default function ModalsManager({
   // 1. Task Modal Props
@@ -149,6 +149,7 @@ export default function ModalsManager({
           currentUser={currentUser} 
           handleSponsorshipAssetUpload={handleSponsorshipAssetUpload} 
           removeSponsorshipAsset={removeSponsorshipAsset} 
+          users={users} 
         />
       )}
 
