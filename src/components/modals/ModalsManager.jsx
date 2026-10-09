@@ -22,7 +22,7 @@ import ContactModal from './ContactModal';
 import PasswordModal from './PasswordModal';
 import PayoutModal from './PayoutModal';
 import PlaylistSplitModal from './PlaylistSplitModal';
-import SalaryModal from './SalaryModal';
+import SalaryModal from './SalaryModal'; // NEW IMPORT
 
 export default function ModalsManager({
   // 1. Task Modal Props

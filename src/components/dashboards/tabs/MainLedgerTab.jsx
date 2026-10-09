@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calculator, RefreshCw, Plus, UserCircle, ExternalLink, Briefcase, Youtube, Globe, Link as LinkIcon, History, Wallet, X, FileText } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, UserCircle, ExternalLink, Briefcase, Youtube, Globe, Link as LinkIcon, History, Wallet, X, FileText, Award } from 'lucide-react';
 import { formatCurrency } from '../../../utils/helpers';
 
 const normalizePlaylistId = (input) => {
@@ -17,7 +17,6 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
-// Generates dynamic outbound payment links based on preferred method
 const getPaymentLink = (method, account) => {
     if (!account || !method) return null;
     let clean = account.trim();
@@ -34,13 +33,13 @@ export default function MainLedgerTab({
     wpLedgerData,
     payouts,
     salaries,
+    sponsorships, // <-- Ensure this is passed from LedgerDashboard.jsx
     isSyncingLedger,
     handleSyncLedger,
     openPayoutModal
 }) {
     const [historyModalItem, setHistoryModalItem] = useState(null);
 
-    // --- UNIFIED CREATOR LEDGER LOGIC ---
     const unifiedLedger = users.map(user => {
         let ytEarned = 0; 
         let ytVideos = 0;
@@ -86,16 +85,14 @@ export default function MainLedgerTab({
             if (p.showId === user.id && p.transactionType === 'Stripe Commission') stripeEarned += parseFloat(p.amount || 0);
         });
 
-        // --- SALARY / BASE PAY CALCULATION ---
         let salaryEarned = 0;
         const userSalaries = (salaries || []).filter(s => s.userId === user.id);
         
         userSalaries.forEach(s => {
             const amt = parseFloat(s.amount || 0);
             if (!s.isRecurring) {
-                salaryEarned += amt; // Flat rate one-time payment
+                salaryEarned += amt;
             } else if (s.startDate) {
-                // Calculate how many periods have passed since startDate
                 const start = new Date(`${s.startDate}T12:00:00`);
                 const now = new Date();
                 
@@ -108,7 +105,6 @@ export default function MainLedgerTab({
                         years = Math.max(0, years + 1); 
                         salaryEarned += (amt * years);
                     } else {
-                        // Default to Monthly
                         let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
                         if (now.getDate() < start.getDate()) {
                             months--;
@@ -120,7 +116,29 @@ export default function MainLedgerTab({
             }
         });
 
-        const totalEarned = ytEarned + wpEarned + stripeEarned + salaryEarned;
+        // --- SPONSORSHIP SPLITS CALCULATION ---
+        let sponsorshipEarned = 0;
+        (sponsorships || []).forEach(sp => {
+            if (sp.paymentStatus === 'Paid') {
+                let activeSplits = sp.splits;
+                if (typeof activeSplits === 'string') {
+                    try { activeSplits = JSON.parse(activeSplits); } catch(e) { activeSplits = []; }
+                }
+                if (!Array.isArray(activeSplits)) activeSplits = [];
+
+                const userSplit = activeSplits.find(s => s.userId === user.id);
+                if (userSplit) {
+                    const spAmount = parseFloat(sp.amount || 0);
+                    const splitAmount = userSplit.type === 'percentage' 
+                        ? spAmount * (parseFloat(userSplit.value || 0) / 100)
+                        : parseFloat(userSplit.value || 0);
+                    
+                    sponsorshipEarned += splitAmount;
+                }
+            }
+        });
+
+        const totalEarned = ytEarned + wpEarned + stripeEarned + salaryEarned + sponsorshipEarned;
         let paid = 0; let deducted = 0;
         
         const relatedIds = [user.id, wpShowId, ...ytNormIds, ...ytRawIds];
@@ -133,11 +151,14 @@ export default function MainLedgerTab({
         });
         const balance = totalEarned - paid - deducted;
 
-        // CASCADE PARTIAL PAYMENTS (Salaries -> YT -> Articles -> Stripe)
+        // CASCADE PARTIAL PAYMENTS (Salaries -> Sponsorships -> YT -> Articles -> Stripe)
         let remainingPaid = paid;
 
         let salaryRemaining = Math.max(0, salaryEarned - remainingPaid);
         remainingPaid = Math.max(0, remainingPaid - salaryEarned);
+
+        let sponsorshipRemaining = Math.max(0, sponsorshipEarned - remainingPaid);
+        remainingPaid = Math.max(0, remainingPaid - sponsorshipEarned);
         
         let ytRemaining = Math.max(0, ytEarned - remainingPaid);
         remainingPaid = Math.max(0, remainingPaid - ytEarned);
@@ -147,7 +168,7 @@ export default function MainLedgerTab({
 
         let stripeRemaining = Math.max(0, stripeEarned - remainingPaid);
 
-        return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, salaryEarned, totalEarned, paid, deducted, balance, relatedIds, ytRemaining, wpRemaining, stripeRemaining, salaryRemaining };
+        return { ...user, ytEarned, ytVideos, wpEarned, wpArticles, stripeEarned, salaryEarned, sponsorshipEarned, totalEarned, paid, deducted, balance, relatedIds, ytRemaining, wpRemaining, stripeRemaining, salaryRemaining, sponsorshipRemaining };
     }).filter(u => currentUser?.isAdmin ? (u.totalEarned > 0 || u.balance !== 0 || u.id === currentUser?.id || (salaries || []).some(s => s.userId === u.id)) : u.id === currentUser?.id);
 
 
@@ -158,7 +179,6 @@ export default function MainLedgerTab({
     const currentUserUnified = unifiedLedger.find(u => u.id === currentUser?.id);
     const validHistoryIds = currentUser?.isAdmin ? payouts.map(p=>p.showId) : (currentUserUnified?.relatedIds || []);
     const visibleHistory = payouts.filter(p => validHistoryIds.includes(p.showId) && p.transactionType !== 'Stripe Commission');
-
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
@@ -254,11 +274,16 @@ export default function MainLedgerTab({
                                            </div>
                                        </td>
                                        <td className="p-4 text-xs">
-                                           {/* Salaries / Base Pay */}
-                                           {(u.salaryEarned > 0 || u.salaryRemaining > 0) && (
+                                           {(u.salaryRemaining > 0) && (
                                               <div className="flex items-center gap-2 mb-1">
-                                                  <span className="w-20 text-slate-500 flex items-center gap-1"><Briefcase size={12} className={u.salaryRemaining > 0 ? "text-emerald-500" : "text-slate-400"}/> Base Pay:</span> 
-                                                  <span className={`font-medium ${u.salaryRemaining > 0 ? 'text-slate-700' : 'text-slate-400 font-light'}`}>{formatCurrency(u.salaryRemaining)}</span> 
+                                                  <span className="w-20 text-slate-500 flex items-center gap-1"><Briefcase size={12} className="text-emerald-500"/> Base Pay:</span> 
+                                                  <span className="font-medium text-slate-700">{formatCurrency(u.salaryRemaining)}</span> 
+                                              </div>
+                                           )}
+                                           {(u.sponsorshipRemaining > 0) && (
+                                              <div className="flex items-center gap-2 mb-1">
+                                                  <span className="w-20 text-slate-500 flex items-center gap-1"><Award size={12} className="text-amber-500"/> Sponsors:</span> 
+                                                  <span className="font-medium text-slate-700">{formatCurrency(u.sponsorshipRemaining)}</span> 
                                               </div>
                                            )}
                                            <div className="flex items-center gap-2 mb-1">
