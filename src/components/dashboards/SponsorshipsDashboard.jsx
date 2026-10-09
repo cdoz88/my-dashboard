@@ -4,7 +4,7 @@ import CompanyLogo from '../shared/CompanyLogo';
 import { formatCurrency } from '../../utils/helpers';
 
 export default function SponsorshipsDashboard({ 
-  sponsorships, activeSponsorshipTab, openSponsorshipModal, handleDeleteSponsorship, companies, currentUser 
+  sponsorships, activeSponsorshipTab, openSponsorshipModal, handleDeleteSponsorship, companies, currentUser, users 
 }) {
   const getCompany = (id) => companies.find(c => c.id === id);
 
@@ -100,6 +100,21 @@ export default function SponsorshipsDashboard({
                                              )) : null}
                                              {(!sp.showTitles?.length && !sp.eventTitles?.length) && <span className="text-xs text-slate-400 italic">None assigned</span>}
                                          </div>
+                                         {currentUser?.isAdmin && sp.splits?.length > 0 && (
+                                             <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col gap-1">
+                                                 <span className="text-[10px] font-bold text-slate-400 uppercase">Creator Revenue Splits</span>
+                                                 <div className="flex flex-wrap gap-1.5">
+                                                     {sp.splits.map((split, idx) => {
+                                                         const u = users?.find(user => user.id === split.userId);
+                                                         return (
+                                                             <span key={idx} className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">
+                                                                 {u?.name || 'Unknown'}: {split.type === 'percentage' ? `${split.value}%` : formatCurrency(split.value)}
+                                                             </span>
+                                                         )
+                                                     })}
+                                                 </div>
+                                             </div>
+                                         )}
                                      </td>
                                      <td className="p-4">
                                         <div className="flex flex-wrap gap-1 mb-1.5">

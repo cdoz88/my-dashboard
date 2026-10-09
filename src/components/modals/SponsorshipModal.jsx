@@ -5,11 +5,16 @@ import { API_URL } from '../../utils/constants';
 export default function SponsorshipModal({
   editingSponsorship, setEditingSponsorship, handleSaveSponsorship, handleDeleteSponsorship, 
   setIsSponsorshipModalOpen, visibleCompanies, isUploading, handleSponsorshipLogoUpload, shows, events,
-  currentUser, handleSponsorshipAssetUpload, removeSponsorshipAsset
+  currentUser, handleSponsorshipAssetUpload, removeSponsorshipAsset, users
 }) {
   const [customElement, setCustomElement] = useState('');
   const standardElements = ['Show mention', 'Rookie guide', 'Event materials', 'Website ads'];
   
+  // New States for Split Management
+  const [splitUser, setSplitUser] = useState('');
+  const [splitType, setSplitType] = useState('percentage');
+  const [splitValue, setSplitValue] = useState('');
+
   const availableShowTitles = Array.from(new Set(shows.map(s => s.title))).filter(Boolean);
   const availableEventTitles = Array.from(new Set(events.map(e => e.title))).filter(Boolean);
 
@@ -38,6 +43,25 @@ export default function SponsorshipModal({
       const current = editingSponsorship.eventTitles || [];
       const updated = current.includes(title) ? current.filter(t => t !== title) : [...current, title];
       setEditingSponsorship({ ...editingSponsorship, eventTitles: updated });
+  };
+
+  const addSplit = () => {
+      if (!splitUser || !splitValue) return;
+      const current = editingSponsorship.splits || [];
+      setEditingSponsorship({ 
+          ...editingSponsorship, 
+          splits: [...current, { userId: splitUser, type: splitType, value: parseFloat(splitValue) }] 
+      });
+      setSplitUser('');
+      setSplitValue('');
+  };
+
+  const removeSplit = (idx) => {
+      const current = editingSponsorship.splits || [];
+      setEditingSponsorship({
+          ...editingSponsorship,
+          splits: current.filter((_, i) => i !== idx)
+      });
   };
 
   return (
@@ -149,6 +173,46 @@ export default function SponsorshipModal({
                     </div>
                 </div>
             </div>
+
+            {/* CREATOR REVENUE SPLITS */}
+            {currentUser?.isAdmin && (
+                <div className="pt-4 border-t border-slate-100">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Creator Revenue Splits</label>
+                    <div className="flex flex-wrap sm:flex-nowrap gap-2 mb-3">
+                        <select value={splitUser} onChange={e => setSplitUser(e.target.value)} className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                            <option value="">Select Creator...</option>
+                            {users?.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                        <select value={splitType} onChange={e => setSplitType(e.target.value)} className="w-full sm:w-36 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="flat">Flat Amount ($)</option>
+                        </select>
+                        <input type="number" step="0.01" value={splitValue} onChange={e => setSplitValue(e.target.value)} placeholder={splitType === 'percentage' ? 'e.g. 50' : 'e.g. 500.00'} className="w-full sm:w-32 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500" />
+                        <button type="button" onClick={addSplit} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors">Add</button>
+                    </div>
+                    {(editingSponsorship.splits || []).length > 0 && (
+                        <div className="space-y-2 max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            {editingSponsorship.splits.map((split, idx) => {
+                                const u = users?.find(user => user.id === split.userId);
+                                return (
+                                    <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                                        <span className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                            {u?.avatarUrl ? <img src={u.avatarUrl} className="w-5 h-5 rounded-full object-cover"/> : null}
+                                            {u?.name || 'Unknown User'}
+                                        </span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                                {split.type === 'percentage' ? `${split.value}%` : `$${parseFloat(split.value).toFixed(2)}`}
+                                            </span>
+                                            <button type="button" onClick={() => removeSplit(idx)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ONLY ADMINS SEE THE INTERNAL CONTACT DETAILS */}
             <div className={`grid grid-cols-1 ${currentUser?.isAdmin ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-4 pt-4 border-t border-slate-100`}>
