@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calculator, RefreshCw, Plus, UserCircle, ExternalLink, Briefcase, Youtube, Globe, Link as LinkIcon, History, Wallet, X, FileText, Award } from 'lucide-react';
 import { formatCurrency } from '../../../utils/helpers';
+import { API_URL } from '../../../utils/constants';
 
 const normalizePlaylistId = (input) => {
     if (!input) return '';
@@ -17,6 +18,7 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
+// Generates dynamic outbound payment links based on preferred method
 const getPaymentLink = (method, account) => {
     if (!account || !method) return null;
     let clean = account.trim();
@@ -33,13 +35,31 @@ export default function MainLedgerTab({
     wpLedgerData,
     payouts,
     salaries,
-    sponsorships, // <-- Ensure this is passed from LedgerDashboard.jsx
+    sponsorships: propSponsorships,
     isSyncingLedger,
     handleSyncLedger,
     openPayoutModal
 }) {
     const [historyModalItem, setHistoryModalItem] = useState(null);
+    const [fetchedSponsorships, setFetchedSponsorships] = useState([]);
 
+    // Failsafe: Fetch sponsorships directly if the parent dashboard doesn't pass them
+    useEffect(() => {
+        if (!propSponsorships) {
+            fetch(`${API_URL}?action=get_all`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.sponsorships) {
+                        setFetchedSponsorships(data.sponsorships);
+                    }
+                })
+                .catch(err => console.error("Error fetching sponsorships:", err));
+        }
+    }, [propSponsorships]);
+
+    const activeSponsorships = propSponsorships || fetchedSponsorships;
+
+    // --- UNIFIED CREATOR LEDGER LOGIC ---
     const unifiedLedger = users.map(user => {
         let ytEarned = 0; 
         let ytVideos = 0;
@@ -85,14 +105,16 @@ export default function MainLedgerTab({
             if (p.showId === user.id && p.transactionType === 'Stripe Commission') stripeEarned += parseFloat(p.amount || 0);
         });
 
+        // --- SALARY / BASE PAY CALCULATION ---
         let salaryEarned = 0;
         const userSalaries = (salaries || []).filter(s => s.userId === user.id);
         
         userSalaries.forEach(s => {
             const amt = parseFloat(s.amount || 0);
             if (!s.isRecurring) {
-                salaryEarned += amt;
+                salaryEarned += amt; // Flat rate one-time payment
             } else if (s.startDate) {
+                // Calculate how many periods have passed since startDate
                 const start = new Date(`${s.startDate}T12:00:00`);
                 const now = new Date();
                 
@@ -105,6 +127,7 @@ export default function MainLedgerTab({
                         years = Math.max(0, years + 1); 
                         salaryEarned += (amt * years);
                     } else {
+                        // Default to Monthly
                         let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
                         if (now.getDate() < start.getDate()) {
                             months--;
@@ -118,7 +141,7 @@ export default function MainLedgerTab({
 
         // --- SPONSORSHIP SPLITS CALCULATION ---
         let sponsorshipEarned = 0;
-        (sponsorships || []).forEach(sp => {
+        (activeSponsorships || []).forEach(sp => {
             if (sp.paymentStatus === 'Paid') {
                 let activeSplits = sp.splits;
                 if (typeof activeSplits === 'string') {
@@ -179,6 +202,7 @@ export default function MainLedgerTab({
     const currentUserUnified = unifiedLedger.find(u => u.id === currentUser?.id);
     const validHistoryIds = currentUser?.isAdmin ? payouts.map(p=>p.showId) : (currentUserUnified?.relatedIds || []);
     const visibleHistory = payouts.filter(p => validHistoryIds.includes(p.showId) && p.transactionType !== 'Stripe Commission');
+
 
     return (
       <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
