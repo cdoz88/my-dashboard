@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, RefreshCw, Plus, UserCircle, ExternalLink, Briefcase, Youtube, Globe, Link as LinkIcon, History, Wallet, X, FileText, Award } from 'lucide-react';
+import { Calculator, RefreshCw, Plus, UserCircle, ExternalLink, Briefcase, Youtube, Globe, Link as LinkIcon, History, Wallet, X, FileText, Award, Paperclip } from 'lucide-react';
 import { formatCurrency } from '../../../utils/helpers';
 import { API_URL } from '../../../utils/constants';
 
@@ -18,7 +18,6 @@ const normalizePlaylistId = (input) => {
     return id;
 };
 
-// Generates dynamic outbound payment links based on preferred method
 const getPaymentLink = (method, account) => {
     if (!account || !method) return null;
     let clean = account.trim();
@@ -43,7 +42,6 @@ export default function MainLedgerTab({
     const [historyModalItem, setHistoryModalItem] = useState(null);
     const [fetchedSponsorships, setFetchedSponsorships] = useState([]);
 
-    // Failsafe: Fetch sponsorships directly if the parent dashboard doesn't pass them
     useEffect(() => {
         if (!propSponsorships) {
             fetch(`${API_URL}?action=get_all`)
@@ -59,7 +57,6 @@ export default function MainLedgerTab({
 
     const activeSponsorships = propSponsorships || fetchedSponsorships;
 
-    // --- UNIFIED CREATOR LEDGER LOGIC ---
     const unifiedLedger = users.map(user => {
         let ytEarned = 0; 
         let ytVideos = 0;
@@ -105,16 +102,14 @@ export default function MainLedgerTab({
             if (p.showId === user.id && p.transactionType === 'Stripe Commission') stripeEarned += parseFloat(p.amount || 0);
         });
 
-        // --- SALARY / BASE PAY CALCULATION ---
         let salaryEarned = 0;
         const userSalaries = (salaries || []).filter(s => s.userId === user.id);
         
         userSalaries.forEach(s => {
             const amt = parseFloat(s.amount || 0);
             if (!s.isRecurring) {
-                salaryEarned += amt; // Flat rate one-time payment
+                salaryEarned += amt;
             } else if (s.startDate) {
-                // Calculate how many periods have passed since startDate
                 const start = new Date(`${s.startDate}T12:00:00`);
                 const now = new Date();
                 
@@ -127,7 +122,6 @@ export default function MainLedgerTab({
                         years = Math.max(0, years + 1); 
                         salaryEarned += (amt * years);
                     } else {
-                        // Default to Monthly
                         let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
                         if (now.getDate() < start.getDate()) {
                             months--;
@@ -139,7 +133,6 @@ export default function MainLedgerTab({
             }
         });
 
-        // --- SPONSORSHIP SPLITS CALCULATION ---
         let sponsorshipEarned = 0;
         (activeSponsorships || []).forEach(sp => {
             if (sp.paymentStatus === 'Paid') {
@@ -174,7 +167,6 @@ export default function MainLedgerTab({
         });
         const balance = totalEarned - paid - deducted;
 
-        // CASCADE PARTIAL PAYMENTS (Salaries -> Sponsorships -> YT -> Articles -> Stripe)
         let remainingPaid = paid;
 
         let salaryRemaining = Math.max(0, salaryEarned - remainingPaid);
@@ -397,7 +389,14 @@ export default function MainLedgerTab({
                                                )}
                                            </td>
                                            <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
-                                               {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
+                                               <div className="flex items-center gap-3">
+                                                   {p.notes ? <span className="flex items-center gap-1 truncate"><FileText size={12}/> {p.notes}</span> : '--'}
+                                                   {p.receiptUrl && (
+                                                       <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center gap-1 flex-shrink-0 w-fit font-bold" onClick={(e) => e.stopPropagation()}>
+                                                           <Paperclip size={12} /> View Receipt
+                                                       </a>
+                                                   )}
+                                               </div>
                                            </td>
                                        </tr>
                                    )
@@ -467,7 +466,14 @@ export default function MainLedgerTab({
                                              )}
                                          </td>
                                          <td className="p-4 text-xs text-slate-500 max-w-xs truncate" title={p.notes}>
-                                             {p.notes ? <span className="flex items-center gap-1"><FileText size={12}/> {p.notes}</span> : '--'}
+                                             <div className="flex items-center gap-3">
+                                                 {p.notes ? <span className="flex items-center gap-1 truncate"><FileText size={12}/> {p.notes}</span> : '--'}
+                                                 {p.receiptUrl && (
+                                                     <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex items-center gap-1 flex-shrink-0 w-fit font-bold" onClick={(e) => e.stopPropagation()}>
+                                                         <Paperclip size={12} /> View Receipt
+                                                     </a>
+                                                 )}
+                                             </div>
                                          </td>
                                      </tr>
                                  ));
