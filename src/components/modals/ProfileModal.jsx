@@ -1,12 +1,34 @@
-import React from 'react';
-import { X, UserCircle, Lock, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, UserCircle, Lock, LogOut, FileText, Trash2, ExternalLink } from 'lucide-react';
 
 export default function ProfileModal({
   profileForm, setProfileForm, handleSaveProfile, handleProfileImageUpload, isUploading, setIsProfileModalOpen, setLoggedInUserId
 }) {
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocUrl, setNewDocUrl] = useState('');
+
   const handleLogout = () => {
     setLoggedInUserId(null);
     setIsProfileModalOpen(false);
+  };
+
+  const handleAddDocumentLink = () => {
+      if (!newDocName.trim() || !newDocUrl.trim()) return;
+      const currentFiles = profileForm.files || [];
+      setProfileForm({
+          ...profileForm,
+          files: [...currentFiles, { name: newDocName.trim(), url: newDocUrl.trim() }]
+      });
+      setNewDocName('');
+      setNewDocUrl('');
+  };
+
+  const removeDocument = (indexToRemove) => {
+      const currentFiles = profileForm.files || [];
+      setProfileForm({
+          ...profileForm,
+          files: currentFiles.filter((_, idx) => idx !== indexToRemove)
+      });
   };
 
   return (
@@ -79,6 +101,36 @@ export default function ProfileModal({
               <label className="block text-sm font-medium text-slate-700 mb-1">Google Chat Webhook URL</label>
               <input type="url" value={profileForm.webhookUrl || ''} onChange={(e) => setProfileForm({...profileForm, webhookUrl: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://chat.googleapis.com/v1/spaces/..." />
             </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Private Documents (W-2, Contracts, etc.)</label>
+              
+              <div className="flex flex-wrap sm:flex-nowrap gap-2 mb-3">
+                <input type="text" placeholder="Name (e.g. W-2)" value={newDocName} onChange={e => setNewDocName(e.target.value)} className="w-full sm:w-1/3 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input type="url" placeholder="Google Drive / Secure Link" value={newDocUrl} onChange={e => setNewDocUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddDocumentLink(); } }} className="w-full flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <button type="button" onClick={handleAddDocumentLink} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors w-full sm:w-auto">Add</button>
+              </div>
+
+              {(profileForm.files || []).length > 0 && (
+                <div className="grid grid-cols-1 gap-2">
+                  {profileForm.files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 border border-slate-200 bg-slate-50 rounded-lg shadow-sm">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                          <FileText size={16} className="text-blue-500 flex-shrink-0" />
+                          <span className="text-sm font-medium text-slate-700 truncate" title={file.name}>{file.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                         <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-1 rounded hover:bg-blue-100 transition-colors flex items-center gap-1">
+                             <ExternalLink size={12} /> Open
+                         </a>
+                         <button type="button" onClick={() => removeDocument(index)} className="text-slate-400 hover:text-red-600 p-1 rounded transition-colors" title="Remove Link"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </form>
         </div>
 
