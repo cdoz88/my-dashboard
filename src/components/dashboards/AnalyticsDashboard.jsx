@@ -66,10 +66,11 @@ export default function AnalyticsDashboard({ analyticsProperties, activeAnalytic
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2"><LinkIcon size={16} className="text-slate-400"/> Top Performing Pages</h3>
                     </div>
-                    <div className="p-0 overflow-x-auto overflow-y-auto max-h-[600px] relative">
+                    <div className="p-0 overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                            <thead className="bg-slate-50/50 border-b border-slate-100">
                                 <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    <th className="p-4 w-12 text-center">#</th>
                                     <th className="p-4">Page Path</th>
                                     <th className="p-4 text-right">Views</th>
                                     <th className="p-4 text-right">Users</th>
@@ -78,12 +79,13 @@ export default function AnalyticsDashboard({ analyticsProperties, activeAnalytic
                             <tbody className="divide-y divide-slate-100">
                                 {topPages.length > 0 ? topPages.map((page, i) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                        <td className="p-4 text-center font-bold text-slate-400 text-xs">{i + 1}</td>
                                         <td className="p-4 font-medium text-slate-700 text-sm max-w-[250px] truncate" title={page.path}>{page.path}</td>
                                         <td className="p-4 text-right font-bold text-slate-800">{parseInt(page.views).toLocaleString()}</td>
                                         <td className="p-4 text-right text-slate-600">{parseInt(page.users).toLocaleString()}</td>
                                     </tr>
                                 )) : (
-                                    <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">No page data available for this timeframe.</td></tr>
+                                    <tr><td colSpan="4" className="p-8 text-center text-slate-400 italic">No page data available for this timeframe.</td></tr>
                                 )}
                             </tbody>
                         </table>
