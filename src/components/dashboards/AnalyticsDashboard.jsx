@@ -66,9 +66,9 @@ export default function AnalyticsDashboard({ analyticsProperties, activeAnalytic
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2"><LinkIcon size={16} className="text-slate-400"/> Top Performing Pages</h3>
                     </div>
-                    <div className="p-0 overflow-x-auto">
+                    <div className="p-0 overflow-x-auto overflow-y-auto max-h-[600px] relative">
                         <table className="w-full text-left">
-                            <thead className="bg-slate-50/50 border-b border-slate-100">
+                            <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                                 <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                     <th className="p-4">Page Path</th>
                                     <th className="p-4 text-right">Views</th>
