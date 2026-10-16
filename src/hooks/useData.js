@@ -33,7 +33,7 @@ export function useData({
   const [contacts, setContacts] = useState([]);
   const [passwords, setPasswords] = useState([]);
   const [payouts, setPayouts] = useState([]);
-  const [salaries, setSalaries] = useState([]); // NEW: Salary State
+  const [salaries, setSalaries] = useState([]); 
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
@@ -106,7 +106,6 @@ export function useData({
         if(data.passwords) setPasswords(data.passwords);
         if(data.payouts) setPayouts(data.payouts);
         
-        // NEW: Fetch Salaries Array
         if(data.salaries) setSalaries(data.salaries.map(s => ({ ...s, isRecurring: s.isRecurring == 1 || s.isRecurring === true })));
         
         if(data.activity_logs) setActivityLogs(Array.isArray(data.activity_logs) ? data.activity_logs : []); else setActivityLogs([]);
@@ -462,14 +461,20 @@ export function useData({
     setIsShowModalOpen(true);
   };
 
-  const handleArchiveSeries = (showToArchive) => {
-    if (!window.confirm(`Are you sure you want to end/archive this series? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
-    const episodesToArchive = shows.filter(s => { if (s.title !== showToArchive.originalTitle) return false; if (s.showTime !== showToArchive.originalShowTime) return false; const sDay = new Date(`${s.showDate}T12:00:00`).getDay(); if (sDay !== showToArchive.originalDayOfWeek) return false; return true; });
-    const updatedEpisodes = episodesToArchive.map(ep => ({ ...ep, status: 'Archived' }));
-    const nonSeriesShows = shows.filter(s => !episodesToArchive.some(ep => ep.id === s.id));
-    setShows([...nonSeriesShows, ...updatedEpisodes]);
-    sendToAPI('save_shows_batch', { shows: updatedEpisodes });
-    logActivity('Shows', 'Series Archived', `Archived series "${showToArchive.originalTitle}"`);
+  // --- FIXED: Accepts the title string and correctly filters/updates state instantly ---
+  const handleArchiveSeries = (seriesTitle) => {
+    if (!window.confirm(`Are you sure you want to end/archive the series "${seriesTitle}"? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
+    
+    // Update local state instantly 
+    const updatedShows = shows.map(s => 
+        s.title === seriesTitle ? { ...s, status: 'Archived' } : s
+    );
+    setShows(updatedShows);
+    
+    // Call the dedicated backend endpoint
+    sendToAPI('archive_series', { title: seriesTitle });
+    
+    logActivity('Shows', 'Series Archived', `Archived series "${seriesTitle}"`);
     setIsShowModalOpen(false);
   };
 
@@ -748,7 +753,6 @@ export function useData({
     setIsTeamModalOpen(false);
   };
 
-  // --- NEW ARCHIVE HANDLERS ---
   const handleArchiveUser = (user) => {
     if (!window.confirm(`Are you sure you want to archive ${user.name}? They will lose access to the platform until restored.`)) return;
     const updated = { ...user, isArchived: true };
@@ -821,7 +825,7 @@ export function useData({
     users, setUsers, companies, setCompanies, projects, setProjects, tasks, setTasks,
     expenses, setExpenses, events, setEvents, shows, setShows, sponsorships, setSponsorships,
     contacts, setContacts, passwords, setPasswords, payouts, setPayouts,
-    salaries, setSalaries, // <-- NEW EXPORT
+    salaries, setSalaries, 
     globalChecklist, setGlobalChecklist, activityLogs, setActivityLogs, wpLedgerData, setWpLedgerData,
     youtubeChannels, setYoutubeChannels, spreakerShows, setSpreakerShows, analyticsProperties, setAnalyticsProperties,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
