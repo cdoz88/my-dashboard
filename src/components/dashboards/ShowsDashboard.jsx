@@ -181,7 +181,7 @@ export default function ShowsDashboard({
                                          ) : <span className="text-xs text-slate-400 italic">No link</span>}
                                      </td>
                                      <td className="p-4 text-right">
-                                         <button onClick={() => handleDeleteShow(show.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 size={16}/></button>
+                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteShow(show.id); }} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 size={16}/></button>
                                      </td>
                                  </tr>
                              )
