@@ -33,7 +33,7 @@ export function useData({
   const [contacts, setContacts] = useState([]);
   const [passwords, setPasswords] = useState([]);
   const [payouts, setPayouts] = useState([]);
-  const [salaries, setSalaries] = useState([]); 
+  const [salaries, setSalaries] = useState([]);
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
@@ -461,20 +461,27 @@ export function useData({
     setIsShowModalOpen(true);
   };
 
-  // --- FIXED: Accepts the title string and correctly filters/updates state instantly ---
-  const handleArchiveSeries = (seriesTitle) => {
-    if (!window.confirm(`Are you sure you want to end/archive the series "${seriesTitle}"? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
-    
-    // Update local state instantly 
+  // --- ARCHIVE SERIES HANDLER ---
+  const handleArchiveSeries = (showParam) => {
+    const targetTitle = typeof showParam === 'object' 
+      ? (showParam.originalTitle || showParam.title) 
+      : showParam;
+
+    if (!targetTitle) return;
+
+    if (!window.confirm(`Are you sure you want to end/archive the series "${targetTitle}"? It will be removed from the Schedule but remain on the Payout Ledger.`)) return;
+
+    // 1. Update React state immediately so it vanishes from the schedule
     const updatedShows = shows.map(s => 
-        s.title === seriesTitle ? { ...s, status: 'Archived' } : s
+      s.title === targetTitle ? { ...s, status: 'Archived' } : s
     );
     setShows(updatedShows);
-    
-    // Call the dedicated backend endpoint
-    sendToAPI('archive_series', { title: seriesTitle });
-    
-    logActivity('Shows', 'Series Archived', `Archived series "${seriesTitle}"`);
+
+    // 2. Persist to MySQL Database
+    sendToAPI('archive_series', { title: targetTitle });
+
+    // 3. Log Activity & Close Modal
+    logActivity('Shows', 'Series Archived', `Archived series "${targetTitle}"`);
     setIsShowModalOpen(false);
   };
 
@@ -825,7 +832,7 @@ export function useData({
     users, setUsers, companies, setCompanies, projects, setProjects, tasks, setTasks,
     expenses, setExpenses, events, setEvents, shows, setShows, sponsorships, setSponsorships,
     contacts, setContacts, passwords, setPasswords, payouts, setPayouts,
-    salaries, setSalaries, 
+    salaries, setSalaries,
     globalChecklist, setGlobalChecklist, activityLogs, setActivityLogs, wpLedgerData, setWpLedgerData,
     youtubeChannels, setYoutubeChannels, spreakerShows, setSpreakerShows, analyticsProperties, setAnalyticsProperties,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,

@@ -38,7 +38,7 @@ export default function ShowModal({
           
           {isSeriesEdit && (
               <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-200 mb-5 text-sm font-medium">
-                  You are editing the Master List series. Changes made here will bulk-update all upcoming episodes of <b>"{editingShow.originalTitle}"</b>.
+                  You are editing the Master List series. Changes made here will bulk-update all upcoming episodes of <b>"{editingShow.originalTitle || editingShow.title}"</b>.
               </div>
           )}
             
@@ -170,9 +170,9 @@ export default function ShowModal({
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 flex-shrink-0">
           {editingShow.id && (
              isSeriesEdit ? (
-                <button type="button" onClick={() => { handleArchiveSeries(editingShow.originalTitle || editingShow.title); setIsShowModalOpen(false); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">End Series (Archive)</button>
+                <button type="button" onClick={() => handleArchiveSeries(editingShow)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">End Series (Archive)</button>
              ) : (
-                <button type="button" onClick={() => { handleDeleteShow(editingShow.id); setIsShowModalOpen(false); }} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete Episode</button>
+                <button type="button" onClick={() => handleDeleteShow(editingShow.id)} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium mr-auto">Delete Episode</button>
              )
           )}
           <button type="button" onClick={() => setIsShowModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancel</button>
