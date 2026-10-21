@@ -33,7 +33,7 @@ export function useData({
   const [contacts, setContacts] = useState([]);
   const [passwords, setPasswords] = useState([]);
   const [payouts, setPayouts] = useState([]);
-  const [salaries, setSalaries] = useState([]);
+  const [salaries, setSalaries] = useState([]); 
   const [globalChecklist, setGlobalChecklist] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [wpLedgerData, setWpLedgerData] = useState([]);
@@ -461,7 +461,6 @@ export function useData({
     setIsShowModalOpen(true);
   };
 
-  // --- ARCHIVE SERIES HANDLER ---
   const handleArchiveSeries = (showParam) => {
     const targetTitle = typeof showParam === 'object' 
       ? (showParam.originalTitle || showParam.title) 
@@ -483,6 +482,22 @@ export function useData({
     // 3. Log Activity & Close Modal
     logActivity('Shows', 'Series Archived', `Archived series "${targetTitle}"`);
     setIsShowModalOpen(false);
+  };
+
+  const handleRestoreSeries = (seriesTitle) => {
+    if (!window.confirm(`Are you sure you want to restore the series "${seriesTitle}"? All episodes will be added back to the active Schedule.`)) return;
+    const updatedShows = shows.map(s => 
+      s.title === seriesTitle ? { ...s, status: 'Active' } : s
+    );
+    setShows(updatedShows);
+    sendToAPI('restore_series', { title: seriesTitle });
+    logActivity('Shows', 'Series Restored', `Restored series "${seriesTitle}"`);
+  };
+
+  const handlePermanentDeleteSeries = (seriesTitle) => {
+    setShows(shows.filter(s => s.title !== seriesTitle));
+    sendToAPI('delete_series', { title: seriesTitle });
+    logActivity('Shows', 'Series Deleted', `Permanently deleted series "${seriesTitle}"`);
   };
 
   const handleSaveShow = (e) => {
@@ -832,7 +847,7 @@ export function useData({
     users, setUsers, companies, setCompanies, projects, setProjects, tasks, setTasks,
     expenses, setExpenses, events, setEvents, shows, setShows, sponsorships, setSponsorships,
     contacts, setContacts, passwords, setPasswords, payouts, setPayouts,
-    salaries, setSalaries,
+    salaries, setSalaries, 
     globalChecklist, setGlobalChecklist, activityLogs, setActivityLogs, wpLedgerData, setWpLedgerData,
     youtubeChannels, setYoutubeChannels, spreakerShows, setSpreakerShows, analyticsProperties, setAnalyticsProperties,
     currentUser, visibleCompanies, visibleProjects, visibleTasks, canViewPasswordsApp,
@@ -841,7 +856,7 @@ export function useData({
     openPayoutModal, handleSavePayout, openTaskModal, handleToggleSubscribe, handleSaveTask, handleDeleteTask,
     handleToggleTaskStatus, handleAddComment, openExpenseModal, handleSaveExpense, handleDeleteExpense,
     openDomainModal, handleSaveDomain, openEventModal, handleSaveEvent, handleDeleteEvent, openShowModal,
-    handleArchiveSeries, handleSaveShow, handleDeleteShow, openSponsorshipModal, handleSaveSponsorship,
+    handleArchiveSeries, handleRestoreSeries, handlePermanentDeleteSeries, handleSaveShow, handleDeleteShow, openSponsorshipModal, handleSaveSponsorship,
     handleDeleteSponsorship, handleSponsorshipAssetUpload, removeSponsorshipAsset, openContactModal,
     handleSaveContact, handleDeleteContact, openPasswordModal, handleSavePassword, handleDeletePassword,
     openTeamModal, openCompanyModal, toggleCompanyUser, handleSaveCompany, handleDeleteCompany,

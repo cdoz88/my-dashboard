@@ -61,7 +61,7 @@ export default function TeamDirectoryView({
       
       // Calculate shows for this specific user, storing the channel ID so we can get its color
       const userUniqueShowsMap = new Map();
-      (shows || []).filter(s => s.userIds?.includes(user.id)).forEach(s => {
+      (shows || []).filter(s => s.userIds?.includes(user.id) && s.status !== 'Archived').forEach(s => {
           if (!userUniqueShowsMap.has(s.title)) {
               userUniqueShowsMap.set(s.title, s.channelId);
           }
@@ -196,7 +196,7 @@ export default function TeamDirectoryView({
             {filteredUsers.map(user => {
               
               const userUniqueShowsMap = new Map();
-              (shows || []).filter(s => s.userIds?.includes(user.id)).forEach(s => {
+              (shows || []).filter(s => s.userIds?.includes(user.id) && s.status !== 'Archived').forEach(s => {
                   if (!userUniqueShowsMap.has(s.title)) {
                       userUniqueShowsMap.set(s.title, s.channelId);
                   }

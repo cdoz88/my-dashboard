@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2, Award, LayoutGrid, Youtube } from 'lucide-react';
+import { Tv, MonitorPlay, ChevronLeft, ChevronRight, Link as LinkIcon, Radio, Trash2, Award, LayoutGrid, Youtube, Archive, RotateCcw } from 'lucide-react';
 import { colorStyles } from '../../utils/constants';
 
 export default function ShowsDashboard({ 
   shows, sponsorships, activeShowTab, showDisplayMode, 
-  openShowModal, handleDeleteShow, youtubeChannels, users 
+  openShowModal, handleDeleteShow, handleRestoreSeries, handlePermanentDeleteSeries, youtubeChannels, users 
 }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [studioFilter, setStudioFilter] = useState('All');
+  const [showArchived, setShowArchived] = useState(false);
 
   const getChannel = (id) => youtubeChannels.find(c => c.id === id);
   const getUser = (id) => users.find(u => u.id === id);
 
   let viewShows = activeShowTab === 'overview' ? shows : shows.filter(s => s.channelId === activeShowTab);
   
-  // Exclude archived series from the schedule view
   viewShows = viewShows.filter(s => s.status !== 'Archived');
 
   if (studioFilter !== 'All') {
@@ -23,10 +23,8 @@ export default function ShowsDashboard({
   
   const currentChannel = activeShowTab === 'overview' ? null : getChannel(activeShowTab);
 
-  // --- WEEKLY CALENDAR LOGIC ---
   const startOfWeek = new Date(currentDate);
   const day = startOfWeek.getDay();
-  // Adjust to Monday as start of week (if Sunday, go back 6 days. Otherwise, go back day - 1)
   const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
   startOfWeek.setDate(diff);
   startOfWeek.setHours(0, 0, 0, 0);
@@ -52,7 +50,6 @@ export default function ShowsDashboard({
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-  // Helper to ensure YYYY-MM-DD formatting in local time
   const formatDateStr = (d) => {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
@@ -77,8 +74,6 @@ export default function ShowsDashboard({
                        const channel = getChannel(show.channelId);
                        const cColor = channel?.color || 'slate';
                        const colorClasses = `${colorStyles[cColor]?.bg} ${colorStyles[cColor]?.border} ${colorStyles[cColor]?.text}`;
-                       
-                       // Check if this show has any active sponsorships assigned to it
                        const hasSponsor = sponsorships.some(sp => (sp.showTitles || []).includes(show.title));
 
                        return (
@@ -194,7 +189,6 @@ export default function ShowsDashboard({
   };
 
   const renderList = () => {
-      // Group by Title AND Time AND Day of Week so different schedules of the same show aren't merged together!
       const uniqueMap = new Map();
       viewShows.forEach(s => {
           const dateObj = new Date(`${s.showDate}T12:00:00`);
@@ -280,6 +274,65 @@ export default function ShowsDashboard({
       );
   };
 
+  const renderArchivedShows = () => {
+      const archivedShows = shows.filter(s => s.status === 'Archived');
+      const uniqueMap = new Map();
+      archivedShows.forEach(s => {
+          if (!uniqueMap.has(s.title)) uniqueMap.set(s.title, s);
+      });
+      const uniqueArchivedSeries = Array.from(uniqueMap.values()).sort((a, b) => a.title.localeCompare(b.title));
+
+      return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+             {uniqueArchivedSeries.length === 0 ? (
+                 <div className="p-12 text-center flex flex-col items-center">
+                    <Archive size={48} className="text-slate-300 mb-4" />
+                    <p className="text-slate-500 font-medium">No archived shows found.</p>
+                 </div>
+             ) : (
+                 <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Series Title</th>
+                            <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Channel</th>
+                            <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {uniqueArchivedSeries.map(show => {
+                            const channel = getChannel(show.channelId);
+                            return (
+                                <tr key={show.id} className="hover:bg-slate-50 transition-colors group">
+                                    <td className="p-4">
+                                        <div className="font-bold text-slate-700 flex items-center gap-2">
+                                            <Tv size={16} className="text-slate-400" /> {show.title}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-sm font-medium text-slate-600">
+                                        <div className="flex items-center gap-1.5">
+                                            <Youtube size={14} className={`text-${channel?.color || 'red'}-500`} /> {channel?.name || 'Unknown Channel'}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button onClick={() => handleRestoreSeries(show.title)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Restore Series">
+                                                <RotateCcw size={16} />
+                                            </button>
+                                            <button onClick={() => { if(window.confirm(`Permanently delete "${show.title}" and ALL of its episodes? This cannot be undone.`)) handlePermanentDeleteSeries(show.title); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Permanently Delete">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                 </table>
+             )}
+          </div>
+      );
+  };
+
   return (
     <div className="p-4 sm:p-8 h-full flex flex-col w-full bg-slate-50/50 overflow-y-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
@@ -292,38 +345,54 @@ export default function ShowsDashboard({
         </div>
         
         <div className="flex items-center gap-3">
-           <label className="text-sm font-medium text-slate-600">Studio:</label>
-           <select value={studioFilter} onChange={(e) => setStudioFilter(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm">
-              <option value="All">All Studios</option>
-              <option value="Studio 1">Studio 1</option>
-              <option value="Studio 2">Studio 2</option>
-              <option value="Studio 3">Studio 3</option>
-              <option value="Studio 4">Studio 4</option>
-              <option value="Streamyard">Streamyard</option>
-           </select>
+           <button
+              onClick={() => setShowArchived(!showArchived)}
+              className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm transition-colors border ${showArchived ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'}`}
+           >
+              <Archive size={16} className={showArchived ? "text-amber-500" : "text-slate-500"} />
+              {showArchived ? 'Viewing Archived' : 'View Archived'}
+           </button>
+
+           {!showArchived && (
+               <>
+                 <label className="text-sm font-medium text-slate-600 ml-2 hidden sm:block">Studio:</label>
+                 <select value={studioFilter} onChange={(e) => setStudioFilter(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 shadow-sm">
+                    <option value="All">All Studios</option>
+                    <option value="Studio 1">Studio 1</option>
+                    <option value="Studio 2">Studio 2</option>
+                    <option value="Studio 3">Studio 3</option>
+                    <option value="Studio 4">Studio 4</option>
+                    <option value="Streamyard">Streamyard</option>
+                 </select>
+               </>
+           )}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col">
-        {showDisplayMode === 'calendar' && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col flex-1 min-h-[600px] overflow-hidden">
-                <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                    <h3 className="text-lg font-bold text-slate-800">
-                        Week of {startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric'})}
-                    </h3>
-                    <div className="flex gap-2">
-                        <button onClick={prevWeek} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronLeft size={20} /></button>
-                        <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 hover:bg-slate-100 rounded-lg text-sm font-bold text-slate-600 transition-colors">Today</button>
-                        <button onClick={nextWeek} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronRight size={20} /></button>
+        {showArchived ? renderArchivedShows() : (
+            <>
+                {showDisplayMode === 'calendar' && (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col flex-1 min-h-[600px] overflow-hidden">
+                        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                            <h3 className="text-lg font-bold text-slate-800">
+                                Week of {startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric'})}
+                            </h3>
+                            <div className="flex gap-2">
+                                <button onClick={prevWeek} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronLeft size={20} /></button>
+                                <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1.5 hover:bg-slate-100 rounded-lg text-sm font-bold text-slate-600 transition-colors">Today</button>
+                                <button onClick={nextWeek} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"><ChevronRight size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-7 border border-slate-200 rounded-lg overflow-x-auto flex-1 min-w-[800px]">
+                            {renderWeeklyCalendar()}
+                        </div>
                     </div>
-                </div>
-                <div className="grid grid-cols-7 border border-slate-200 rounded-lg overflow-x-auto flex-1 min-w-[800px]">
-                    {renderWeeklyCalendar()}
-                </div>
-            </div>
+                )}
+                {showDisplayMode === 'timeline' && renderTimeline()}
+                {showDisplayMode === 'list' && renderList()}
+            </>
         )}
-        {showDisplayMode === 'timeline' && renderTimeline()}
-        {showDisplayMode === 'list' && renderList()}
       </div>
     </div>
   );
